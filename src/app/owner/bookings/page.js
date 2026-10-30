@@ -27,6 +27,7 @@ import {
 import { checkoutBooking, getOwnerBooking } from "@/lib/api";
 import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
 import CctvBadge from "@/components/CctvBadge";
+import WalkBookingLink from "@/components/walk/WalkBookingLink";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PAGE_SIZE = 5; // แสดง booking แค่ 5 การ์ดล่าสุดต่อหน้า ที่เหลือกดเปลี่ยนหน้าดูผ่าน Pagination
@@ -811,6 +812,12 @@ export default function BookingHistoryPage() {
                           Your pet is already in Pet Sitter care!
                         </span>
                         <div className="flex items-center gap-4">
+                          <WalkBookingLink
+                            booking={booking}
+                            role="owner"
+                            className="btn btn-secondary flex-1 sm:flex-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
                           <button
                             onClick={(e) => openSitterChat(e, booking)}
                             className="btn btn-primary flex-1 sm:flex-none"
@@ -844,6 +851,12 @@ export default function BookingHistoryPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
+                          <WalkBookingLink
+                            booking={booking}
+                            role="owner"
+                            className="btn btn-secondary flex-1 sm:flex-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
                           <button
                             onClick={(e) => { e.stopPropagation(); openReportModal(booking); }}
                             className="btn btn-ghost shrink-0"
@@ -999,6 +1012,11 @@ export default function BookingHistoryPage() {
                 <span className="text-body-2" style={{ color: "#3A3B46" }}>{selectedBooking.pet_names || "-"}</span>
               </div>
 
+              <WalkBookingLink
+                booking={selectedBooking}
+                role="owner"
+                className="btn btn-primary w-fit"
+              />
               {bookingChatHref(selectedBooking) ? (
                 <button
                   type="button"

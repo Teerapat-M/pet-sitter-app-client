@@ -423,6 +423,50 @@ export async function updateSitterBookingStatus(id, status) {
   return json.data;
 }
 
+export async function startWalk(bookingId) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(bookingId)}/walk/start`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function postWalkPoints(bookingId, body) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(bookingId)}/walk/points`,
+    { method: "POST", body },
+  );
+  return json.data;
+}
+
+export async function endWalk(bookingId) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(bookingId)}/walk/end`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function getWalk(bookingId) {
+  const json = await apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}/walk`);
+  return json.data ?? null;
+}
+
+export async function getWalkPoints(bookingId, { afterId, limit = 2000 } = {}) {
+  const params = new URLSearchParams();
+  if (afterId != null && afterId !== "") params.set("afterId", String(afterId));
+  if (limit) params.set("limit", String(limit));
+  const query = params.toString();
+  const json = await apiFetch(
+    `/api/bookings/${encodeURIComponent(bookingId)}/walk/points${query ? `?${query}` : ""}`,
+  );
+  return json.data;
+}
+
+export function walkEventsPath(bookingId) {
+  return `/api/bookings/${encodeURIComponent(bookingId)}/walk/events`;
+}
+
 // บันทึกโปรไฟล์
 export async function updateProfile({
   name,

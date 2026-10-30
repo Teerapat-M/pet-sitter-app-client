@@ -443,7 +443,7 @@
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
     border: 1px solid var(--psp-line);
-    @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-lg motion-reduce:transform-none motion-reduce:translate-none motion-reduce:transition-none;
+    @apply hover:shadow-lg motion-safe:transition-all motion-safe:duration-200 motion-safe:hover:-translate-y-1;
   }
 
   .avatar {

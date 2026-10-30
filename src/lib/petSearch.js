@@ -1,9 +1,8 @@
 /**
  * Home/find-sitter pet picker helpers.
  *
- * The server stores a `pet_types` catalog (Dog, Cat, Bird, Rabbit) but has no
- * public GET route yet (`/api/pet-types` 404s). The client still tries that
- * endpoint and falls back to this list, which matches the DB seed.
+ * Pet types come from GET /api/pet-types. FALLBACK_PET_TYPES matches the
+ * server seed (Dog, Cat, Bird, Rabbit) if that request fails.
  */
 
 export const PET_TYPES_ENDPOINT = "/api/pet-types";
@@ -154,6 +153,17 @@ export function formatSearchCompactSummary({
   const pets = formatPetsSummary(counts, types);
   if (pets) parts.push(pets);
   return parts.join(" · ");
+}
+
+export function formatSitterResultsHeading({
+  count = 0,
+  serviceLabel = "sitters",
+  location = "",
+} = {}) {
+  const n = Number(count) || 0;
+  const service = String(serviceLabel || "sitters").toLowerCase();
+  const place = String(location ?? "").trim();
+  return place ? `${n} ${service} near ${place}` : `${n} ${service}`;
 }
 
 export function serializePetSearchQuery({

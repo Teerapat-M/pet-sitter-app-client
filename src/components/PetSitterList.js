@@ -16,6 +16,7 @@ import {
     FALLBACK_PET_TYPES,
     countsFromSearchParams,
     formatPetsSummary,
+    formatSitterResultsHeading,
     parsePetCounts,
 } from "@/lib/petSearch";
 
@@ -239,7 +240,7 @@ export default function PetSitterList() {
         router.push(queryString ? `/find-sitter?${queryString}` : "/find-sitter");
     };
 
-    const locationLabel = searchParams.get("q") || "Ari, Bangkok";
+    const locationLabel = String(searchParams.get("q") ?? "").trim();
     const dateLabel = searchParams.get("date") || "Any dates";
     const petsLabel =
         searchParams.get("pets") ||
@@ -267,7 +268,7 @@ export default function PetSitterList() {
                     />
                 </div>
                 <p className="mt-3 hidden text-caption text-ink-400 md:block">
-                    {locationLabel} · {dateLabel} · {petsLabel}
+                    {[locationLabel, dateLabel, petsLabel].filter(Boolean).join(" · ")}
                 </p>
 
                 <div className={`mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr] ${
@@ -412,7 +413,11 @@ export default function PetSitterList() {
                 >
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                         <p className="text-h4">
-                            {total || sitters.length} {serviceLabel.toLowerCase()} near {locationLabel}
+                            {formatSitterResultsHeading({
+                                count: total || sitters.length,
+                                serviceLabel,
+                                location: locationLabel,
+                            })}
                         </p>
                         <div className="flex items-center gap-2">
                             <button

@@ -5,6 +5,7 @@ import {
   countsFromSearchParams,
   formatPetsSummary,
   formatSearchCompactSummary,
+  formatSitterResultsHeading,
   parsePetCounts,
   parsePetsSummary,
   serializePetSearchQuery,
@@ -54,6 +55,22 @@ test("compact search summary omits empty fields", () => {
     }),
     "Ari, Bangkok · 14 Nov · 2 dogs, 1 cat",
   );
+});
+
+test("sitter results heading omits location suffix when empty", () => {
+  assert.equal(
+    formatSitterResultsHeading({
+      count: 12,
+      serviceLabel: "Sitters",
+      location: "Ari, Bangkok",
+    }),
+    "12 sitters near Ari, Bangkok",
+  );
+  assert.equal(
+    formatSitterResultsHeading({ count: 8, serviceLabel: "Sitters", location: "" }),
+    "8 sitters",
+  );
+  assert.equal(formatSitterResultsHeading({ count: 3 }), "3 sitters");
 });
 
 test("petCounts and summary strings round-trip", () => {

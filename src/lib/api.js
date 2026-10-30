@@ -96,7 +96,7 @@ export async function getPetTypes() {
     const types = normalizePetTypeList(json);
     if (types.length) return types;
   } catch {
-    // Server has a pet_types table but no public catalog route yet.
+    // Keep seeded types if the catalog request fails.
   }
   return FALLBACK_PET_TYPES;
 }

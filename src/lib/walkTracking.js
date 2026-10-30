@@ -191,8 +191,10 @@ export function lastPointAt(points = [], walk) {
 
 export function formatWalkDuration(seconds) {
   const value = Number(seconds);
-  if (!Number.isFinite(value) || value < 0) return "0 min";
-  const minutes = Math.max(value > 0 ? 1 : 0, Math.round(value / 60));
+  if (!Number.isFinite(value) || value < 0) return "0 s";
+  const whole = Math.round(value);
+  if (whole < 60) return `${whole} s`;
+  const minutes = Math.round(whole / 60);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
@@ -201,8 +203,7 @@ export function formatWalkDuration(seconds) {
 
 export function formatWalkSummary({ distanceM = 0, durationS = 0 } = {}) {
   const km = (Number(distanceM) / 1000).toFixed(2);
-  const minutes = Math.max(1, Math.round(Number(durationS) / 60) || 1);
-  return `${km} km in ${minutes} min`;
+  return `${km} km in ${formatWalkDuration(durationS)}`;
 }
 
 export function formatWalkClock(iso) {

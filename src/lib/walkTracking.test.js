@@ -35,10 +35,15 @@ test("distance and duration formatters match walk summary copy", () => {
   assert.equal(formatWalkDistance(2100), "2.10 km");
   assert.equal(formatWalkStatDistance(2400), "2.4 km");
   assert.equal(formatWalkStatDistance(4100), "4.1 km");
-  assert.equal(formatWalkDuration(42), "1 min");
+  assert.equal(formatWalkDuration(0), "0 s");
+  assert.equal(formatWalkDuration(20), "20 s");
+  assert.equal(formatWalkDuration(42), "42 s");
+  assert.equal(formatWalkDuration(59), "59 s");
+  assert.equal(formatWalkDuration(60), "1 min");
   assert.equal(formatWalkDuration(420), "7 min");
   assert.equal(formatWalkDuration(2760), "46 min");
   assert.equal(formatWalkDuration(3720), "1h 2m");
+  assert.equal(formatWalkSummary({ distanceM: 60, durationS: 20 }), "0.06 km in 20 s");
   assert.equal(formatWalkSummary({ distanceM: 2100, durationS: 2760 }), "2.10 km in 46 min");
   assert.equal(formatWalkElapsed(1934), "32:14");
   assert.equal(formatWalkElapsed(3520), "58:40");
@@ -52,6 +57,13 @@ test("distance and duration formatters match walk summary copy", () => {
   );
   assert.equal(firstPetName({ pet_names: "Bobo, Milo" }), "Bobo");
   assert.equal(walkDurationMinutes({ duration: 60, duration_unit: "walk" }), 60);
+});
+
+test("short walks show seconds in duration (under 1 min)", () => {
+  assert.equal(formatWalkDuration(20), "20 s");
+  assert.equal(formatWalkDuration(59.4), "59 s");
+  assert.equal(formatWalkDuration(60), "1 min");
+  assert.equal(formatWalkSummary({ distanceM: 60, durationS: 20 }), "0.06 km in 20 s");
 });
 
 test("path distance is haversine along the trail", () => {

@@ -322,6 +322,102 @@ export function emptyWalkView() {
   };
 }
 
+export const OWNER_WALK_WAITING_LABEL = "Waiting for walk to start";
+export const OWNER_WALK_LIVE_LABEL = "Walk in progress";
+
+export function emptyWalkHistory() {
+  return { walk: null, points: [], summary: null, missing: true };
+}
+
+export function isNotFoundStatus(error) {
+  return Number(error?.status) === 404;
+}
+
+export function walkHasStarted(walk) {
+  const status = String(walk?.status ?? "").toLowerCase();
+  return status === "live" || status === "started" || status === "ended";
+}
+
+/**
+ * Owner booking-detail banner/timeline: in_service is not "live"
+ * until the walk record itself is started.
+ */
+export function ownerWalkProgressState({ bookingStatus, walkStatus } = {}) {
+  const booking = String(bookingStatus ?? "").toLowerCase();
+  const walk = String(walkStatus ?? "").toLowerCase();
+  if (walk === "ended" || booking === "completed" || booking === "success") {
+    return "ended";
+  }
+  if (walk === "live" || walk === "started") return "live";
+  if (booking === "in_service") return "waiting";
+  return "idle";
+}
+
+export function ownerWalkProgressCopy(state) {
+  if (state === "waiting") return OWNER_WALK_WAITING_LABEL;
+  if (state === "live") return OWNER_WALK_LIVE_LABEL;
+  return "";
+}
+
+/**
+ * Load walk trail without hitting GET /walk/points until a walk exists.
+ * 404 from GET /walk or GET /walk/points is empty history, never an error.
+ */
+export async function loadWalkHistory(
+  bookingId,
+  { getWalk, getWalkPoints, knownWalk } = {},
+) {
+  if (!bookingId) return emptyWalkHistory();
+
+  let walk = knownWalk ?? null;
+  if (!walkHasStarted(walk) && typeof getWalk === "function") {
+    try {
+      walk = (await getWalk(bookingId)) ?? walk;
+    } catch (error) {
+      if (isNotFoundStatus(error)) return emptyWalkHistory();
+      throw error;
+    }
+  }
+
+  if (!walkHasStarted(walk)) {
+    return {
+      walk: walk ?? null,
+      points: [],
+      summary: walk?.summary ?? null,
+      missing: !walk,
+    };
+  }
+
+  if (typeof getWalkPoints !== "function") {
+    return {
+      walk,
+      points: walk.lastPoint ? [walk.lastPoint] : [],
+      summary: walk.summary ?? null,
+      missing: false,
+    };
+  }
+
+  try {
+    const trail = await getWalkPoints(bookingId, { limit: 2000 });
+    return {
+      walk: trail?.walk ?? walk,
+      points: trail?.points ?? (walk.lastPoint ? [walk.lastPoint] : []),
+      summary: trail?.summary ?? walk.summary ?? null,
+      missing: false,
+    };
+  } catch (error) {
+    if (isNotFoundStatus(error)) {
+      return {
+        walk,
+        points: walk.lastPoint ? [walk.lastPoint] : [],
+        summary: walk.summary ?? null,
+        missing: false,
+      };
+    }
+    throw error;
+  }
+}
+
 export function mergeWalkPoints(existing = [], incoming = []) {
   const map = new Map();
   for (const point of [...existing, ...incoming]) {

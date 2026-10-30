@@ -7,21 +7,26 @@ import {
   WALK_RETRY_MS,
   applyWalkEvent,
   emptyWalkView,
+  loadWalkHistory,
   mergeWalkPoints,
   parseSseFrames,
+  walkHasStarted,
 } from "@/lib/walkTracking";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function mergeHistory(view, history) {
   if (!history) return view;
+  if (history.missing) {
+    return view.status === "live" || view.status === "ended" ? view : emptyWalkView();
+  }
   const walk = history.walk ?? view.walk;
   const points = mergeWalkPoints(view.points, history.points ?? []);
   const summary = history.summary ?? walk?.summary;
   const status =
     walk?.status === "ended" || view.status === "ended"
       ? "ended"
-      : walk?.status === "live" || view.status === "live"
+      : walk?.status === "live" || walk?.status === "started" || view.status === "live"
         ? "live"
         : view.status;
   return {
@@ -46,39 +51,26 @@ export function useWalkEvents(bookingId, enabled) {
 
     let stopped = false;
     const abort = new AbortController();
+    let fetchedTrailKey = "";
 
-    async function loadHistory() {
+    async function loadHistory(knownWalk) {
       try {
-        const history = await getWalkPoints(bookingId, { limit: 2000 });
+        const seed = walkHasStarted(knownWalk)
+          ? knownWalk
+          : walkHasStarted(viewRef.current.walk)
+            ? viewRef.current.walk
+            : undefined;
+        const history = await loadWalkHistory(bookingId, {
+          getWalk,
+          getWalkPoints,
+          knownWalk: seed,
+        });
         if (stopped) return;
         setView((current) => mergeHistory(current, history));
         setError("");
       } catch (err) {
-        if (stopped || err?.status === 404) {
-          try {
-            const walk = await getWalk(bookingId);
-            if (stopped) return;
-            if (!walk) {
-              setView(emptyWalkView());
-              return;
-            }
-            setView((current) =>
-              mergeHistory(current, {
-                walk,
-                points: walk.lastPoint ? [walk.lastPoint] : [],
-                summary: walk.summary,
-              }),
-            );
-          } catch (inner) {
-            if (!stopped) {
-              setError(inner instanceof Error ? inner.message : "Could not load this walk");
-            }
-          }
-          return;
-        }
-        if (!stopped) {
-          setError(err instanceof Error ? err.message : "Could not load this walk");
-        }
+        if (stopped || err?.status === 404) return;
+        setError(err instanceof Error ? err.message : "Could not load this walk");
       }
     }
 
@@ -99,9 +91,9 @@ export function useWalkEvents(bookingId, enabled) {
             signal: abort.signal,
           });
           if (!res.ok || !res.body) {
-            const error = new Error(`Walk live stream failed (${res.status})`);
-            error.status = res.status;
-            throw error;
+            const streamError = new Error(`Walk live stream failed (${res.status})`);
+            streamError.status = res.status;
+            throw streamError;
           }
 
           setConnected(true);
@@ -118,8 +110,12 @@ export function useWalkEvents(bookingId, enabled) {
             buffer = parsed.rest;
             for (const event of parsed.events) {
               setView((current) => applyWalkEvent(current, event));
-              if (event.type === "ended") {
-                void loadHistory();
+              if (event.type === "live" || event.type === "started" || event.type === "ended") {
+                const key = `${event.type}:${event.walk?.id ?? bookingId}`;
+                if (event.type === "ended" || fetchedTrailKey !== key) {
+                  fetchedTrailKey = key;
+                  void loadHistory(event.walk);
+                }
               }
             }
           }
@@ -127,15 +123,20 @@ export function useWalkEvents(bookingId, enabled) {
         } catch (err) {
           if (stopped || abort.signal.aborted) return;
           setConnected(false);
-          if (err?.status === 400 || err?.status === 404) {
+          if (err?.status === 400) {
             setError(err instanceof Error ? err.message : "Walk tracking is not available");
             return;
+          }
+          if (err?.status === 404) {
+            await new Promise((resolve) => setTimeout(resolve, WALK_RETRY_MS));
+            continue;
           }
           await new Promise((resolve) => setTimeout(resolve, WALK_RETRY_MS));
         }
       }
     }
 
+    // Probe GET /walk first. Skip /walk/points until a walk exists; 404 is empty.
     void loadHistory();
     void connect();
 

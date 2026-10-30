@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  OWNER_WALK_LIVE_LABEL,
+  OWNER_WALK_WAITING_LABEL,
   WALK_FLUSH_MS,
   WALK_MAX_BATCH,
   addMinutesToClock,
@@ -16,11 +18,15 @@ import {
   formatWalkStatDistance,
   formatWalkSummary,
   isDogWalkingBooking,
+  loadWalkHistory,
+  ownerWalkProgressCopy,
+  ownerWalkProgressState,
   parseSseFrames,
   pathDistanceMeters,
   positionToPoint,
   shouldKeepClientPoint,
   walkDurationMinutes,
+  walkHasStarted,
 } from "./walkTracking.js";
 
 test("isDogWalkingBooking reads service_type and duration_unit walk", () => {
@@ -199,4 +205,94 @@ test("shouldKeepClientPoint enforces the 5-10s client interval", () => {
   assert.equal(shouldKeepClientPoint(null, a), true);
   assert.equal(shouldKeepClientPoint(a, b), false);
   assert.equal(shouldKeepClientPoint(a, c), true);
+});
+
+function notFound(message = "not found") {
+  const error = new Error(message);
+  error.status = 404;
+  return error;
+}
+
+test("loadWalkHistory skips /walk/points until a walk exists and treats 404 as empty", async () => {
+  const pointsCalls = [];
+  const missing = await loadWalkHistory("booking-1", {
+    getWalk: async () => {
+      throw notFound("Walk not found");
+    },
+    getWalkPoints: async () => {
+      pointsCalls.push("points");
+      throw new Error("GET /walk/points should not run before a walk exists");
+    },
+  });
+  assert.equal(missing.missing, true);
+  assert.equal(missing.walk, null);
+  assert.deepEqual(missing.points, []);
+  assert.equal(pointsCalls.length, 0);
+
+  const waitingWalk = await loadWalkHistory("booking-1", {
+    getWalk: async () => ({ id: "w1", status: "waiting" }),
+    getWalkPoints: async () => {
+      pointsCalls.push("points");
+      throw new Error("GET /walk/points should not run while the walk is waiting");
+    },
+  });
+  assert.equal(waitingWalk.missing, false);
+  assert.equal(waitingWalk.walk?.status, "waiting");
+  assert.deepEqual(waitingWalk.points, []);
+  assert.equal(pointsCalls.length, 0);
+  assert.equal(walkHasStarted(waitingWalk.walk), false);
+});
+
+test("loadWalkHistory fetches points after a walk exists and swallows points 404", async () => {
+  const live = await loadWalkHistory("booking-1", {
+    getWalk: async () => ({ id: "w1", status: "live", distanceM: 12 }),
+    getWalkPoints: async () => ({
+      walk: { id: "w1", status: "live" },
+      points: [{ lat: 13.7, lng: 100.5 }],
+      summary: { distanceM: 12, durationS: 20 },
+    }),
+  });
+  assert.equal(live.missing, false);
+  assert.equal(live.walk.id, "w1");
+  assert.equal(live.points.length, 1);
+
+  const emptyTrail = await loadWalkHistory("booking-1", {
+    knownWalk: { id: "w1", status: "live", lastPoint: { lat: 1, lng: 2 } },
+    getWalk: async () => {
+      throw new Error("getWalk should be skipped when knownWalk has started");
+    },
+    getWalkPoints: async () => {
+      throw notFound("No points yet");
+    },
+  });
+  assert.equal(emptyTrail.missing, false);
+  assert.equal(emptyTrail.walk.id, "w1");
+  assert.equal(emptyTrail.points.length, 1);
+  assert.equal(emptyTrail.points[0].lat, 1);
+});
+
+test("owner booking detail waits until the walk has started", () => {
+  assert.equal(
+    ownerWalkProgressState({ bookingStatus: "in_service", walkStatus: "waiting" }),
+    "waiting",
+  );
+  assert.equal(
+    ownerWalkProgressState({ bookingStatus: "in_service", walkStatus: "" }),
+    "waiting",
+  );
+  assert.equal(
+    ownerWalkProgressState({ bookingStatus: "in_service", walkStatus: "live" }),
+    "live",
+  );
+  assert.equal(
+    ownerWalkProgressState({ bookingStatus: "in_service", walkStatus: "started" }),
+    "live",
+  );
+  assert.equal(
+    ownerWalkProgressState({ bookingStatus: "completed", walkStatus: "ended" }),
+    "ended",
+  );
+  assert.equal(ownerWalkProgressCopy("waiting"), OWNER_WALK_WAITING_LABEL);
+  assert.equal(ownerWalkProgressCopy("live"), OWNER_WALK_LIVE_LABEL);
+  assert.equal(OWNER_WALK_WAITING_LABEL, "Waiting for walk to start");
 });

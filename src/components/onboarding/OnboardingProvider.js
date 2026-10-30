@@ -22,7 +22,6 @@ const AUTH_PREFIXES = [
   "/complete-profile",
   "/auth",
   "/admin",
-  "/walk-frames",
   "/owner/walks",
   "/sitter/walks",
 ];

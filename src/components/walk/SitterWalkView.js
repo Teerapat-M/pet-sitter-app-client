@@ -10,6 +10,7 @@ import {
   formatWalkDuration,
   formatWalkStatDistance,
   formatWalkSummary,
+  loadWalkHistory,
   walkAdditionalNote,
   walkDurationMinutes,
   walkFirstName,
@@ -86,17 +87,20 @@ export default function SitterWalkView({ booking, bookingId, backHref, preview }
   useEffect(() => {
     if (preview || !bookingId) return undefined;
     let cancelled = false;
-    Promise.all([
-      getWalk(bookingId).catch(() => null),
-      getWalkPoints(bookingId).catch(() => null),
-    ]).then(([walk, trail]) => {
-      if (cancelled) return;
-      setHistory({
-        walk: trail?.walk ?? walk,
-        points: trail?.points ?? (walk?.lastPoint ? [walk.lastPoint] : []),
-        summary: trail?.summary ?? walk?.summary,
+    loadWalkHistory(bookingId, { getWalk, getWalkPoints })
+      .then((history) => {
+        if (cancelled) return;
+        setHistory({
+          walk: history.walk,
+          points: history.points,
+          summary: history.summary,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHistory({ walk: null, points: [], summary: null });
+        }
       });
-    });
     return () => {
       cancelled = true;
     };

@@ -8,10 +8,14 @@ import { WalkBadge, WalkTrailThumb, liveElapsedSeconds, useNow } from "@/compone
 import { useWalkEvents } from "@/lib/useWalkEvents";
 import { bookingChatHref, normalizeBookingStatus, serviceTypeLabel } from "@/lib/phase3Booking";
 import {
+  OWNER_WALK_LIVE_LABEL,
+  OWNER_WALK_WAITING_LABEL,
   firstPetName,
   formatWalkClock,
   formatWalkDuration,
   formatWalkStatDistance,
+  ownerWalkProgressCopy,
+  ownerWalkProgressState,
   walkBookingCode,
   walkDurationMinutes,
   walkFirstName,
@@ -21,7 +25,7 @@ import {
 } from "@/lib/walkTracking";
 import { formatBookedDateList } from "@/utils/formatDateTime";
 
-function Timeline({ booking, live, ended }) {
+function Timeline({ booking, live, ended, waiting }) {
   const created = booking?.created_at || booking?.createdAt || booking?.transaction_date;
   const items = [
     {
@@ -30,28 +34,35 @@ function Timeline({ booking, live, ended }) {
       meta: created ? formatWalkClock(created) : "",
       tone: "done",
     },
-    live
+    waiting
       ? {
           key: "walk",
-          label: "Walk · live now",
-          meta: booking?.start_time ? `started ${walkStartTimeLabel(booking)}` : "in progress",
-          tone: "live",
+          label: OWNER_WALK_WAITING_LABEL,
+          meta: booking?.start_time ? `scheduled ${walkStartTimeLabel(booking)}` : "sitter has not started yet",
+          tone: "soon",
         }
-      : ended
+      : live
         ? {
             key: "walk",
-            label: "Walk",
-            meta: "Completed",
-            tone: "done",
+            label: "Walk · live now",
+            meta: booking?.start_time ? `started ${walkStartTimeLabel(booking)}` : "in progress",
+            tone: "live",
           }
-        : {
-            key: "walk",
-            label: "Walk",
-            meta: [walkStartTimeLabel(booking), walkDurationMinutes(booking) ? `${walkDurationMinutes(booking)} min` : ""]
-              .filter(Boolean)
-              .join(" · "),
-            tone: "soon",
-          },
+        : ended
+          ? {
+              key: "walk",
+              label: "Walk",
+              meta: "Completed",
+              tone: "done",
+            }
+          : {
+              key: "walk",
+              label: "Walk",
+              meta: [walkStartTimeLabel(booking), walkDurationMinutes(booking) ? `${walkDurationMinutes(booking)} min` : ""]
+                .filter(Boolean)
+                .join(" · "),
+              tone: "soon",
+            },
   ];
 
   return (
@@ -87,8 +98,13 @@ export default function OwnerWalkBookingDetail({ booking, preview, backHref = "/
   const status = normalizeBookingStatus(booking?.status);
   const liveQuery = useWalkEvents(preview ? "" : booking?.id, Boolean(booking?.id) && !preview);
   const view = preview?.view ?? liveQuery.view;
-  const live = status === "in_service" && (preview?.live || view.status === "live" || view.status === "waiting");
-  const ended = status === "completed" || view.status === "ended";
+  const progress = ownerWalkProgressState({
+    bookingStatus: status,
+    walkStatus: preview?.live ? "live" : view.status,
+  });
+  const live = progress === "live";
+  const waiting = progress === "waiting";
+  const ended = progress === "ended";
   const petName = firstPetName(booking);
   const sitter = walkFirstName(walkSitterName(booking));
   const code = walkBookingCode(booking);
@@ -135,10 +151,27 @@ export default function OwnerWalkBookingDetail({ booking, preview, backHref = "/
               </div>
             </Card>
 
+            {waiting ? (
+              <div className="overflow-hidden rounded-[1.4rem] bg-accent-50 p-4">
+                <p className="text-caption font-bold text-accent-700">
+                  {ownerWalkProgressCopy("waiting")}
+                </p>
+                <h2 className="mt-1 text-h3">
+                  {petName ? `${petName} is with ${sitter}` : `With ${sitter}`}
+                </h2>
+                <p className="mt-1 text-caption text-ink-600">
+                  Live tracking starts when the sitter begins the walk.
+                </p>
+                <Link href={walkHref} className="btn btn-accent mt-4 min-h-11 px-5">
+                  Open walk tracking
+                </Link>
+              </div>
+            ) : null}
+
             {live ? (
               <div className="overflow-hidden rounded-[1.4rem] bg-accent-50 p-4 md:grid md:grid-cols-[minmax(0,1fr)_13rem] md:items-center md:gap-4">
                 <div>
-                  <p className="text-caption font-bold text-accent-700">Walk in progress</p>
+                  <p className="text-caption font-bold text-accent-700">{OWNER_WALK_LIVE_LABEL}</p>
                   <h2 className="mt-1 text-h3">
                     {petName} is out with {sitter}
                   </h2>
@@ -189,7 +222,7 @@ export default function OwnerWalkBookingDetail({ booking, preview, backHref = "/
             </div>
           </div>
 
-          <Timeline booking={booking} live={live} ended={ended} />
+          <Timeline booking={booking} live={live} ended={ended} waiting={waiting} />
         </div>
       </div>
     </div>

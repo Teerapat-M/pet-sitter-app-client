@@ -1,52 +1,120 @@
-/* Design tokens + คลาสร่วม (btn, input, card) ตาม Figma */
-@import url("https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&display=swap");
+/* Pet Sitter Plus — foundations (Penpot DS) + shadcn CSS vars */
 @import "tailwindcss";
 @import "../../node_modules/tw-animate-css/dist/tw-animate.css";
 
-
 :root {
-  /* Orange — primary brand (600 → 100 left-to-right in design) */
-  --orange-100: #fff1ec;
+  --primary: #ff8a3d;
+  --primary-600: #e8732a;
+  --primary-50: #fff0e4;
+  --secondary: #3cc8a8;
+  --secondary-foreground: #1f7a66;
+  --accent: #fff0e4;
+  --accent-foreground: #2b2118;
+  --background: #fffaf3;
+  --foreground: #2b2118;
+  --card: #ffffff;
+  --card-foreground: #2b2118;
+  --popover: #ffffff;
+  --popover-foreground: #2b2118;
+  --muted: #fff0e4;
+  --muted-foreground: #5c4b3b;
+  --destructive: #e5484d;
+  --border: #f0e2d3;
+  --input: #e8d6c4;
+  --ring: #ff8a3d;
+  --radius: 1.25rem;
+
+  --psp-primary: #ff8a3d;
+  --psp-primary-600: #e8732a;
+  --psp-primary-50: #fff0e4;
+  --psp-accent: #3cc8a8;
+  --psp-accent-700: #1f7a66;
+  --psp-accent-50: #e3f7f2;
+  --psp-bg: #fffaf3;
+  --psp-surface: #ffffff;
+  --psp-ink-900: #2b2118;
+  --psp-ink-600: #5c4b3b;
+  --psp-ink-400: #9a8676;
+  --psp-line: #f0e2d3;
+  --psp-line-strong: #e8d6c4;
+  --psp-success: #2fb67c;
+  --psp-warning: #f5b935;
+  --psp-danger: #e5484d;
+  --psp-info: #3b82f6;
+  --psp-live: #e5484d;
+
+  /* Backward-compat aliases used by older screens */
+  --orange-100: var(--psp-primary-50);
   --orange-200: #ffd5c2;
   --orange-300: #ffb899;
-  --orange-400: #ff986f;
-  --orange-500: #ff7037;
-  --orange-600: #e44a0c;
-
-  /* Gray — primary neutrals (design slate scale) */
-  --gray-100: #f6f6f9;
-  --gray-200: #dcdfed;
-  --gray-300: #aeb1c3;
-  --gray-400: #7b7e8f;
-  --gray-500: #5b5d6f;
-  --gray-600: #3A3B46;
-  --gray-900: #323640;
-
-  /* Secondary / status */
-  --yellow: #ffca62;
-  --yellow-light: #fff5ec;
-  --blue: #76d0fc;
-  --blue-light: #ecfbff;
-  --green: #1ccd83;
-  --green-light: #e7fdf4;
+  --orange-400: var(--psp-primary);
+  --orange-500: var(--psp-primary);
+  --orange-600: var(--psp-primary-600);
+  --gray-100: var(--psp-bg);
+  --gray-200: var(--psp-line);
+  --gray-300: var(--psp-line-strong);
+  --gray-400: var(--psp-ink-400);
+  --gray-500: var(--psp-ink-600);
+  --gray-600: var(--psp-ink-600);
+  --gray-900: var(--psp-ink-900);
+  --yellow: var(--psp-warning);
+  --yellow-light: #fff6dd;
+  --blue: var(--psp-info);
+  --blue-light: #e8f1fe;
+  --green: var(--psp-success);
+  --green-light: var(--psp-accent-50);
   --pink: #fa8ac0;
   --pink-light: #fff0f1;
-  --red: #ea1010;
-  --red-light: #fff0f1;
-  --black: #000000;
-  --white: #ffffff;
-  --footer: #2d2d2d;
+  --red: var(--psp-danger);
+  --red-light: #fde8e9;
+  --black: var(--psp-ink-900);
+  --white: var(--psp-surface);
+  --footer: var(--psp-ink-900);
 }
 
 @theme inline {
-  /* Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: #ffffff;
+  --color-primary-600: var(--primary-600);
+  --color-primary-50: var(--primary-50);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-mint: var(--psp-accent);
+  --color-accent-700: var(--psp-accent-700);
+  --color-accent-50: var(--psp-accent-50);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--psp-surface);
+  --color-bg: var(--psp-bg);
+  --color-ink-900: var(--psp-ink-900);
+  --color-ink-600: var(--psp-ink-600);
+  --color-ink-400: var(--psp-ink-400);
+  --color-line: var(--psp-line);
+  --color-line-strong: var(--psp-line-strong);
+  --color-success: var(--psp-success);
+  --color-warning: var(--psp-warning);
+  --color-danger: var(--psp-danger);
+  --color-info: var(--psp-info);
+  --color-live: var(--psp-live);
+
   --color-orange-100: var(--orange-100);
   --color-orange-200: var(--orange-200);
   --color-orange-300: var(--orange-300);
   --color-orange-400: var(--orange-400);
   --color-orange-500: var(--orange-500);
   --color-orange-600: var(--orange-600);
-
   --color-gray-100: var(--gray-100);
   --color-gray-200: var(--gray-200);
   --color-gray-300: var(--gray-300);
@@ -54,7 +122,6 @@
   --color-gray-500: var(--gray-500);
   --color-gray-600: var(--gray-600);
   --color-gray-900: var(--gray-900);
-
   --color-yellow: var(--yellow);
   --color-yellow-light: var(--yellow-light);
   --color-blue: var(--blue);
@@ -67,77 +134,70 @@
   --color-red-light: var(--red-light);
   --color-black: var(--black);
   --color-white: var(--white);
-
-  /* Semantic aliases → raw palette */
-  --color-background: var(--white);
-  --color-foreground: var(--gray-900);
-  --color-surface: var(--white);
-  --color-primary: var(--orange-500);
-  --color-primary-hover: var(--orange-400);
-  --color-primary-active: var(--orange-600);
-  --color-secondary: var(--orange-100);
-  --color-border: var(--gray-200);
-  --color-muted: var(--gray-400);
   --color-footer: var(--footer);
 
-  /* Typography — Satoshi (design kit) */
-  --font-sans: "Satoshi", system-ui, sans-serif;
+  --font-sans: var(--font-nunito), "Nunito", ui-sans-serif, system-ui, sans-serif;
 
-  /* Display: Black 88 / 96 */
-  --text-display: 5.5rem;
-  --text-display--line-height: 6rem;
+  --text-display: 3rem;
+  --text-display--line-height: 3.5rem;
   --text-display--font-weight: 900;
-
-  /* Headline 1: Bold 56 / 64 */
-  --text-h1: 3.5rem;
-  --text-h1--line-height: 4rem;
-  --text-h1--font-weight: 700;
-
-  /* Headline 2: Bold 36 / 44 */
-  --text-h2: 2.25rem;
-  --text-h2--line-height: 2.75rem;
-  --text-h2--font-weight: 700;
-
-  /* Headline 3: Bold 24 / 32 */
-  --text-h3: 1.5rem;
-  --text-h3--line-height: 2rem;
+  --text-h1: 2.25rem;
+  --text-h1--line-height: 2.75rem;
+  --text-h1--font-weight: 800;
+  --text-h2: 1.75rem;
+  --text-h2--line-height: 2.25rem;
+  --text-h2--font-weight: 800;
+  --text-h3: 1.375rem;
+  --text-h3--line-height: 1.875rem;
   --text-h3--font-weight: 700;
-
-  /* Headline 4: Bold 20 / 28 */
-  --text-h4: 1.25rem;
-  --text-h4--line-height: 1.75rem;
+  --text-h4: 1.125rem;
+  --text-h4--line-height: 1.5rem;
   --text-h4--font-weight: 700;
-
-  /* Body 1: Medium 18 / 26 */
-  --text-body-1: 1.125rem;
-  --text-body-1--line-height: 1.625rem;
-  --text-body-1--font-weight: 500;
-
-  /* Body 2: Medium 16 / 26 */
-  --text-body-2: 1rem;
-  --text-body-2--line-height: 1.625rem;
-  --text-body-2--font-weight: 500;
-
-  /* Body 3: Medium 14 / 24 */
+  --text-body-lg: 1.0625rem;
+  --text-body-lg--line-height: 1.75rem;
+  --text-body-lg--font-weight: 400;
+  --text-body-1: 1.0625rem;
+  --text-body-1--line-height: 1.75rem;
+  --text-body-1--font-weight: 400;
+  --text-body-2: 0.9375rem;
+  --text-body-2--line-height: 1.5rem;
+  --text-body-2--font-weight: 400;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.25rem;
+  --text-label--font-weight: 700;
   --text-body-3: 0.875rem;
-  --text-body-3--line-height: 1.5rem;
-  --text-body-3--font-weight: 500;
+  --text-body-3--line-height: 1.25rem;
+  --text-body-3--font-weight: 700;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+  --text-caption--font-weight: 600;
 
-  /* Radius & shadow */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-full: 9999px;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-card: 1.25rem;
+  --radius-tile: 1.5rem;
+  --radius-pill: 999px;
 
-  --shadow-card: 0 4px 12px rgb(0 0 0 / 0.08);
-  --shadow-dropdown: 0 8px 24px rgb(0 0 0 / 0.12);
+  --shadow-card: 0 4px 16px rgb(43 33 24 / 0.06);
+  --shadow-float: 0 12px 32px rgb(43 33 24 / 0.12);
+  --shadow-dropdown: 0 12px 32px rgb(43 33 24 / 0.12);
 }
 
 @layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
   body {
-    background: var(--white);
-    color: var(--gray-900);
+    background: var(--background);
+    color: var(--foreground);
     font-family: var(--font-sans);
     font-size: var(--text-body-2);
     font-weight: var(--text-body-2--font-weight);
@@ -148,32 +208,45 @@
     font-size: var(--text-h1);
     line-height: var(--text-h1--line-height);
     font-weight: var(--text-h1--font-weight);
-    color: var(--gray-900);
+    color: var(--psp-ink-900);
   }
 
   h2 {
     font-size: var(--text-h2);
     line-height: var(--text-h2--line-height);
     font-weight: var(--text-h2--font-weight);
-    color: var(--gray-900);
+    color: var(--psp-ink-900);
   }
 
   h3 {
     font-size: var(--text-h3);
     line-height: var(--text-h3--line-height);
     font-weight: var(--text-h3--font-weight);
-    color: var(--gray-900);
+    color: var(--psp-ink-900);
   }
 
   h4 {
     font-size: var(--text-h4);
     line-height: var(--text-h4--line-height);
     font-weight: var(--text-h4--font-weight);
-    color: var(--gray-900);
+    color: var(--psp-ink-900);
   }
 }
 
 @layer components {
+  .psp-container {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .psp-container {
+      padding-inline: 5rem;
+    }
+  }
+
   .text-display {
     font-size: var(--text-display);
     line-height: var(--text-display--line-height);
@@ -204,6 +277,12 @@
     font-weight: var(--text-h4--font-weight);
   }
 
+  .text-body-lg {
+    font-size: var(--text-body-lg);
+    line-height: var(--text-body-lg--line-height);
+    font-weight: var(--text-body-lg--font-weight);
+  }
+
   .text-body-1 {
     font-size: var(--text-body-1);
     line-height: var(--text-body-1--line-height);
@@ -222,7 +301,18 @@
     font-weight: var(--text-body-3--font-weight);
   }
 
-  /* Buttons — Primary / Secondary / Ghost / Social / Icon */
+  .text-label {
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
+    font-weight: var(--text-label--font-weight);
+  }
+
+  .text-caption {
+    font-size: var(--text-caption);
+    line-height: var(--text-caption--line-height);
+    font-weight: var(--text-caption--font-weight);
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -231,9 +321,9 @@
     min-height: 3rem;
     padding: 0.75rem 1.5rem;
     border: none;
-    border-radius: var(--radius-full);
+    border-radius: 999px;
     font-family: var(--font-sans);
-    font-size: var(--text-body-2);
+    font-size: 0.9375rem;
     font-weight: 700;
     line-height: 1;
     text-decoration: none;
@@ -245,143 +335,118 @@
   }
 
   .btn-primary {
-    background-color: var(--orange-500);
-    color: var(--white);
+    background-color: var(--psp-primary);
+    color: #ffffff;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--orange-400);
+    background-color: var(--psp-primary-600);
   }
 
   .btn-primary:active:not(:disabled) {
-    background-color: var(--orange-600);
+    background-color: var(--psp-primary-600);
   }
 
   .btn-secondary {
-    background-color: var(--orange-100);
-    color: var(--orange-500);
-    transition: color 0.15s ease;
+    background-color: var(--psp-primary-50);
+    color: var(--psp-primary);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    color: var(--orange-400);
-  }
-
-  .btn-secondary:active:not(:disabled) {
-    color: var(--orange-600);
+    color: var(--psp-primary-600);
   }
 
   .btn-ghost {
     background-color: transparent;
-    color: var(--orange-500);
+    color: var(--psp-ink-600);
   }
 
   .btn-ghost:hover:not(:disabled) {
-    color: var(--orange-400);
-  }
-
-  .btn-ghost:active:not(:disabled) {
-    color: var(--orange-600);
+    color: var(--psp-ink-900);
   }
 
   .btn.btn-social {
-    background-color: var(--gray-100);
-    color: var(--gray-600);
+    background-color: var(--psp-surface);
+    color: var(--psp-ink-900);
     font-weight: 700;
-    border-radius: var(--radius-xl);
+    border: 1px solid var(--psp-line-strong);
+    border-radius: 999px;
   }
 
   .btn.btn-social:hover:not(:disabled) {
-    color: var(--gray-400);
-  }
-
-  .btn.btn-social:active:not(:disabled) {
-    color: var(--gray-600);
+    background-color: var(--psp-primary-50);
   }
 
   .btn-icon {
-    width: 3.75rem; /* 60px — Figma Only icon */
-    height: 3.75rem;
+    width: 3rem;
+    height: 3rem;
     padding: 0;
-    border-radius: var(--radius-full);
-    background-color: var(--orange-100);
-    color: var(--orange-500);
-  }
-
-  .btn-icon:hover:not(:disabled) {
-    color: var(--orange-400);
-  }
-
-  .btn-icon:active:not(:disabled) {
-    color: var(--orange-600);
+    border-radius: 999px;
+    background-color: var(--psp-primary-50);
+    color: var(--psp-primary);
   }
 
   .btn:disabled,
   .btn-disabled {
-    background-color: var(--gray-100);
-    color: var(--gray-200);
+    background-color: var(--psp-line);
+    color: var(--psp-ink-400);
     cursor: not-allowed;
   }
 
   .btn-ghost:disabled,
   .btn-ghost.btn-disabled {
     background-color: transparent;
-    color: var(--gray-200);
+    color: var(--psp-ink-400);
   }
 
   .input {
     width: 100%;
-    min-height: 3rem; /* 48px */
-    padding: 0.75rem 1rem 0.75rem 0.75rem; /* 12 16 12 12 */
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-md); /* 8px */
-    background-color: var(--white);
-    color: var(--black);
+    min-height: 3rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--psp-line-strong);
+    border-radius: 0.75rem;
+    background-color: var(--psp-surface);
+    color: var(--psp-ink-900);
     font-family: var(--font-sans);
-    font-size: var(--text-body-2);
-    font-weight: var(--text-body-2--font-weight);
+    font-size: 0.9375rem;
+    font-weight: 400;
     transition: border-color 0.15s ease;
   }
 
   .input::placeholder {
-    color: var(--gray-400);
+    color: var(--psp-ink-400);
     font-weight: 400;
-    line-height: 1.5;
   }
 
   .input:focus {
     outline: none;
-    border-color: var(--orange-500);
+    border-color: var(--psp-primary);
+    box-shadow: 0 0 0 3px rgb(255 138 61 / 0.18);
   }
-
 
   .input-error,
   .input-error:focus {
-    border-color: var(--red);
+    border-color: var(--psp-danger);
+    box-shadow: 0 0 0 3px rgb(229 72 77 / 0.15);
   }
 
   .input:disabled,
   .input-disabled {
-    background-color: var(--gray-100);
-    border-color: var(--gray-200);
-    color: var(--gray-300);
+    background-color: var(--psp-bg);
+    border-color: var(--psp-line);
+    color: var(--psp-ink-400);
     cursor: not-allowed;
   }
 
-  .input:disabled::placeholder,
-  .input-disabled::placeholder {
-    color: var(--gray-300);
-  }
-
   .card {
-    background-color: var(--white);
-    border-radius: var(--radius-xl);
+    background-color: var(--psp-surface);
+    border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
-    border: 1px solid var(--gray-200);
+    border: 1px solid var(--psp-line);
   }
 
   .avatar {
-    border-radius: var(--radius-full);
+    border-radius: 999px;
     object-fit: cover;
   }
 
@@ -396,20 +461,19 @@
     right: 0;
     width: 0.75rem;
     height: 0.75rem;
-    background-color: var(--green);
-    border: 2px solid var(--white);
-    border-radius: var(--radius-full);
+    background-color: var(--psp-success);
+    border: 2px solid var(--psp-surface);
+    border-radius: 999px;
   }
 
-  /* Status — colored bullet + label */
   .status {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     font-family: var(--font-sans);
-    font-size: var(--text-body-3);
-    font-weight: var(--text-body-3--font-weight);
-    line-height: var(--text-body-3--line-height);
+    font-size: var(--text-caption);
+    font-weight: 600;
+    line-height: var(--text-caption--line-height);
   }
 
   .status::before {
@@ -418,7 +482,7 @@
     width: 0.5rem;
     height: 0.5rem;
     flex-shrink: 0;
-    border-radius: var(--radius-full);
+    border-radius: 999px;
     background-color: currentColor;
   }
 
@@ -431,13 +495,13 @@
 
   .status-yellow,
   .status-waiting-service {
-    color: var(--yellow);
+    color: var(--psp-warning);
   }
 
   .status-blue,
   .status-in-service,
   .status-pending {
-    color: var(--blue);
+    color: var(--psp-info);
   }
 
   .status-green,
@@ -445,63 +509,70 @@
   .status-approved,
   .status-normal,
   .status-resolved {
-    color: var(--green);
+    color: var(--psp-success);
   }
 
   .status-red,
   .status-canceled,
   .status-rejected,
   .status-banned {
-    color: var(--red);
+    color: var(--psp-danger);
   }
 
-  /* Pet type badges — pill */
   .badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0.25rem 0.75rem;
-    border: 1px solid;
-    border-radius: var(--radius-full);
+    border: 1px solid transparent;
+    border-radius: 999px;
     font-family: var(--font-sans);
-    font-size: var(--text-body-3);
-    font-weight: var(--text-body-3--font-weight);
+    font-size: var(--text-caption);
+    font-weight: 600;
     line-height: 1.5;
   }
 
   .badge-dog {
-    background-color: var(--green-light);
-    border-color: var(--green);
-    color: var(--green);
+    background-color: var(--psp-accent-50);
+    color: var(--psp-accent-700);
   }
 
   .badge-cat {
-    background-color: var(--pink-light);
-    border-color: var(--pink);
-    color: var(--pink);
+    background-color: var(--psp-primary-50);
+    color: var(--psp-primary-600);
   }
 
   .badge-bird {
     background-color: var(--blue-light);
-    border-color: var(--blue);
-    color: var(--blue);
+    color: var(--psp-info);
   }
 
   .badge-rabbit {
-    background-color: var(--orange-100);
-    border-color: var(--orange-400);
-    color: var(--orange-400);
+    background-color: var(--yellow-light);
+    color: #9a6b10;
   }
 
-  /* Progress step — numbered circle + label */
+  .badge-cctv {
+    background-color: var(--psp-ink-900);
+    color: #ffffff;
+    gap: 0.4rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .badge-verified {
+    background-color: var(--psp-accent-50);
+    color: var(--psp-accent-700);
+  }
+
   .progress-step {
     display: inline-flex;
     align-items: center;
     gap: 0.75rem;
-    color: var(--gray-300);
+    color: var(--psp-ink-400);
     font-family: var(--font-sans);
     font-size: var(--text-body-2);
-    font-weight: var(--text-body-2--font-weight);
+    font-weight: 600;
     line-height: 1;
   }
 
@@ -512,33 +583,33 @@
     width: 1.5rem;
     height: 1.5rem;
     flex-shrink: 0;
-    border-radius: var(--radius-full);
-    background-color: var(--gray-200);
-    color: var(--white);
-    font-size: var(--text-body-3);
+    border-radius: 999px;
+    background-color: var(--psp-line);
+    color: #ffffff;
+    font-size: var(--text-caption);
     font-weight: 700;
     line-height: 1;
   }
 
   .progress-step-active {
-    color: var(--orange-500);
+    color: var(--psp-primary);
   }
 
   .progress-step-active .progress-step-number {
-    background-color: var(--orange-500);
+    background-color: var(--psp-primary);
   }
 
   .progress-step-black {
-    color: var(--black);
+    color: var(--psp-ink-900);
   }
 
   .progress-step-black .progress-step-number {
-    background-color: var(--black);
+    background-color: var(--psp-ink-900);
   }
 
   .progress-step-sm {
     gap: 0.5rem;
-    font-size: var(--text-body-3);
+    font-size: var(--text-caption);
   }
 
   .progress-step-sm .progress-step-number {
@@ -547,15 +618,14 @@
     font-size: 0.75rem;
   }
 
-  /* Progress bar — horizontal step tracker */
   .progress-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1.5rem;
     padding: 1rem 1.5rem;
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-xl);
-    background-color: var(--white);
+    border: 1px solid var(--psp-line);
+    border-radius: var(--radius-card);
+    background-color: var(--psp-surface);
   }
 }

@@ -2,7 +2,7 @@ import Navbar from "../../components/Navbar";
 
 export default function MessagesLayout({ children }) {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-white">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
       <div className="hidden shrink-0 md:block">
         <Navbar />
       </div>

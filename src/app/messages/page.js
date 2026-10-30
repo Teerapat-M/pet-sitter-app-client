@@ -322,7 +322,7 @@ function MessagesView() {
   if (loading) return <MessagesFallback />;
 
   return (
-    <div className="flex h-full min-h-0 flex-1">
+    <div className="flex h-full min-h-0 flex-1 gap-4 bg-background p-4 md:p-6 pb-24 md:pb-6">
       <ConversationList
         conversations={conversations}
         activeId={activeId}
@@ -341,7 +341,7 @@ function MessagesView() {
         }`}
       >
         {error ? (
-          <p className="border-b border-red-light bg-red-light px-4 py-3 text-body-3 text-red md:px-10">
+          <p className="border-b border-red-light bg-red-light px-4 py-3 text-caption text-danger md:px-6">
             {error}
           </p>
         ) : null}

@@ -4,8 +4,8 @@ export default function ChatBubble({ message, isMine, avatarUrl }) {
   const hasText = Boolean(String(message.content ?? "").trim());
   const timeLabel = formatMessageTime(message.sentAt);
   const bubbleClass = isMine
-    ? "max-w-[70%] rounded-[24px] rounded-br-none bg-orange-600 px-6 py-3 text-body-2 text-white"
-    : "max-w-[70%] rounded-[24px] rounded-bl-none border border-gray-200 bg-white px-6 py-3 text-body-2 text-black";
+    ? "max-w-[70%] rounded-[24px] rounded-br-none bg-primary px-5 py-3 text-body-2 text-white"
+    : "max-w-[70%] rounded-[24px] rounded-bl-none bg-[#efe6dc] px-5 py-3 text-body-2 text-ink-900";
 
   const bubble = (
     <div className={bubbleClass}>
@@ -25,7 +25,7 @@ export default function ChatBubble({ message, isMine, avatarUrl }) {
       <div className="flex flex-col items-end">
         {bubble}
         {timeLabel ? (
-          <span className="mt-1 text-body-3 text-gray-400">{timeLabel}</span>
+          <span className="mt-1 text-caption text-ink-400">{timeLabel}</span>
         ) : null}
       </div>
     );
@@ -34,7 +34,7 @@ export default function ChatBubble({ message, isMine, avatarUrl }) {
   return (
     <div className="flex flex-col items-start">
       <div className="flex items-end gap-3">
-        <span className="relative size-10 shrink-0 overflow-hidden rounded-full bg-gray-200">
+        <span className="relative size-10 shrink-0 overflow-hidden rounded-full bg-primary-50">
           {avatarUrl ? (
             <img src={avatarUrl} alt="" className="size-full object-cover" />
           ) : (
@@ -48,7 +48,7 @@ export default function ChatBubble({ message, isMine, avatarUrl }) {
         {bubble}
       </div>
       {timeLabel ? (
-        <span className="mt-1 ml-[52px] text-body-3 text-gray-400">{timeLabel}</span>
+        <span className="mt-1 ml-[52px] text-caption text-ink-400">{timeLabel}</span>
       ) : null}
     </div>
   );

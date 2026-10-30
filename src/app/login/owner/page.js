@@ -1,23 +1,34 @@
-import AuthShell from "@/components/AuthShell";
+import AuthSplit from "@/components/AuthSplit";
 import LoginForm from "@/components/LoginForm";
 
 export const metadata = {
-  title: "Login | Pet Sitter App",
+  title: "Log in | Pet Sitter Plus",
 };
 
-// /login/owner — Pet Owner (มี Remember, Forget Password, social ตาม Figma)
 export default function OwnerLoginPage() {
   return (
-    <AuthShell variant="light">
+    <AuthSplit
+      headline={
+        <>
+          Trusted sitters.
+          <br />
+          Live cameras.
+          <br />
+          Happy pets.
+        </>
+      }
+      sub="Book boarding, walks and home visits — watch CCTV and track walks live."
+      photoLabel="🐾 Happy pet photo"
+    >
       <LoginForm
-        title="Welcome back!"
-        subtitle="Find your perfect pet sitter with us"
+        title="Welcome back"
+        subtitle="Log in to manage your bookings"
         registerHref="/register"
-        registerPrompt="Don't have any account?"
-        showRemember
+        registerPrompt="New here?"
+        registerLabel="Create an account ›"
         showForgotPassword
         showSocial
       />
-    </AuthShell>
+    </AuthSplit>
   );
 }

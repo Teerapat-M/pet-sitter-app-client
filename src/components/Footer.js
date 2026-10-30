@@ -1,27 +1,23 @@
 import Link from "next/link";
-import Image from "next/image";
+import Logo from "@/components/brand/Logo";
 
 export default function Footer() {
-    return (
-        <footer className="w-full bg-black py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto flex flex-col items-center text-center">
-                {/* Logo */}
-                <Link href="/" className="inline-block">
-                    <Image
-                        src="/image/logo-footer.png"
-                        alt="Sitter"
-                        width={120}
-                        height={40}
-                        className="h-8 sm:h-10 w-auto"
-                    />
-                </Link>
-
-                {/* Tagline */}
-                <p className="mt-4 text-sm sm:text-base text-gray-400 font-medium">
-                    Find your perfect pet sitter with us.
-                </p>
-            </div>
-        </footer>
-    );
+  return (
+    <footer className="mt-8 border-t border-line bg-background py-10">
+      <div className="psp-container flex flex-col items-center text-center">
+        <Logo />
+        <p className="mt-3 text-body-2 text-ink-400">
+          Trusted sitters. Live cameras. Happy pets.
+        </p>
+        <div className="mt-4 flex gap-4 text-caption text-ink-600">
+          <Link href="/privacy-policy" className="hover:text-primary">
+            Privacy
+          </Link>
+          <Link href="/terms-of-service" className="hover:text-primary">
+            Terms
+          </Link>
+        </div>
+      </div>
+    </footer>
+  );
 }
-

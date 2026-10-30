@@ -1,6 +1,7 @@
 // src/lib — คุยกับ backend / เก็บ session
 // เรียก API ตาม NEXT_PUBLIC_API_URL จาก .env.example (local:4000 | prod: Render)
 import { clearAuth, getToken } from "@/lib/auth";
+import { onboardingSeenBody } from "@/lib/onboarding";
 import { formatDate } from "@/utils/formatDateTime";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -291,6 +292,19 @@ export async function becomeSitter() {
 //ยิง api บน owner profile
 export async function getProfile() {
   const json = await apiFetch("/api/users/me", {});
+  return json.data;
+}
+
+/**
+ * Persist the first-visit tour flag on the user.
+ * PATCH /api/users/me/onboarding  body: { seen: true | false }
+ * sets users.onboarding_seen_at. Guests skip this and use localStorage only.
+ */
+export async function markOnboardingSeen(seen) {
+  const json = await apiFetch("/api/users/me/onboarding", {
+    method: "PATCH",
+    body: onboardingSeenBody(seen),
+  });
   return json.data;
 }
 

@@ -318,7 +318,7 @@ function Gallery({ photos, title }) {
   };
 
   return (
-    <div className="relative w-full bg-[#FAFAFB] pt-6 sm:pt-8">
+    <div className="relative w-full pt-0">
       <div className="relative overflow-hidden">
         <div
           className={`flex ${animated ? "transition-transform duration-500 ease-out" : ""} ${
@@ -333,10 +333,10 @@ function Gallery({ photos, title }) {
           {slides.map((src, slideIndex) => (
             <div
               key={`${src}-${slideIndex}`}
-              className="relative h-80 shrink-0 px-1 lg:h-112"
+              className="relative h-72 shrink-0 px-1 lg:h-96"
               style={{ width: `${100 / slides.length}%` }}
             >
-              <div className="relative h-full overflow-hidden">
+              <div className="relative h-full overflow-hidden rounded-tile">
                 <Image
                   src={src}
                   alt={`${title} photo ${slideIndex + 1}`}
@@ -479,28 +479,18 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
   }
 
   return (
-    <section className="-mx-4 p-4 w-[calc(100%+2rem)] bg-gray-100 sm:-mx-6 sm:w-[calc(100%+3rem)] lg:mx-0 lg:w-auto lg:rounded-2xl lg:rounded-tl-[100px] lg:p-4">
-      <div className="rounded-2xl rounded-tl-[80px] bg-white p-5 lg:rounded-xl lg:rounded-l-[120px]">
+    <section>
+      <div className="rounded-card bg-surface p-5 shadow-card">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-10">
-          <div className="relative size-36.5 shrink-0">
-            <Image
-              src="/image/rating.svg"
-              alt=""
-              width={146}
-              height={146}
-              className="size-36.5"
-              unoptimized
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center pb-2 text-white">
-              <span className="text-h3 leading-none">{Number(average).toFixed(1)}</span>
-              <span className="mt-1 text-body-3">
-                {count} {count === 1 ? "Review" : "Reviews"}
-              </span>
-            </div>
+          <div className="flex size-24 shrink-0 flex-col items-center justify-center rounded-full bg-primary-50 text-ink-900">
+            <span className="text-h3 leading-none">{Number(average).toFixed(1)}</span>
+            <span className="mt-1 text-caption">
+              {count} {count === 1 ? "Review" : "Reviews"}
+            </span>
           </div>
 
           <div className="min-w-0 flex-1">
-            <h2 className="text-h3 text-black">Rating & Reviews</h2>
+            <h2 className="text-h3">Reviews · {Number(average).toFixed(1)}</h2>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -544,11 +534,11 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
               {ratingFilter ? "No reviews for this rating" : "No reviews yet"}
             </p>
           ) : (
-            <ul className="divide-y divide-gray-200">
+            <ul className="grid gap-3 sm:grid-cols-2">
               {reviews.map((review) => (
                 <li
                   key={review.id}
-                  className="flex flex-col gap-3 py-6 first:pt-0 sm:flex-row sm:items-start sm:justify-between sm:gap-10 sm:py-8 sm:first:pt-4"
+                  className="rounded-card border border-line bg-surface p-4"
                 >
                   <div className="flex min-w-0 items-start justify-between gap-3 sm:w-56 sm:shrink-0 sm:items-center sm:justify-start sm:gap-4">
                     <div className="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -698,19 +688,19 @@ export default function PetSitterDetail({ sitterId }) {
 
   if (loading) {
     return (
-      <div className="min-h-full bg-[#FAFAFB] px-4 py-16">
-        <p className="mx-auto max-w-7xl text-body-2 text-gray-400">Loading pet sitter...</p>
+      <div className="min-h-full bg-background px-5 py-16">
+        <p className="psp-container text-body-2 text-ink-400">Loading pet sitter...</p>
       </div>
     );
   }
 
   if (error || !sitter) {
     return (
-      <div className="min-h-full bg-[#FAFAFB] px-4 py-16">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4">
-          <p className="text-body-2 text-red">{error || "Pet sitter not found"}</p>
+      <div className="min-h-full bg-background px-5 py-16">
+        <div className="psp-container flex flex-col gap-4">
+          <p className="text-body-2 text-danger">{error || "Pet sitter not found"}</p>
           <Link href="/find-sitter" className="btn btn-secondary w-fit">
-            Back to search
+            Back to results
           </Link>
         </div>
       </div>
@@ -718,9 +708,6 @@ export default function PetSitterDetail({ sitterId }) {
   }
 
   const pinCoords = getSitterCoords(sitter);
-  const query = encodeURIComponent(`${pinCoords[0]},${pinCoords[1]}`);
-  const mapSrc = `https://maps.google.com/maps?q=${query}&z=15&output=embed`;
-  const mapHref = `https://www.google.com/maps/search/?api=1&query=${query}`;
   const isOwnSitter = isOwnSitterListing(sitter.id ?? sitterId);
 
   function requireLogin(onAllowed) {
@@ -844,158 +831,155 @@ export default function PetSitterDetail({ sitterId }) {
   }
 
   return (
-    <div className="min-h-full bg-[#FAFAFB]">
-      <Gallery photos={sitter.photos} title={sitter.title} />
+    <div className="min-h-full bg-background pb-28 md:pb-10">
+      <div className="psp-container py-6">
+        <Link href="/find-sitter" className="text-caption font-semibold text-ink-600">
+          ← Back to results
+        </Link>
 
-      <div className="bg-[#FAFAFB]">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 pt-10 pb-0 sm:px-6 lg:grid-cols-[1fr_26rem] lg:items-start lg:gap-16 lg:px-8 lg:py-16">
-          <div className="flex min-w-0 flex-col gap-10">
-          <h1 className="text-h2 text-black">{sitter.title}</h1>
+        <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start">
+          <div className="min-w-0">
+            <Gallery photos={sitter.photos} title={sitter.title} />
 
-          {sitter.introduction && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-h4 text-black">Introduction</h2>
-              <p className="whitespace-pre-line text-body-2 text-gray-400">
+            <div className="mt-6 rounded-tile bg-accent-50 p-4">
+              <p className="text-label text-accent-700">CCTV at {sitter.sitterName || sitter.title}&apos;s place</p>
+              <p className="mt-1 text-body-2 text-ink-600">
+                Watch your pet live during a boarding stay. Live cameras ship in a later phase.
+              </p>
+              <div className="mt-3 flex gap-2">
+                {["Play room", "Garden", "Bedroom"].map((name) => (
+                  <div key={name} className="flex h-16 flex-1 items-end rounded-xl bg-ink-900 p-2 text-caption text-white">
+                    {name}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <h1 className="mt-8 text-h1">{sitter.sitterName || sitter.title}</h1>
+            <p className="mt-2 text-body-2 text-ink-600">
+              ⭐ {sitter.ratingAvg?.toFixed?.(1) ?? sitter.rating}{" "}
+              {sitter.reviewCount ? `(${sitter.reviewCount} reviews)` : ""}
+              {sitter.location ? ` · ${sitter.location}` : ""}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="badge badge-verified">✓ Verified</span>
+              <span className="badge-cctv badge">
+                <span className="size-1.5 rounded-full bg-live" aria-hidden />
+                CCTV
+              </span>
+            </div>
+
+            {sitter.introduction && (
+              <p className="mt-4 whitespace-pre-line text-body-2 text-ink-600">
                 {sitter.introduction}
               </p>
-            </section>
-          )}
+            )}
 
-          {sitter.services && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-h4 text-black">Services</h2>
-              <p className="whitespace-pre-line text-body-2 text-gray-400">
-                {sitter.services}
-              </p>
-            </section>
-          )}
-
-          {sitter.myPlace && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-h4 text-black">My Place</h2>
-              <p className="whitespace-pre-line text-body-2 text-gray-400">
-                {sitter.myPlace}
-              </p>
-            </section>
-          )}
-
-          {(sitter.location || sitter.latitude) && (
-            <section className="overflow-hidden rounded-2xl border border-gray-100 shadow-xs">
-              <div className="relative h-72 w-full bg-gray-100">
-                <Map
-                  center={pinCoords}
-                  zoom={15}
-                  selectedId={sitter.id}
-                  markers={[
-                    {
-                      id: sitter.id,
-                      position: pinCoords,
-                      popup: sitter.title || sitter.sitter_name || "Pet Sitter",
-                      isSelected: true,
-                    },
-                  ]}
-                  className="h-full w-full z-0"
-                />
-
+            <section className="mt-8">
+              <h2 className="text-h3">Services</h2>
+              {sitter.services ? (
+                <p className="mt-2 whitespace-pre-line text-body-2 text-ink-600">{sitter.services}</p>
+              ) : null}
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-card border border-line bg-surface p-4">
+                  <p className="font-bold">🏠 Boarding</p>
+                  <p className="mt-1 text-label text-primary">Ask on booking</p>
+                </div>
+                <div className="rounded-card border border-line bg-surface p-4">
+                  <p className="font-bold">🐕 Dog walking</p>
+                  <p className="mt-1 text-label text-primary">Ask on booking</p>
+                </div>
+                <div className="rounded-card border border-line bg-surface p-4">
+                  <p className="font-bold">🧳 In-home</p>
+                  <p className="mt-1 text-label text-primary">Ask on booking</p>
+                </div>
               </div>
             </section>
-          )}
 
+            {sitter.myPlace && (
+              <section className="mt-8">
+                <h2 className="text-h3">My place</h2>
+                <p className="mt-2 whitespace-pre-line text-body-2 text-ink-600">{sitter.myPlace}</p>
+              </section>
+            )}
 
-        </div>
+            {(sitter.location || sitter.latitude) && (
+              <section className="mt-8 overflow-hidden rounded-card border border-line">
+                <div className="relative h-72 w-full bg-primary-50">
+                  <Map
+                    center={pinCoords}
+                    zoom={15}
+                    selectedId={sitter.id}
+                    markers={[
+                      {
+                        id: sitter.id,
+                        position: pinCoords,
+                        popup: sitter.title || sitter.sitter_name || "Pet Sitter",
+                        isSelected: true,
+                      },
+                    ]}
+                    className="h-full w-full z-0"
+                  />
+                </div>
+              </section>
+            )}
 
-        <aside className="z-10 lg:col-start-2 lg:row-span-2 lg:sticky lg:top-28 lg:self-start">
-          <div className="flex flex-col items-center rounded-2xl bg-white px-6 py-8 text-center shadow-(--shadow-card)">
-            {sitter.avatarUrl ? (
-              <Image
-                src={sitter.avatarUrl}
-                alt={sitter.sitterName || sitter.title}
-                width={80}
-                height={80}
-                className="avatar size-20 shrink-0"
-                unoptimized={isRemoteSrc(sitter.avatarUrl)}
+            <div className="mt-8">
+              <ReviewsSection
+                sitterId={sitter.id ?? sitterId}
+                ratingAvg={sitter.ratingAvg}
+                reviewCount={sitter.reviewCount}
               />
-            ) : (
-              <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-300">
-                <Icon src="/icon/user.svg" className="h-9 w-9" />
-              </div>
-            )}
+            </div>
+          </div>
 
-            <h2 className="mt-4 text-h4 text-black">{sitter.title}</h2>
-
-            {(sitter.sitterName || sitter.experience) && (
-              <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-                {sitter.sitterName && (
-                  <p className="text-body-2 font-bold text-black">{sitter.sitterName}</p>
-                )}
-                {sitter.experience && (
-                  <span className="text-body-3 font-medium text-green">{sitter.experience}</span>
-                )}
-              </div>
-            )}
-
-            {sitter.rating > 0 && (
-              <div className="mt-3">
-                <Stars count={sitter.rating} />
-              </div>
-            )}
-
-            {sitter.location && (
-              <div className="mt-3 flex items-center justify-center gap-1.5 text-body-3 text-gray-400">
-                <Icon src="/icon/map-pin.svg" className="h-4 w-4" />
-                <span>{sitter.location}</span>
-              </div>
-            )}
-
-            {sitter.petTypes.length > 0 && (
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {sitter.petTypes.map((type) => {
-                  const label = type.charAt(0).toUpperCase() + type.slice(1);
-                  return (
+          <aside className="hidden lg:sticky lg:top-24 lg:block">
+            <div className="rounded-card bg-surface p-5 shadow-card">
+              <h2 className="text-h3">Book {sitter.sitterName?.split(" ")[0] || "this sitter"}</h2>
+              {sitter.petTypes.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {sitter.petTypes.map((type) => (
                     <span key={type} className={`badge ${PET_BADGE[type] ?? ""}`}>
-                      {label}
+                      {type}
                     </span>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="mt-6 flex w-full flex-col gap-3 border-t border-gray-200 pt-6">
-              <div className="flex w-full gap-3">
-                <button
-                  type="button"
-                  className="btn btn-secondary min-w-0 flex-1 px-3"
-                  onClick={() => requireLogin(handleSendMessage)}
-                  disabled={sendingMessage}
-                >
-                  {sendingMessage ? "Opening..." : "Send Message"}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary min-w-0 flex-1 px-3 disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={handleBookNow}
-                  disabled={bookingChecking || isOwnSitter}
-                >
-                  {bookingChecking ? "Checking..." : "Book Now"}
-                </button>
-              </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                className="btn btn-primary mt-5 w-full disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleBookNow}
+                disabled={bookingChecking || isOwnSitter}
+              >
+                {bookingChecking ? "Checking..." : "Book now"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary mt-3 w-full"
+                onClick={() => requireLogin(handleSendMessage)}
+                disabled={sendingMessage}
+              >
+                {sendingMessage ? "Opening..." : "Message sitter"}
+              </button>
               {isOwnSitter ? (
-                <p className="text-body-3 text-gray-400">
+                <p className="mt-3 text-caption text-ink-400">
                   You cannot book your own sitter profile
                 </p>
               ) : null}
             </div>
-          </div>
-        </aside>
+          </aside>
+        </div>
+      </div>
 
-        <div className="lg:col-start-1">
-          <ReviewsSection
-            sitterId={sitter.id ?? sitterId}
-            ratingAvg={sitter.ratingAvg}
-            reviewCount={sitter.reviewCount}
-          />
-        </div>
-        </div>
+      <div className="fixed inset-x-0 bottom-16 z-30 border-t border-line bg-surface px-5 py-3 md:hidden">
+        <button
+          type="button"
+          className="btn btn-primary w-full"
+          onClick={handleBookNow}
+          disabled={bookingChecking || isOwnSitter}
+        >
+          {bookingChecking ? "Checking..." : "Book now"}
+        </button>
       </div>
 
       {loginModalOpen ? (

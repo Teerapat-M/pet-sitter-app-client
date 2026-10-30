@@ -2,15 +2,15 @@ import { Suspense } from "react";
 import PetSitterList from "@/components/PetSitterList";
 
 export const metadata = {
-    title: "Search For Pet Sitter",
+    title: "Find a sitter | Pet Sitter Plus",
 };
 
 function FindSitterFallback() {
     return (
-        <div className="min-h-full bg-[#FAFAFB] px-4 py-8 sm:px-8">
-            <div className="mx-auto max-w-7xl">
-                <h1 className="text-h3 font-bold text-gray-900">Search For Pet Sitter</h1>
-                <p className="mt-6 text-body-2 text-gray-400">Loading pet sitters...</p>
+        <div className="min-h-full bg-background px-5 py-8">
+            <div className="psp-container">
+                <h1 className="text-h1">Find a sitter</h1>
+                <p className="mt-6 text-body-2 text-ink-400">Loading pet sitters...</p>
             </div>
         </div>
     );

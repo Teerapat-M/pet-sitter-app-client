@@ -10,6 +10,7 @@ import {
 import {
   CCTV_HEARTBEAT_MS,
   canSendSignal,
+  createIceFlushQueue,
   defaultStunServers,
   iceCandidatePayload,
   mediaPermissionMessage,
@@ -80,7 +81,10 @@ export function useCameraPublisher(cameraId, { enabled = true } = {}) {
   }, []);
 
   const closeAllPeers = useCallback(() => {
-    for (const entry of peersRef.current.values()) closePeer(entry);
+    for (const entry of peersRef.current.values()) {
+      entry?.iceQueue?.reset();
+      closePeer(entry);
+    }
     peersRef.current.clear();
   }, []);
 
@@ -105,24 +109,30 @@ export function useCameraPublisher(cameraId, { enabled = true } = {}) {
     closePeer(peersRef.current.get(sessionId));
     const iceServers = await loadIce();
     const pc = new RTCPeerConnection({ iceServers });
+    const iceQueue = createIceFlushQueue({
+      send: async (body) => {
+        try {
+          await postPublisherSignal(activeId, body);
+        } catch (err) {
+          if (err?.status === 413) return;
+          setError(signallingErrorMessage(err));
+        }
+      },
+    });
     streamRef.current.getTracks().forEach((track) => pc.addTrack(track, streamRef.current));
     pc.onicecandidate = (iceEvent) => {
       const candidate = iceCandidatePayload(iceEvent.candidate);
       if (!candidate) return;
-      const body = { type: "ice", sessionId, candidate };
-      if (!canSendSignal(body)) return;
-      void postPublisherSignal(activeId, body).catch((err) => {
-        if (err?.status === 413) return;
-        setError(signallingErrorMessage(err));
-      });
+      iceQueue.enqueue({ type: "ice", sessionId, candidate });
     };
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        iceQueue.reset();
         closePeer(peersRef.current.get(sessionId));
         peersRef.current.delete(sessionId);
       }
     };
-    peersRef.current.set(sessionId, { pc });
+    peersRef.current.set(sessionId, { pc, iceQueue });
     try {
       await pc.setRemoteDescription({ type: "offer", sdp });
       const answer = await pc.createAnswer();
@@ -132,7 +142,9 @@ export function useCameraPublisher(cameraId, { enabled = true } = {}) {
         sessionId,
         sdp: answer.sdp,
       });
+      await iceQueue.markReady();
     } catch (err) {
+      iceQueue.reset();
       closePeer(peersRef.current.get(sessionId));
       peersRef.current.delete(sessionId);
       setError(signallingErrorMessage(err));
@@ -161,7 +173,9 @@ export function useCameraPublisher(cameraId, { enabled = true } = {}) {
 
   const handleSessionEnded = useCallback((event) => {
     const sessionId = String(event.sessionId ?? "");
-    closePeer(peersRef.current.get(sessionId));
+    const entry = peersRef.current.get(sessionId);
+    entry?.iceQueue?.reset();
+    closePeer(entry);
     peersRef.current.delete(sessionId);
   }, []);
 

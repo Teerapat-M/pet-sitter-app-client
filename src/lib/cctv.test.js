@@ -8,6 +8,7 @@ import {
   cameraOfflineCopy,
   cameraTileKind,
   cameraViewerKind,
+  createIceFlushQueue,
   countLiveCameras,
   emptyCctvView,
   formatAvailableUntil,
@@ -21,6 +22,7 @@ import {
   ownerCctvHref,
   signalBodyBytes,
   signallingErrorMessage,
+  syncVideoSrcObject,
 } from "./cctv.js";
 
 test("isBoardingBooking reads service_type", () => {
@@ -159,6 +161,43 @@ test("viewer tile is LIVE only when connected with a track; errors show copy", (
     cameraViewerKind({ ...camera, isEnabled: false }, { status: "idle" }, { canView: true }),
     "disabled",
   );
+});
+
+test("srcObject is set after status changes connecting -> connected", () => {
+  const stream = { id: "track-1" };
+  const video = { srcObject: null };
+
+  // ontrack sets stream while status is still connecting — <video> is not mounted
+  assert.equal(syncVideoSrcObject(null, stream), null);
+  assert.equal(video.srcObject, null);
+
+  // status becomes live, the element mounts, ref callback attaches the existing stream
+  assert.equal(syncVideoSrcObject(video, stream), stream);
+  assert.equal(video.srcObject, stream);
+});
+
+test("ICE candidates wait until the offer POST resolves, then flush in order", async () => {
+  const sent = [];
+  const queue = createIceFlushQueue({
+    send: async (body) => {
+      sent.push(`${body.type}:${body.candidate.candidate}`);
+    },
+  });
+
+  queue.enqueue({ type: "ice", sessionId: "s1", candidate: { candidate: "cand-1", sdpMid: "0" } });
+  queue.enqueue({ type: "ice", sessionId: "s1", candidate: { candidate: "cand-2", sdpMid: "0" } });
+  assert.deepEqual(sent, []);
+
+  sent.push("offer");
+  const flushed = queue.markReady();
+  queue.enqueue({ type: "ice", sessionId: "s1", candidate: { candidate: "cand-3", sdpMid: "0" } });
+  await flushed;
+  await queue.markReady();
+  assert.deepEqual(sent, ["offer", "ice:cand-1", "ice:cand-2", "ice:cand-3"]);
+
+  queue.reset();
+  queue.enqueue({ type: "ice", sessionId: "s1", candidate: { candidate: "cand-4", sdpMid: "0" } });
+  assert.deepEqual(sent, ["offer", "ice:cand-1", "ice:cand-2", "ice:cand-3"]);
 });
 
 test("Available until uses Asia/Bangkok", () => {

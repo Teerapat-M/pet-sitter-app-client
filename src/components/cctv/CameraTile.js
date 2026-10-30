@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { cameraOfflineCopy, cameraStatusLabel, cameraViewerKind } from "@/lib/cctv";
+import { cameraOfflineCopy, cameraStatusLabel, cameraViewerKind, syncVideoSrcObject } from "@/lib/cctv";
 
 function LiveBadge({ kind }) {
   const live = kind === "live";
@@ -42,16 +42,12 @@ export default function CameraTile({
   const copy = cameraOfflineCopy(kind, error);
 
   useEffect(() => {
-    const node = innerRef.current;
-    if (!node) return undefined;
-    node.srcObject = stream ?? null;
-    return () => {
-      node.srcObject = null;
-    };
-  }, [stream]);
+    syncVideoSrcObject(innerRef.current, stream);
+  }, [stream, live]);
 
-  function setRefs(node) {
+  function setVideoNode(node) {
     innerRef.current = node;
+    syncVideoSrcObject(node, stream);
     if (typeof videoRef === "function") videoRef(node);
   }
 
@@ -72,7 +68,7 @@ export default function CameraTile({
       <LiveBadge kind={kind} />
       {live && hasStream ? (
         <video
-          ref={setRefs}
+          ref={setVideoNode}
           className="absolute inset-0 size-full object-cover"
           autoPlay
           playsInline

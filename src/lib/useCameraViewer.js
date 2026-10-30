@@ -5,6 +5,7 @@ import { getIceServers, postBookingCameraSignal } from "@/lib/api";
 import {
   SESSION_ENDED_STOP_REASONS,
   canSendSignal,
+  createIceFlushQueue,
   defaultStunServers,
   iceCandidatePayload,
   newSessionId,
@@ -36,6 +37,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
   const sessionRef = useRef("");
   const stoppedRef = useRef(false);
   const hasTrackRef = useRef(false);
+  const iceQueueRef = useRef(null);
   const cameraId = camera?.id;
 
   const ensureSessionId = useCallback(() => {
@@ -51,6 +53,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
       if (stoppedRef.current) return;
       closePeerConnection(pcRef.current);
       pcRef.current = null;
+      iceQueueRef.current?.reset();
       hasTrackRef.current = false;
       setStream(null);
       setError("");
@@ -59,6 +62,17 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
         iceServers: servers.length ? servers : defaultStunServers(),
       });
       pcRef.current = pc;
+      const iceQueue = createIceFlushQueue({
+        send: async (body) => {
+          if (stoppedRef.current) return;
+          try {
+            await postViewerSignal(bookingId, cameraId, body);
+          } catch (err) {
+            if (err?.status === 413) return;
+          }
+        },
+      });
+      iceQueueRef.current = iceQueue;
       pc.addTransceiver("video", { direction: "recvonly" });
       pc.addTransceiver("audio", { direction: "recvonly" });
       pc.ontrack = (event) => {
@@ -70,11 +84,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
       pc.onicecandidate = (iceEvent) => {
         const candidate = iceCandidatePayload(iceEvent.candidate);
         if (!candidate) return;
-        const body = { type: "ice", sessionId, candidate };
-        if (!canSendSignal(body)) return;
-        void postViewerSignal(bookingId, cameraId, body).catch((err) => {
-          if (err?.status === 413) return;
-        });
+        iceQueue.enqueue({ type: "ice", sessionId, candidate });
       };
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
@@ -92,9 +102,15 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
         sessionId,
         sdp: offer.sdp,
       });
+      if (stoppedRef.current) {
+        iceQueue.reset();
+        return;
+      }
+      await iceQueue.markReady();
     } catch (err) {
       closePeerConnection(pcRef.current);
       pcRef.current = null;
+      iceQueueRef.current?.reset();
       hasTrackRef.current = false;
       setStream(null);
       if (err?.status === 409) {
@@ -138,6 +154,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
       if (event.sessionId && String(event.sessionId) !== sessionRef.current) return;
       closePeerConnection(pcRef.current);
       pcRef.current = null;
+      iceQueueRef.current?.reset();
       hasTrackRef.current = false;
       setStream(null);
       sessionRef.current = "";
@@ -169,6 +186,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
     return () => {
       clearTimeout(timer);
       stoppedRef.current = true;
+      iceQueueRef.current?.reset();
       closePeerConnection(pcRef.current);
       pcRef.current = null;
     };

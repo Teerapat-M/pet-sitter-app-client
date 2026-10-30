@@ -303,6 +303,62 @@ export function canSendSignal(body, maxBytes = MAX_SIGNAL_BYTES) {
   return signalBodyBytes(body) <= maxBytes;
 }
 
+/**
+ * Attach a MediaStream to a video element that may not exist until LIVE.
+ * Call from a ref callback (element mount) and whenever stream/live changes.
+ */
+export function syncVideoSrcObject(node, stream) {
+  if (!node) return null;
+  node.srcObject = stream ?? null;
+  return node.srcObject;
+}
+
+/**
+ * Buffer local ICE until the offer/answer POST that creates the signalling
+ * session has resolved, then flush in enqueue order.
+ */
+export function createIceFlushQueue({ send } = {}) {
+  const pending = [];
+  let opened = false;
+  let generation = 0;
+  let chain = Promise.resolve();
+
+  function enqueue(body) {
+    if (!body || !canSendSignal(body)) return;
+    pending.push(body);
+    if (opened) void flush();
+  }
+
+  function flush() {
+    const current = generation;
+    chain = chain.then(async () => {
+      while (pending.length && current === generation) {
+        const body = pending.shift();
+        try {
+          await send?.(body);
+        } catch {
+          // keep remaining candidates moving
+        }
+      }
+    });
+    return chain;
+  }
+
+  function markReady() {
+    opened = true;
+    return flush();
+  }
+
+  function reset() {
+    generation += 1;
+    pending.length = 0;
+    opened = false;
+    chain = Promise.resolve();
+  }
+
+  return { enqueue, markReady, reset };
+}
+
 export function signallingErrorMessage(error) {
   const status = Number(error?.status);
   const message = error instanceof Error ? error.message : "";

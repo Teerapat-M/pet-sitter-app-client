@@ -46,6 +46,7 @@ export function serviceById(id) {
   return SERVICES.find((item) => item.id === id) ?? null;
 }
 
+/** Display-only catalog hint for the sitter profile. Live totals come from POST /api/bookings/quote. */
 export function quoteBooking(serviceId, startDate, endDate) {
   const nights = Math.max(1, calculateBookingNights(startDate, endDate) || 1);
 

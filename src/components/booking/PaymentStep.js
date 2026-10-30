@@ -41,8 +41,7 @@ export default function PaymentStep({ paymentMethod, onPaymentMethodChange }) {
         <div className="mt-6 flex flex-col items-center justify-center gap-4 rounded-2xl bg-gray-100 px-4 py-10 text-center sm:mt-8 sm:gap-5 sm:px-6 sm:py-14">
           <Icon src="/icon/credit-card.svg" className="size-12 text-orange-500" />
           <p className="max-w-lg text-body-2 wrap-break-word text-gray-600">
-            After you confirm this booking, you will enter your card details
-            securely with Stripe.
+            After you confirm, you will pay in Stripe Checkout (test mode).
             <br />
             Test card: 4242 4242 4242 4242
           </p>

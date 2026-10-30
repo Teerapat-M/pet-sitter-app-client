@@ -175,11 +175,17 @@ export function formatBookingDuration(duration, durationUnit) {
   if (!Number.isFinite(value) || value < 1) return "";
 
   const unit = String(durationUnit ?? "").trim();
-  if (unit === "Day") {
+  if (unit === "Day" || unit === "nights" || unit === "night") {
     return value === 1 ? "1 night" : `${value} nights`;
   }
-  if (unit === "hours") {
+  if (unit === "hours" || unit === "hour") {
     return value === 1 ? "1 hour" : `${value} hours`;
+  }
+  if (unit === "minutes" || unit === "minute") {
+    return value === 1 ? "1 minute" : `${value} minutes`;
+  }
+  if (unit === "walk") {
+    return value === 1 ? "1 walk" : `${value} walks`;
   }
   return `${value} ${unit}`;
 }
@@ -231,10 +237,40 @@ export function formatBookingDateRangeFromRecord(booking) {
   return `${formatBookingDate(start)} - ${formatBookingDate(end)}`;
 }
 
-/** "2023-08-25" → "25 Aug, 2023" */
+export const BOOKING_TIMEZONE = "Asia/Bangkok";
+
+/**
+ * Calendar date in Asia/Bangkok as YYYY-MM-DD.
+ * Never uses toISOString (UTC slice turns Bangkok midnight into T17:00Z).
+ */
+export function toDateOnly(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    if (!text) return "";
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: BOOKING_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  if (!year || !month || !day) return "";
+  return `${year}-${month}-${day}`;
+}
+
+/** "2026-08-25" → "25 Aug, 2026" */
 export function formatBookingDate(dateStr) {
-  const date = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return dateStr;
+  const dateOnly = toDateOnly(dateStr);
+  if (!dateOnly) return dateStr ? String(dateStr) : "";
+  const date = new Date(`${dateOnly}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateOnly;
   const formatted = date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
@@ -283,8 +319,7 @@ export function formatBookingDateTimeLabel({
 }
 
 export function normalizeBookingDate(value) {
-  const text = String(value ?? "").trim();
-  return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : "";
+  return toDateOnly(value);
 }
 
 export function normalizeBookingTime(value) {

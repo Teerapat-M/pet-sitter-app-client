@@ -15,15 +15,17 @@ import { formatBookedDateList } from "@/utils/formatDateTime";
 import { formatBookingDurationFromRecord } from "@/lib/booking";
 import LoadingState from "@/components/LoadingState";
 import Pagination from "@/components/Pagination";
+import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
+import { BOOKING_STATUS_LABELS } from "@/lib/phase3Booking";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const STATUS = {
-  waiting_confirm: { label: "Waiting for confirm", text: "text-pink", dot: "bg-pink" },
-  waiting_service: { label: "Waiting for service", text: "text-yellow", dot: "bg-yellow" },
-  in_service: { label: "In service", text: "text-blue", dot: "bg-blue" },
-  success: { label: "Success", text: "text-green", dot: "bg-green" },
-  cancelled: { label: "Canceled", text: "text-red", dot: "bg-red" },
+const STATUS_FILTERS = {
+  waiting_confirm: BOOKING_STATUS_LABELS.waiting_confirm,
+  waiting_service: BOOKING_STATUS_LABELS.waiting_service,
+  in_service: BOOKING_STATUS_LABELS.in_service,
+  completed: BOOKING_STATUS_LABELS.completed,
+  cancelled: BOOKING_STATUS_LABELS.cancelled,
 };
 
 export default function BookingListPage() {
@@ -85,7 +87,7 @@ export default function BookingListPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All status</SelectItem>
-              {Object.entries(STATUS).map(([key, { label }]) => (
+              {Object.entries(STATUS_FILTERS).map(([key, label]) => (
                 <SelectItem key={key} value={key}>
                   {label}
                 </SelectItem>
@@ -145,15 +147,7 @@ export default function BookingListPage() {
                       {formatBookedDateList(booking)}
                     </td>
                     <td className="px-6 py-5 text-body-2">
-                      <span
-                        className={`flex items-center gap-2 ${STATUS[booking.status]?.text}`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS[booking.status]?.dot}`}
-                          aria-hidden="true"
-                        />
-                        {STATUS[booking.status]?.label}
-                      </span>
+                      <BookingStatusBadge status={booking.status} />
                     </td>
                   </tr>
                 ))}

@@ -8,6 +8,7 @@ import {
   normalizePetTypeList,
 } from "@/lib/petSearch";
 import { formatDate } from "@/utils/formatDateTime";
+import { toDateOnly } from "@/lib/booking";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -17,7 +18,7 @@ function assertApiUrl() {
   }
 }
 
-export async function apiFetch(path, { method = "GET", body } = {}) {
+export async function apiFetch(path, { method = "GET", body, signal } = {}) {
   assertApiUrl();
 
   const token = getToken();
@@ -31,6 +32,7 @@ export async function apiFetch(path, { method = "GET", body } = {}) {
     cache: "no-store",
     headers,
     body: isFormData ? body : body ? JSON.stringify(body) : undefined,
+    signal,
   });
 
   const json = await res.json().catch(() => ({}));
@@ -346,8 +348,8 @@ export async function createBooking({
   // Step 1: ฟิลด์ร่วมทุกโหมด
   const body = {
     sitterId,
-    startDate: resolvedStart,
-    endDate: resolvedEnd,
+    startDate: toDateOnly(resolvedStart) || resolvedStart,
+    endDate: toDateOnly(resolvedEnd) || resolvedEnd,
     petIds,
     paymentMethod,
   };
@@ -367,6 +369,57 @@ export async function createBooking({
     method: "POST",
     body,
   });
+  return json.data;
+}
+
+/** POST /api/bookings/quote — server recomputes price; client total is ignored. */
+export async function quotePhase3Booking(body, { signal } = {}) {
+  const json = await apiFetch("/api/bookings/quote", {
+    method: "POST",
+    body,
+    signal,
+  });
+  return json.data;
+}
+
+/** POST /api/bookings with serviceType — Stripe returns checkoutUrl. */
+export async function createPhase3Booking(body) {
+  const json = await apiFetch("/api/bookings", {
+    method: "POST",
+    body,
+  });
+  return json.data;
+}
+
+/** POST /api/bookings/:id/checkout — Stripe TEST Checkout Session for an unpaid booking. */
+export async function checkoutBooking(id) {
+  const json = await apiFetch(`/api/bookings/${encodeURIComponent(id)}/checkout`, {
+    method: "POST",
+  });
+  return json.data;
+}
+
+export async function acceptSitterBooking(id) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/accept`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function declineSitterBooking(id) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/decline`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function updateSitterBookingStatus(id, status) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/status`,
+    { method: "PATCH", body: { status } },
+  );
   return json.data;
 }
 

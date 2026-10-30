@@ -10,7 +10,15 @@ import axios from "axios";
 import { toast } from "sonner";
 import { formatBookedDateDetail, formatDate } from "@/utils/formatDateTime";
 import { formatBookingDurationFromRecord } from "@/lib/booking";
-import { createConversation } from "@/lib/api";
+import {
+  acceptSitterBooking,
+  createConversation,
+  declineSitterBooking,
+  updateSitterBookingStatus,
+} from "@/lib/api";
+import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
+import { bookingChatHref, serviceTypeLabel } from "@/lib/phase3Booking";
+import CctvBadge from "@/components/CctvBadge";
 import {
   errorToastClassNames,
   successToastClassNames,
@@ -18,13 +26,6 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const STATUS = {
-  waiting_confirm: { label: "Waiting for confirm", text: "text-pink", dot: "bg-pink" },
-  waiting_service: { label: "Waiting for service", text: "text-yellow", dot: "bg-yellow" },
-  in_service: { label: "In service", text: "text-blue", dot: "bg-blue" },
-  success: { label: "Success", text: "text-green", dot: "bg-green" },
-  cancelled: { label: "Canceled", text: "text-red", dot: "bg-red" },
-};
 
 function getErrorMessage(error, fallback) {
   return (
@@ -64,14 +65,11 @@ export default function BookingDetailPage() {
     void loadBooking();
   }, [loadBooking]);
 
-  const updateBookingStatus = async (nextStatus, successMessage) => {
+  const runStatusAction = async (action, successMessage) => {
     if (!id || isUpdatingStatus) return;
     setIsUpdatingStatus(true);
     try {
-      await axios.patch(
-        `${API_BASE_URL}/api/sitters/bookings/${id}/status`,
-        { status: nextStatus },
-      );
+      await action();
       setShowRejectModal(false);
       await loadBooking();
       toast(successMessage, {
@@ -87,6 +85,11 @@ export default function BookingDetailPage() {
   };
 
   async function handleSendMessage() {
+    const chatHref = bookingChatHref(booking);
+    if (chatHref) {
+      router.push(chatHref);
+      return;
+    }
     const ownerId = booking?.pet_owner?.id ?? booking?.owner_id;
     if (!ownerId || sendingMessage) {
       if (!ownerId) {
@@ -111,7 +114,6 @@ export default function BookingDetailPage() {
   }
 
   const statusKey = booking?.status;
-  const status = STATUS[statusKey];
   const ownerName = booking?.pet_owner_name ?? "—";
   const owner = booking?.pet_owner;
   const pets = booking?.pets ?? [];
@@ -129,10 +131,7 @@ export default function BookingDetailPage() {
             <h1 className="text-h3 font-bold text-black">{ownerName}</h1>
           </Link>
           {booking ? (
-            <p className={`flex items-center gap-2 text-body-2 ${status.text}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
-              {status.label}
-            </p>
+            <BookingStatusBadge status={statusKey} />
           ) : null}
         </div>
 
@@ -153,7 +152,10 @@ export default function BookingDetailPage() {
                   className="btn btn-primary"
                   disabled={isUpdatingStatus}
                   onClick={() =>
-                    updateBookingStatus("waiting_service", "Booking confirmed")
+                    runStatusAction(
+                      () => acceptSitterBooking(id),
+                      "Booking accepted",
+                    )
                   }
                 >
                   Confirm Booking
@@ -166,7 +168,10 @@ export default function BookingDetailPage() {
                 className="btn btn-primary"
                 disabled={isUpdatingStatus}
                 onClick={() =>
-                  updateBookingStatus("in_service", "Booking is in service")
+                  runStatusAction(
+                    () => updateSitterBookingStatus(id, "in_service"),
+                    "Booking is in service",
+                  )
                 }
               >
                 In Service
@@ -178,7 +183,10 @@ export default function BookingDetailPage() {
                 className="btn btn-primary"
                 disabled={isUpdatingStatus}
                 onClick={() =>
-                  updateBookingStatus("success", "Booking completed")
+                  runStatusAction(
+                    () => updateSitterBookingStatus(id, "completed"),
+                    "Booking completed",
+                  )
                 }
               >
                 Success
@@ -258,6 +266,19 @@ export default function BookingDetailPage() {
         <DetailField label="Duration">
           {formatBookingDurationFromRecord(booking)}
         </DetailField>
+        {serviceTypeLabel(booking) ? (
+          <DetailField label="Service">{serviceTypeLabel(booking)}</DetailField>
+        ) : null}
+        {booking?.has_cctv || booking?.hasCctv ? (
+          <DetailField label="Venue">
+            <CctvBadge label="CCTV at this stay" />
+          </DetailField>
+        ) : null}
+        {booking?.owner_address || booking?.ownerAddress ? (
+          <DetailField label="Owner address">
+            {booking.owner_address || booking.ownerAddress}
+          </DetailField>
+        ) : null}
         <DetailField label="Booking Date">
           {booking ? formatBookedDateDetail(booking) : "—"}
         </DetailField>
@@ -365,7 +386,10 @@ export default function BookingDetailPage() {
                 className="btn btn-primary"
                 disabled={isUpdatingStatus}
                 onClick={() =>
-                  updateBookingStatus("cancelled", "Booking rejected")
+                  runStatusAction(
+                    () => declineSitterBooking(id),
+                    "Booking declined",
+                  )
                 }
               >
                 Reject Booking

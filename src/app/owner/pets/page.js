@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PawPrint } from "lucide-react";
 import { getOwnerPets } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { Card } from "@/components/ui/card";
 
 const TINTS = ["bg-primary-50", "bg-accent-50", "bg-yellow-light"];
 
@@ -85,7 +86,8 @@ export default function OwnerPetsPage() {
             </p>
           ) : (
             pets.map((pet, index) => (
-              <article
+              <Card
+                as="article"
                 key={pet.id}
                 className={`overflow-hidden rounded-card bg-surface shadow-card ${
                   pet.isSuspended ? "opacity-70" : ""
@@ -132,7 +134,7 @@ export default function OwnerPetsPage() {
                     </Link>
                   </div>
                 </div>
-              </article>
+              </Card>
             ))
           )}
         </div>

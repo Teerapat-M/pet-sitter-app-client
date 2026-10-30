@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import { Card } from "@/components/ui/card";
 import { formatBankDisplay } from "@/lib/payoutFormat";
 
 /**
@@ -10,9 +11,11 @@ export default function BankAccountCard({ bankAccount }) {
   const label = formatBankDisplay(bankAccount);
 
   return (
-    <Link
+    <Card
+      as={Link}
+      interactive
       href="/sitter/payout/bank-account"
-      className="flex min-w-0 flex-1 items-center gap-6 rounded-2xl bg-white px-8 py-6 transition-colors hover:bg-orange-50/40"
+      className="flex min-w-0 flex-1 items-center gap-6 rounded-2xl bg-white px-8 py-6 hover:bg-orange-50/40"
     >
       <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-500">
         <Icon src="/icon/wallet.svg" className="h-6 w-6" />
@@ -33,6 +36,6 @@ export default function BankAccountCard({ bankAccount }) {
         src="/icon/chevron-right.svg"
         className="h-5 w-5 shrink-0 text-gray-400"
       />
-    </Link>
+    </Card>
   );
 }

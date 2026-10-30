@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { SERVICES } from "@/lib/services";
 
 export default function ServiceTiles() {
@@ -10,7 +11,9 @@ export default function ServiceTiles() {
         className="mt-4 grid grid-cols-3 gap-3 md:mt-6 md:gap-5"
       >
         {SERVICES.map((service) => (
-          <Link
+          <Card
+            as={Link}
+            interactive
             key={service.id}
             href={`/find-sitter?service=${service.id}`}
             className={`rounded-tile p-3 md:p-5 ${service.tint}`}
@@ -27,7 +30,7 @@ export default function ServiceTiles() {
               {service.mobileHint}
             </p>
             <p className="mt-4 hidden text-label text-primary md:block">{service.priceHint}</p>
-          </Link>
+          </Card>
         ))}
       </div>
     </section>

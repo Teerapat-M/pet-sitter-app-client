@@ -24,6 +24,7 @@ import { isOwnerProfileComplete } from "@/utils/validateProfile";
 import { SERVICES, quoteBooking } from "@/lib/services";
 import { getFallbackSitter } from "@/lib/sitterCard";
 import CctvBadge from "@/components/CctvBadge";
+import { Card } from "@/components/ui/card";
 
 function isRemoteSrc(src) {
   return String(src ?? "").startsWith("http");
@@ -277,7 +278,7 @@ function GalleryThumbs({ photos }) {
   return (
     <div className="grid h-44 grid-cols-2 grid-rows-2 gap-3">
       {items.map((item) => (
-        <div
+        <Card
           key={`${item.tint}-${item.label}`}
           className={`relative flex items-end overflow-hidden rounded-2xl p-3 text-caption font-semibold text-primary-600 ${item.className}`}
           style={{ backgroundColor: item.tint }}
@@ -301,7 +302,7 @@ function GalleryThumbs({ photos }) {
               🪴 {item.label}
             </span>
           ) : null}
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -309,7 +310,7 @@ function GalleryThumbs({ photos }) {
 
 function CctvPanel({ name }) {
   return (
-    <div className="rounded-tile bg-accent-50 p-4">
+    <Card className="rounded-tile bg-accent-50 p-4">
       <p className="text-label text-accent-700">CCTV at {name}&apos;s place</p>
       <p className="mt-1 text-body-2 text-ink-600">
         Watch your pet live during the stay.
@@ -324,7 +325,7 @@ function CctvPanel({ name }) {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -346,7 +347,7 @@ function BookingCard({
   const quote = quoteBooking(serviceId, startDate, endDate);
 
   return (
-    <div className="rounded-card bg-surface p-5 shadow-card">
+    <Card className="rounded-card bg-surface p-5 shadow-card">
       <h2 className="text-h3">Book {firstName}</h2>
       <div className="mt-4 flex gap-2">
         {SERVICES.map((service) => {
@@ -436,7 +437,7 @@ function BookingCard({
           You cannot book your own sitter profile
         </p>
       ) : null}
-    </div>
+    </Card>
   );
 }
 
@@ -567,7 +568,7 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
 
   return (
     <section>
-      <div className="rounded-card bg-surface p-5 shadow-card">
+      <Card className="rounded-card bg-surface p-5 shadow-card">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-10">
           <div className="flex size-24 shrink-0 flex-col items-center justify-center rounded-full bg-primary-50 text-ink-900">
             <span className="text-h3 leading-none">{Number(average).toFixed(1)}</span>
@@ -611,7 +612,7 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       <div className="px-5 pt-6 pb-8 sm:px-8 sm:py-10">
           {loading ? (
@@ -623,7 +624,8 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {reviews.map((review) => (
-                <li
+                <Card
+                  as="li"
                   key={review.id}
                   className="rounded-card border border-line bg-surface p-4"
                 >
@@ -667,7 +669,7 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
                       <p className="text-body-2 text-gray-500 sm:mt-2">{review.comment}</p>
                     ) : null}
                   </div>
-                </li>
+                </Card>
               ))}
             </ul>
           )}
@@ -973,12 +975,12 @@ export default function PetSitterDetail({ sitterId }) {
               ) : null}
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {SERVICES.map((service) => (
-                  <div key={service.id} className="rounded-card border border-line bg-surface p-4">
+                  <Card key={service.id} className="rounded-card border border-line bg-surface p-4">
                     <p className="font-bold">
                       {service.icon} {service.tabLabel === "Walking" ? "Dog walking" : service.tabLabel}
                     </p>
                     <p className="mt-1 text-label text-primary">{service.profilePrice}</p>
-                  </div>
+                  </Card>
                 ))}
               </div>
             </section>

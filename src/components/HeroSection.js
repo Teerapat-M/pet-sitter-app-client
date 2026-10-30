@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import SearchBar from "./SearchBar";
+import { Card } from "@/components/ui/card";
 
 export default function HeroSection({ greeting = null }) {
   return (
@@ -43,7 +44,9 @@ export default function HeroSection({ greeting = null }) {
         </div>
       </div>
 
-      <Link
+      <Card
+        as={Link}
+        interactive
         href="/find-sitter"
         className="mt-4 flex items-center gap-3 rounded-card bg-surface px-4 py-3 shadow-card md:hidden"
       >
@@ -54,7 +57,7 @@ export default function HeroSection({ greeting = null }) {
             Dog walking · Ari · Sat 14 Nov
           </span>
         </span>
-      </Link>
+      </Card>
     </section>
   );
 }

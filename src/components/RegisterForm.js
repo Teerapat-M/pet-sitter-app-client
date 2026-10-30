@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { register } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 import PasswordInput from "@/components/PasswordInput";
+import { Card } from "@/components/ui/card";
 import { validatePassword } from "@/utils/validatePassword";
 
 export default function RegisterForm({
@@ -125,8 +126,10 @@ export default function RegisterForm({
       </header>
 
       <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Account type">
-        <button
+        <Card
+          as="button"
           type="button"
+          interactive
           role="radio"
           aria-checked={mode === "owner"}
           onClick={() => setMode("owner")}
@@ -137,9 +140,11 @@ export default function RegisterForm({
           <p className="text-2xl" aria-hidden>🐶</p>
           <p className="mt-2 font-extrabold">Book care</p>
           <p className="text-caption text-ink-400">Pet owner</p>
-        </button>
-        <button
+        </Card>
+        <Card
+          as="button"
           type="button"
+          interactive
           role="radio"
           aria-checked={mode === "sitter"}
           onClick={() => setMode("sitter")}
@@ -150,7 +155,7 @@ export default function RegisterForm({
           <p className="text-2xl" aria-hidden>🐕</p>
           <p className="mt-2 font-extrabold">Offer care</p>
           <p className="text-caption text-ink-400">Sitter / walker</p>
-        </button>
+        </Card>
       </div>
 
       <label className="flex flex-col gap-2">

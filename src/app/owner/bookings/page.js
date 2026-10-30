@@ -16,6 +16,7 @@ import {
 } from "@/lib/booking";
 import BookingDateTimeModal from "@/components/booking/BookingDateTimeModal";
 import Pagination from "@/components/Pagination";
+import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -552,10 +553,11 @@ export default function BookingHistoryPage() {
           ) : (
             <div className="space-y-4">
               {bookings.map((booking) => (
-                <div
+                <Card
                   key={booking.id}
+                  interactive
                   onClick={() => setSelectedBooking(booking)}
-                  className={`w-full bg-white flex flex-col p-4 sm:p-6 cursor-pointer border border-[#DCDFED] transition-colors ${
+                  className={`w-full bg-white flex flex-col p-4 sm:p-6 border border-[#DCDFED] ${
                     HOVER_BORDER_CLASS[booking.status] || ""
                   }`}
                   style={{ borderRadius: "16px" }}
@@ -798,7 +800,7 @@ export default function BookingHistoryPage() {
                     )}
                   </div>
 
-                </div>
+                </Card>
               ))}
             </div>
           )}

@@ -1,3 +1,5 @@
+import { Card } from "@/components/ui/card";
+
 export default function ConversationList({
   conversations,
   activeId,
@@ -32,9 +34,11 @@ export default function ConversationList({
             const unread = item.unreadCount > 0;
 
             return (
-              <button
+              <Card
+                as="button"
                 key={item.id}
                 type="button"
+                interactive
                 onClick={() => onSelect(item.id)}
                 className={`mb-2 flex w-full items-center gap-3 rounded-card p-3 text-left ${
                   isActive ? "bg-primary-50" : "hover:bg-primary-50/60"
@@ -68,7 +72,7 @@ export default function ConversationList({
                     {item.lastMessage || "Start a conversation!"}
                   </span>
                 </span>
-              </button>
+              </Card>
             );
           })
         )}

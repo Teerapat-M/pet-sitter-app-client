@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CctvBadge from "./CctvBadge";
+import { Card } from "@/components/ui/card";
 import { formatSitterCard } from "@/lib/sitterCard";
 
 export default function PetSitterCard({ sitter, index = 0 }) {
@@ -17,7 +18,9 @@ export default function PetSitterCard({ sitter, index = 0 }) {
     .join(" ");
 
   return (
-    <Link
+    <Card
+      as={Link}
+      interactive
       href={`/find-sitter/${card.id}`}
       className="block overflow-hidden rounded-card bg-surface shadow-card"
     >
@@ -48,6 +51,6 @@ export default function PetSitterCard({ sitter, index = 0 }) {
           <p className="mt-3 text-label text-primary">View profile</p>
         )}
       </div>
-    </Link>
+    </Card>
   );
 }

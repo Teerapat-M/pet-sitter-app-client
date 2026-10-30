@@ -8,6 +8,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import { Card } from "@/components/ui/card";
 import {
   calculateBookingPreviewTotal,
   formatBookingDateTimeLabel,
@@ -131,7 +132,7 @@ export default function ThankYouView({
       />
 
       <div className="relative z-10 mx-auto max-w-160">
-        <div className="overflow-hidden rounded-2xl bg-white shadow-(--shadow-card)">
+        <Card className="overflow-hidden rounded-2xl bg-white shadow-(--shadow-card)">
           <div className="bg-black px-5 py-10 text-center text-white sm:px-12 sm:py-14">
             <h1 className="text-h3 font-bold tracking-tight wrap-break-word text-white sm:text-h2 sm:text-[2rem] sm:leading-10">
               Thank You For Booking
@@ -178,7 +179,7 @@ export default function ThankYouView({
               </span>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Figma mobile: ปุ่มคู่ขนาน */}
         <div className="relative z-10 mt-8 flex w-full flex-row items-center justify-center gap-3 sm:gap-4">

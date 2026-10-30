@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSitters } from "@/lib/api";
 import CctvBadge from "@/components/CctvBadge";
+import { Card } from "@/components/ui/card";
 import { FALLBACK_SITTERS, formatSitterCard } from "@/lib/sitterCard";
 
 export default function TopSitters() {
@@ -30,7 +31,9 @@ export default function TopSitters() {
           {sitters.slice(0, 4).map((raw, index) => {
             const sitter = formatSitterCard(raw, index);
             return (
-              <Link
+              <Card
+                as={Link}
+                interactive
                 key={sitter.id}
                 href={`/find-sitter/${sitter.id}`}
                 className="flex flex-col rounded-card bg-surface p-3 shadow-card md:p-4"
@@ -59,7 +62,7 @@ export default function TopSitters() {
                   {sitter.hasCctv ? <CctvBadge /> : <span />}
                   <p className="text-label text-primary">{sitter.priceLabel}</p>
                 </div>
-              </Link>
+              </Card>
             );
           })}
         </div>

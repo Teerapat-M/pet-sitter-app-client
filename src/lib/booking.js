@@ -175,11 +175,17 @@ export function formatBookingDuration(duration, durationUnit) {
   if (!Number.isFinite(value) || value < 1) return "";
 
   const unit = String(durationUnit ?? "").trim();
-  if (unit === "Day") {
+  if (unit === "Day" || unit === "nights" || unit === "night") {
     return value === 1 ? "1 night" : `${value} nights`;
   }
-  if (unit === "hours") {
+  if (unit === "hours" || unit === "hour") {
     return value === 1 ? "1 hour" : `${value} hours`;
+  }
+  if (unit === "minutes" || unit === "minute") {
+    return value === 1 ? "1 minute" : `${value} minutes`;
+  }
+  if (unit === "walk") {
+    return value === 1 ? "1 walk" : `${value} walks`;
   }
   return `${value} ${unit}`;
 }

@@ -4,27 +4,25 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, PawPrint } from "lucide-react";
 import { toast } from "sonner";
 import Icon from "./Icon";
 import Pagination from "./Pagination";
-import { getMyPets, getProfile, getSitter, getSitterAvailability, getSitterReviews } from "@/lib/api";
-import BookingDateTimeModal from "@/components/booking/BookingDateTimeModal";
+import { getMyPets, getProfile, getSitter, getSitterReviews } from "@/lib/api";
 import { getUser } from "@/lib/auth";
-import {
-  bookingRangeOverlapsBooked,
-  combineBookingDateTime,
-  dateRangeOverlapsBooked,
-  isAtLeastThreeHoursAhead,
-  normalizeBookedSlots,
-} from "@/lib/booking";
 import { MONTHS } from "@/components/booking/BookingCalendarPicker";
 import { errorToastClassNames } from "@/lib/toastStyles";
 import { isOwnerProfileComplete } from "@/utils/validateProfile";
-import { SERVICES, quoteBooking } from "@/lib/services";
+import { SERVICES } from "@/lib/services";
 import { getFallbackSitter } from "@/lib/sitterCard";
 import CctvBadge from "@/components/CctvBadge";
 import { Card } from "@/components/ui/card";
+import ServiceBookingForm, { useLiveQuote } from "@/components/booking/ServiceBookingForm";
+import { normalizeBookingPet } from "@/lib/booking";
+import {
+  offeringPrice,
+  toBookingSearchParams,
+  validateBookingForm,
+} from "@/lib/phase3Booking";
 
 function isRemoteSrc(src) {
   return String(src ?? "").startsWith("http");
@@ -95,6 +93,8 @@ function normalizeSitter(raw) {
     services: firstString(raw.services),
     experience: formatExperience(raw.experience ?? raw.experience_years ?? raw.experienceYears),
     cameraCount: Number(raw.camera_count ?? raw.cameraCount ?? raw.cameras?.length ?? 0) || 0,
+    hasCctv: Boolean(raw.hasCctv ?? raw.has_cctv ?? raw.camera_count),
+    serviceOfferings: raw.serviceOfferings ?? raw.service_offerings ?? [],
     latitude: raw.latitude,
     longitude: raw.longitude,
   };
@@ -108,22 +108,6 @@ function Stars({ count, iconClassName = "h-5 w-5" }) {
       ))}
     </div>
   );
-}
-
-function isSameDayBooking(startDate, endDate, isManyDays) {
-  if (isManyDays && !endDate) return false;
-  return Boolean(startDate) && (!endDate || startDate === endDate);
-}
-
-function isStartBeforeEnd(startDate, startTime, endDate, endTime, isManyDays) {
-  if (!startTime || !endTime) return true;
-  if (!isSameDayBooking(startDate, endDate, isManyDays)) {
-    if (!startDate || !endDate) return true;
-    const start = combineBookingDateTime(startDate, startTime);
-    const end = combineBookingDateTime(endDate, endTime);
-    return Boolean(start && end && start.getTime() < end.getTime());
-  }
-  return startTime < endTime;
 }
 
 function CompleteProfileModal({ onClose, onComplete }) {
@@ -235,12 +219,6 @@ function LoginRequiredModal({ onClose, onLogin }) {
   );
 }
 
-function formatChipDate(iso) {
-  const date = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
 function CoverPhoto({ src, title }) {
   return (
     <div className="relative flex min-h-56 items-center justify-center overflow-hidden rounded-tile bg-[#ffd7b8] lg:min-h-[22rem]">
@@ -329,116 +307,28 @@ function CctvPanel({ name }) {
   );
 }
 
-function BookingCard({
-  firstName,
-  serviceId,
-  onService,
-  startDate,
-  endDate,
-  onStartDate,
-  onEndDate,
-  petName,
-  petOptions,
-  onPet,
-  bookingChecking,
-  isOwnSitter,
-  onBook,
-}) {
-  const quote = quoteBooking(serviceId, startDate, endDate);
+function localIsoDate(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
-  return (
-    <Card className="rounded-card bg-surface p-5 shadow-card">
-      <h2 className="text-h3">Book {firstName}</h2>
-      <div className="mt-4 flex gap-2">
-        {SERVICES.map((service) => {
-          const active = service.id === serviceId;
-          return (
-            <button
-              key={service.id}
-              type="button"
-              data-service={service.id}
-              onClick={() => onService(service.id)}
-              className={`flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-2 text-[11px] font-bold ${
-                active ? "bg-primary text-white" : "border border-line bg-surface text-ink-600"
-              }`}
-            >
-              <span aria-hidden>{service.icon}</span>
-              {service.tabLabel}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="relative mt-3">
-        <div className="flex min-h-12 items-center gap-2 rounded-full border border-line px-4">
-          <CalendarDays className="size-4 shrink-0 text-ink-400" aria-hidden />
-          <span className="text-body-2 font-semibold text-ink-900">
-            {formatChipDate(startDate)} → {formatChipDate(endDate)}
-          </span>
-        </div>
-        <div className="absolute inset-0 grid grid-cols-2">
-          <input
-            type="date"
-            value={startDate}
-            onChange={(event) => onStartDate(event.target.value)}
-            aria-label="Start date"
-            className="cursor-pointer opacity-0"
-          />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(event) => onEndDate(event.target.value)}
-            aria-label="End date"
-            className="cursor-pointer opacity-0"
-          />
-        </div>
-      </div>
-
-      <label className="mt-3 flex min-h-12 items-center gap-2 rounded-full border border-line px-4">
-        <PawPrint className="size-4 shrink-0 text-ink-400" aria-hidden />
-        {petOptions.length > 0 ? (
-          <select
-            value={petName}
-            onChange={(event) => onPet(event.target.value)}
-            className="w-full bg-transparent text-body-2 font-semibold text-ink-900 outline-none"
-            aria-label="Pet"
-          >
-            {petOptions.map((pet) => (
-              <option key={pet} value={pet}>
-                {pet}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            value={petName}
-            onChange={(event) => onPet(event.target.value)}
-            className="w-full bg-transparent text-body-2 font-semibold text-ink-900 outline-none"
-            aria-label="Pet"
-          />
-        )}
-      </label>
-
-      <div className="mt-4 flex items-center justify-between text-body-2">
-        <span className="text-ink-600">{quote.line}</span>
-        <span className="text-h4 text-ink-900">฿{quote.total.toLocaleString("en-US")}</span>
-      </div>
-
-      <button
-        type="button"
-        className="btn btn-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50"
-        onClick={onBook}
-        disabled={bookingChecking || isOwnSitter}
-      >
-        {bookingChecking ? "Checking..." : "Book now"}
-      </button>
-      {isOwnSitter ? (
-        <p className="mt-3 text-caption text-ink-400">
-          You cannot book your own sitter profile
-        </p>
-      ) : null}
-    </Card>
-  );
+function defaultBookingDraft() {
+  return {
+    serviceType: "boarding",
+    mode: "visit",
+    checkIn: localIsoDate(1),
+    checkOut: localIsoDate(4),
+    date: localIsoDate(1),
+    startTime: "09:00",
+    durationMinutes: 30,
+    visitHours: 2,
+    ownerAddress: "",
+    petIds: [],
+  };
 }
 
 const REVIEW_PAGE_SIZE = 5;
@@ -708,57 +598,13 @@ export default function PetSitterDetail({ sitterId }) {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingChecking, setBookingChecking] = useState(false);
-  const [serviceId, setServiceId] = useState("boarding");
-  const [startDate, setStartDate] = useState("2026-11-12");
-  const [endDate, setEndDate] = useState("2026-11-15");
-  const [petName, setPetName] = useState("Bobo");
-  const [petOptions, setPetOptions] = useState([]);
-  const [booking, setBooking] = useState({
-    startDate: "2026-11-12",
-    endDate: "2026-11-15",
-    startTime: "",
-    endTime: "",
-  });
-  const [bookedSlots, setBookedSlots] = useState([]);
-
-  useEffect(() => {
-    if (!getUser()) return;
-    let cancelled = false;
-    getMyPets()
-      .then((pets) => {
-        if (cancelled) return;
-        const names = (Array.isArray(pets) ? pets : [])
-          .map((pet) => String(pet?.name ?? "").trim())
-          .filter(Boolean);
-        if (names.length) {
-          setPetOptions(names);
-          setPetName(names[0]);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!bookingOpen || !sitterId) return;
-    let cancelled = false;
-
-    async function loadAvailability() {
-      try {
-        const data = await getSitterAvailability(sitterId);
-        if (!cancelled) setBookedSlots(normalizeBookedSlots(data));
-      } catch {
-        if (!cancelled) setBookedSlots([]);
-      }
-    }
-
-    loadAvailability();
-    return () => {
-      cancelled = true;
-    };
-  }, [bookingOpen, sitterId]);
+  const [pets, setPets] = useState([]);
+  const [draft, setDraft] = useState(defaultBookingDraft);
+  const { quote, quoteError, quoting } = useLiveQuote(
+    sitterId,
+    { ...draft, sitterId },
+    isLoggedIn && !isOwnSitterListing(sitterId),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -790,6 +636,28 @@ export default function PetSitterDetail({ sitterId }) {
       cancelled = true;
     };
   }, [sitterId]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return undefined;
+    let cancelled = false;
+    getMyPets()
+      .then((rows) => {
+        if (cancelled) return;
+        const next = (Array.isArray(rows) ? rows : [])
+          .map(normalizeBookingPet)
+          .filter((pet) => pet?.id);
+        setPets(next);
+        setDraft((current) =>
+          current.petIds?.length
+            ? current
+            : { ...current, petIds: next[0] ? [String(next[0].id)] : [] },
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
 
   if (loading) {
     return (
@@ -826,7 +694,30 @@ export default function PetSitterDetail({ sitterId }) {
     setLoginModalOpen(true);
   }
 
-  async function openBookingIfProfileComplete() {
+  function goToCheckout() {
+    const nextDraft = { ...draft, sitterId: String(sitter.id ?? sitterId), pets };
+    const { ok, errors } = validateBookingForm({
+      ...nextDraft,
+      requireAddress: nextDraft.serviceType === "in_home",
+    });
+    if (!ok) {
+      toast.error(Object.values(errors)[0] || "Please complete the booking form", {
+        classNames: errorToastClassNames,
+      });
+      return;
+    }
+    if (quote?.available === false) {
+      toast.error("This slot overlaps another booking. Choose another date or time.", {
+        classNames: errorToastClassNames,
+      });
+      return;
+    }
+    const params = toBookingSearchParams(nextDraft);
+    setBookingOpen(false);
+    router.push(`/owner/booking?${params.toString()}`);
+  }
+
+  async function openBookingIfProfileComplete(thenCheckout) {
     if (bookingChecking) return;
 
     setBookingChecking(true);
@@ -834,6 +725,10 @@ export default function PetSitterDetail({ sitterId }) {
       const profile = await getProfile();
       if (!isOwnerProfileComplete(profile)) {
         setProfileModalOpen(true);
+        return;
+      }
+      if (thenCheckout) {
+        goToCheckout();
         return;
       }
       setBookingOpen(true);
@@ -846,16 +741,15 @@ export default function PetSitterDetail({ sitterId }) {
     }
   }
 
-  function handleBookNow() {
+  function handleBookNow(thenCheckout = true) {
     if (isOwnSitter) {
       toast.error("You cannot book yourself", {
         classNames: errorToastClassNames,
       });
       return;
     }
-    setBooking((current) => ({ ...current, startDate, endDate }));
     requireLogin(() => {
-      void openBookingIfProfileComplete();
+      void openBookingIfProfileComplete(thenCheckout);
     });
   }
 
@@ -870,74 +764,21 @@ export default function PetSitterDetail({ sitterId }) {
     router.push(`/owner/profile?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
-  function handleBookingChange(patch) {
-    setBooking((current) => ({ ...current, ...patch }));
-  }
-
-  /** Continue → /owner/booking — many days ส่งแค่วัน · one day ส่งวัน+เวลา */
-  function handleBookingContinue(event) {
-    event.preventDefault();
-
-    if (isOwnSitter) {
-      toast.error("You cannot book yourself", {
-        classNames: errorToastClassNames,
-      });
-      return;
-    }
-
-    const { startDate, endDate: bookingEndDate, startTime, endTime } = booking;
-    const endDate = bookingEndDate || startDate;
-    const isManyDayRange = Boolean(startDate && endDate && endDate > startDate);
-
-    if (!startDate) return;
-
-    if (isManyDayRange) {
-      // Step 1a: many days — เช็คแค่วันที่ (ไม่ใช้ time)
-      if (!bookingEndDate || bookingEndDate <= startDate) return;
-
-      if (dateRangeOverlapsBooked(startDate, endDate, bookedSlots)) {
-        toast.error("This date and time is already booked. Please choose another slot.", {
-          classNames: errorToastClassNames,
-        });
-        return;
-      }
-
-      // Step 2a: query เฉพาะ sitterId + startDate + endDate
-      const params = new URLSearchParams({
-        sitterId: String(sitter.id ?? sitterId),
-        startDate,
-        endDate,
-      });
-      setBookingOpen(false);
-      router.push(`/owner/booking?${params.toString()}`);
-      return;
-    }
-
-    // Step 1b: one day — ต้องมีเวลา + กฎเดิม
-    if (!startTime || !endTime) return;
-    if (!isAtLeastThreeHoursAhead(startDate, startTime)) return;
-    if (!isStartBeforeEnd(startDate, startTime, endDate, endTime, false)) return;
-
-    if (
-      bookingRangeOverlapsBooked(startDate, endDate, startTime, endTime, bookedSlots)
-    ) {
-      toast.error("This date and time is already booked. Please choose another slot.", {
-        classNames: errorToastClassNames,
-      });
-      return;
-    }
-
-    // Step 2b: one day — startDate/endDate เท่ากัน + time (parseBookingParams รองรับ legacy ?date= ด้วย)
-    const params = new URLSearchParams({
-      sitterId: String(sitter.id ?? sitterId),
-      startDate,
-      endDate: startDate,
-      startTime,
-      endTime,
-    });
-    setBookingOpen(false);
-    router.push(`/owner/booking?${params.toString()}`);
-  }
+  const bookingForm = (
+    <ServiceBookingForm
+      sitterId={String(sitter.id ?? sitterId)}
+      firstName={firstName}
+      pets={pets}
+      draft={draft}
+      onChange={setDraft}
+      quote={quote}
+      quoteError={quoteError}
+      quoting={quoting}
+      bookingChecking={bookingChecking}
+      isOwnSitter={isOwnSitter}
+      onBook={() => handleBookNow(true)}
+    />
+  );
 
   return (
     <div className="min-h-full bg-background pb-28 md:pb-10">
@@ -974,14 +815,40 @@ export default function PetSitterDetail({ sitterId }) {
                 <p className="mt-2 whitespace-pre-line text-body-2 text-ink-600">{sitter.services}</p>
               ) : null}
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {SERVICES.map((service) => (
-                  <Card key={service.id} className="rounded-card border border-line bg-surface p-4">
-                    <p className="font-bold">
-                      {service.icon} {service.tabLabel === "Walking" ? "Dog walking" : service.tabLabel}
-                    </p>
-                    <p className="mt-1 text-label text-primary">{service.profilePrice}</p>
-                  </Card>
-                ))}
+                {SERVICES.map((service) => {
+                  const livePrice =
+                    service.id === "in_home"
+                      ? [
+                          offeringPrice(sitter.serviceOfferings, "in_home", "visit"),
+                          offeringPrice(sitter.serviceOfferings, "in_home", "overnight"),
+                        ]
+                      : [offeringPrice(sitter.serviceOfferings, service.id)];
+                  const priceLabel =
+                    service.id === "in_home" && livePrice.some((amount) => amount != null)
+                      ? [
+                          livePrice[0] != null ? `฿${livePrice[0].toLocaleString("en-US")} visit` : null,
+                          livePrice[1] != null ? `฿${livePrice[1].toLocaleString("en-US")} night` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : livePrice[0] != null
+                        ? `฿${livePrice[0].toLocaleString("en-US")}${
+                            service.id === "boarding"
+                              ? " / night"
+                              : service.id === "dog_walking"
+                                ? " / walk"
+                                : ""
+                          }`
+                        : service.profilePrice;
+                  return (
+                    <Card key={service.id} className="rounded-card border border-line bg-surface p-4">
+                      <p className="font-bold">
+                        {service.icon} {service.tabLabel === "Walking" ? "Dog walking" : service.tabLabel}
+                      </p>
+                      <p className="mt-1 text-label text-primary">{priceLabel}</p>
+                    </Card>
+                  );
+                })}
               </div>
             </section>
 
@@ -996,32 +863,16 @@ export default function PetSitterDetail({ sitterId }) {
 
           <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
             <CctvPanel name={sitter.sitterName || sitter.title} />
-            <div className="hidden lg:block">
-              <BookingCard
-                firstName={firstName}
-                serviceId={serviceId}
-                onService={setServiceId}
-                startDate={startDate}
-                endDate={endDate}
-                onStartDate={setStartDate}
-                onEndDate={setEndDate}
-                petName={petName}
-                petOptions={petOptions}
-                onPet={setPetName}
-                bookingChecking={bookingChecking}
-                isOwnSitter={isOwnSitter}
-                onBook={handleBookNow}
-              />
-            </div>
+            <div className="hidden lg:block">{bookingForm}</div>
           </aside>
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-16 z-30 border-t border-line bg-surface px-5 py-3 md:hidden">
+      <div className="fixed inset-x-0 bottom-16 z-30 border-t border-line bg-surface px-5 py-3 lg:hidden">
         <button
           type="button"
           className="btn btn-primary w-full"
-          onClick={handleBookNow}
+          onClick={() => handleBookNow(false)}
           disabled={bookingChecking || isOwnSitter}
         >
           {bookingChecking ? "Checking..." : "Book now"}
@@ -1043,16 +894,18 @@ export default function PetSitterDetail({ sitterId }) {
       ) : null}
 
       {bookingOpen ? (
-        <BookingDateTimeModal
-          startDate={booking.startDate}
-          endDate={booking.endDate}
-          startTime={booking.startTime}
-          endTime={booking.endTime}
-          bookedSlots={bookedSlots}
-          onChange={handleBookingChange}
-          onClose={() => setBookingOpen(false)}
-          onContinue={handleBookingContinue}
-        />
+        <div className="fixed inset-0 z-60 overflow-y-auto bg-black/50 p-4 lg:hidden">
+          <div className="mx-auto max-w-md pb-8 pt-6">
+            <button
+              type="button"
+              className="mb-3 text-caption font-bold text-white"
+              onClick={() => setBookingOpen(false)}
+            >
+              Close
+            </button>
+            {bookingForm}
+          </div>
+        </div>
       ) : null}
     </div>
   );

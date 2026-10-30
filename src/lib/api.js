@@ -370,6 +370,56 @@ export async function createBooking({
   return json.data;
 }
 
+/** POST /api/bookings/quote — server recomputes price; client total is ignored. */
+export async function quotePhase3Booking(body) {
+  const json = await apiFetch("/api/bookings/quote", {
+    method: "POST",
+    body,
+  });
+  return json.data;
+}
+
+/** POST /api/bookings with serviceType — Stripe returns checkoutUrl. */
+export async function createPhase3Booking(body) {
+  const json = await apiFetch("/api/bookings", {
+    method: "POST",
+    body,
+  });
+  return json.data;
+}
+
+/** POST /api/bookings/:id/checkout — Stripe TEST Checkout Session for an unpaid booking. */
+export async function checkoutBooking(id) {
+  const json = await apiFetch(`/api/bookings/${encodeURIComponent(id)}/checkout`, {
+    method: "POST",
+  });
+  return json.data;
+}
+
+export async function acceptSitterBooking(id) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/accept`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function declineSitterBooking(id) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/decline`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function updateSitterBookingStatus(id, status) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/status`,
+    { method: "PATCH", body: { status } },
+  );
+  return json.data;
+}
+
 // บันทึกโปรไฟล์
 export async function updateProfile({
   name,

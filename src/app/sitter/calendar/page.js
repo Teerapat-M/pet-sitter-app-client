@@ -18,6 +18,7 @@ const EVENT_STYLES = {
   waiting_service: "border-2 border-orange-400 bg-orange-100 text-gray-600",
   in_service: "border-2 border-orange-400 bg-orange-100 text-gray-600",
   success: "border-2 border-green bg-green-light text-gray-600",
+  completed: "border-2 border-green bg-green-light text-gray-600",
 };
 
 const LEGEND = [

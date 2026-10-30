@@ -4,6 +4,7 @@ import {
   formatBookingDateTimeLabel,
   formatBookingDuration,
 } from "@/lib/booking";
+import { formatQuoteLine, formatQuoteTotal } from "@/lib/phase3Booking";
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-US", {
@@ -38,14 +39,20 @@ export default function BookingDetailSidebar({
   nights = null,
   selectedPets,
   hideTotal = false,
+  quote = null,
+  serviceLabel = "",
 }) {
   const petCount = selectedPets.length;
-  const total = calculateBookingPreviewTotal({
+  const quotedTotal = formatQuoteTotal(quote);
+  const previewTotal = calculateBookingPreviewTotal({
     isManyDays,
     hours,
     nights,
     petCount,
   });
+  const totalLabel = quotedTotal
+    ? quotedTotal.replace("฿", "")
+    : formatCurrency(previewTotal);
 
   const dateTimeLabel = formatBookingDateTimeLabel({
     startDate,
@@ -72,7 +79,13 @@ export default function BookingDetailSidebar({
 
           <DetailBlock label="Date & Time">{dateTimeLabel}</DetailBlock>
 
-          <DetailBlock label="Duration">{durationLabel}</DetailBlock>
+          {serviceLabel ? (
+            <DetailBlock label="Service">{serviceLabel}</DetailBlock>
+          ) : null}
+
+          <DetailBlock label="Duration">
+            {formatQuoteLine(quote) || durationLabel}
+          </DetailBlock>
 
           <DetailBlock label="Pet">
             {petCount === 0
@@ -86,7 +99,7 @@ export default function BookingDetailSidebar({
         <div className="mt-auto flex items-center justify-between gap-3 bg-black px-4 py-4 text-white sm:px-8 sm:py-5">
           <span className="shrink-0 text-body-2 font-medium">Total</span>
           <span className="min-w-0 text-right text-h4 font-bold wrap-break-word">
-            {formatCurrency(total)} THB
+            {quotedTotal ? `${totalLabel} THB` : `${formatCurrency(previewTotal)} THB`}
           </span>
         </div>
       ) : null}

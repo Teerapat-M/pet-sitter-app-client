@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,8 @@ import { Card } from "@/components/ui/card";
 import ServiceBookingForm, { useLiveQuote } from "@/components/booking/ServiceBookingForm";
 import { normalizeBookingPet, toDateOnly } from "@/lib/booking";
 import {
+  alignDraftToOfferings,
+  offeredServiceTypes,
   serviceOfferingPriceLabel,
   toBookingSearchParams,
   validateBookingForm,
@@ -597,11 +599,16 @@ export default function PetSitterDetail({ sitterId }) {
   const [bookingChecking, setBookingChecking] = useState(false);
   const [pets, setPets] = useState([]);
   const [draft, setDraft] = useState(defaultBookingDraft);
+  const alignedSitterId = useRef("");
   const quoteDraft = useMemo(
-    () => ({ ...draft, sitterId }),
-    [draft, sitterId],
+    () => ({
+      ...draft,
+      sitterId,
+      serviceOfferings: sitter?.serviceOfferings ?? [],
+    }),
+    [draft, sitterId, sitter?.serviceOfferings],
   );
-  const quoteEnabled = isLoggedIn && !isOwnSitterListing(sitterId);
+  const quoteEnabled = isLoggedIn && !isOwnSitterListing(sitterId) && Boolean(sitter);
   const { quote, quoteError, quoting } = useLiveQuote(
     sitterId,
     quoteDraft,
@@ -638,6 +645,21 @@ export default function PetSitterDetail({ sitterId }) {
       cancelled = true;
     };
   }, [sitterId]);
+
+  useEffect(() => {
+    alignedSitterId.current = "";
+  }, [sitterId]);
+
+  useEffect(() => {
+    if (!sitter?.id) return;
+    const offerings = sitter.serviceOfferings;
+    if (!Array.isArray(offerings) || offerings.length === 0) return;
+    setDraft((current) => {
+      const preferFirst = alignedSitterId.current !== sitter.id;
+      alignedSitterId.current = sitter.id;
+      return alignDraftToOfferings(current, offerings, { preferFirst });
+    });
+  }, [sitter]);
 
   useEffect(() => {
     if (!isLoggedIn) return undefined;
@@ -684,6 +706,7 @@ export default function PetSitterDetail({ sitterId }) {
 
   const isOwnSitter = isOwnSitterListing(sitter.id ?? sitterId);
   const firstName = (sitter.sitterName || sitter.title || "this sitter").split(" ")[0];
+  const offeredTypes = offeredServiceTypes(sitter.serviceOfferings);
   const cctvLabel = sitter.cameraCount
     ? `CCTV · ${sitter.cameraCount} cameras`
     : "CCTV · 3 cameras";
@@ -779,6 +802,7 @@ export default function PetSitterDetail({ sitterId }) {
       bookingChecking={bookingChecking}
       isOwnSitter={isOwnSitter}
       onBook={() => handleBookNow(true)}
+      serviceOfferings={sitter.serviceOfferings}
     />
   );
 
@@ -817,7 +841,10 @@ export default function PetSitterDetail({ sitterId }) {
                 <p className="mt-2 whitespace-pre-line text-body-2 text-ink-600">{sitter.services}</p>
               ) : null}
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {SERVICES.map((service) => {
+                {(offeredTypes.length
+                  ? SERVICES.filter((service) => offeredTypes.includes(service.id))
+                  : SERVICES
+                ).map((service) => {
                   const priceLabel = serviceOfferingPriceLabel(
                     sitter.serviceOfferings,
                     service.id,

@@ -237,6 +237,45 @@ export function formatBookingDateRangeFromRecord(booking) {
   return `${formatBookingDate(start)} - ${formatBookingDate(end)}`;
 }
 
+/**
+ * Owner booking list + detail share this Asia/Bangkok calendar formatter.
+ * Many-day: "10 Jan, 2027 - 12 Jan, 2027"
+ * One-day:  "10 Jan, 2027 | 9 AM - 12 PM"
+ */
+export function formatOwnerBookingDateTime(booking) {
+  if (!booking || typeof booking !== "object") return "—";
+  if (isManyDayBookingRecord(booking)) {
+    return formatBookingDateRangeFromRecord(booking);
+  }
+  const startDate = normalizeBookingDate(booking.start_date ?? booking.startDate);
+  const startTime = normalizeBookingTime(booking.start_time ?? booking.startTime);
+  const endTime = normalizeBookingTime(booking.end_time ?? booking.endTime);
+  if (!startDate) return "—";
+  if (startTime && endTime) {
+    return formatBookingDateTimeLabel({
+      startDate,
+      endDate: normalizeBookingDate(booking.end_date ?? booking.endDate) || startDate,
+      startTime,
+      endTime,
+      isManyDays: false,
+    });
+  }
+  if (startTime) {
+    return `${formatBookingDate(startDate)} | ${formatTime12Hour(startTime)}`;
+  }
+  return formatBookingDate(startDate);
+}
+
+/** Header "Booking date" — same calendar formatter as Date & Time, without the clock. */
+export function formatOwnerBookingDate(booking) {
+  if (!booking || typeof booking !== "object") return "—";
+  if (isManyDayBookingRecord(booking)) {
+    return formatBookingDateRangeFromRecord(booking);
+  }
+  const startDate = normalizeBookingDate(booking.start_date ?? booking.startDate);
+  return startDate ? formatBookingDate(startDate) : "—";
+}
+
 export const BOOKING_TIMEZONE = "Asia/Bangkok";
 
 /**

@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  alignDraftToOfferings,
   bookingChatHref,
   bookingStatusMeta,
   createLiveQuoteSession,
+  defaultDraftFromOfferings,
   formatQuoteLine,
   formatServiceDateTimeLabel,
+  hasOffering,
+  inHomeAddressMissing,
   liveQuoteKey,
   normalizeBookingStatus,
+  offeredInHomeModes,
+  offeredServiceTypes,
+  offeredWalkDurations,
   parseBookingSearchParams,
   serviceOfferingPriceLabel,
   serviceTypeLabel,
@@ -223,6 +230,147 @@ test("walking card uses per_walk offering, not a duration fallback", () => {
   ];
   assert.equal(serviceOfferingPriceLabel(offerings, "dog_walking"), "฿250 / walk");
   assert.equal(serviceOfferingPriceLabel(offerings, "boarding"), "฿450 / night");
+});
+
+test("default draft uses the sitter's first offered service and mode", () => {
+  const draft = defaultDraftFromOfferings(
+    [
+      { type: "dog_walking", mode: "per_walk", priceAmount: 250 },
+      { type: "boarding", priceAmount: 450 },
+    ],
+    {
+      checkIn: "2026-11-01",
+      checkOut: "2026-11-05",
+      date: "2026-11-02",
+      startTime: "09:00",
+      petIds: ["1"],
+    },
+  );
+  assert.equal(draft.serviceType, "dog_walking");
+  assert.equal(draft.mode, "per_walk");
+
+  const overnight = defaultDraftFromOfferings(
+    [{ type: "in_home", mode: "overnight", priceAmount: 700 }],
+    { checkIn: "2026-11-02", checkOut: "2026-11-04", petIds: ["3"] },
+  );
+  assert.equal(overnight.serviceType, "in_home");
+  assert.equal(overnight.mode, "overnight");
+});
+
+test("alignDraftToOfferings prefers first offering once, then keeps an offered choice", () => {
+  const offerings = [
+    { type: "dog_walking", mode: "per_walk", priceAmount: 250 },
+    { type: "boarding", priceAmount: 450 },
+  ];
+  const boarding = {
+    serviceType: "boarding",
+    checkIn: "2026-11-01",
+    checkOut: "2026-11-05",
+    petIds: ["1"],
+  };
+  const first = alignDraftToOfferings(boarding, offerings, { preferFirst: true });
+  assert.equal(first.serviceType, "dog_walking");
+  const kept = alignDraftToOfferings(boarding, offerings, { preferFirst: false });
+  assert.equal(kept.serviceType, "boarding");
+});
+
+test("live quote is skipped for unoffered service or mode", () => {
+  const offered = [{ type: "dog_walking", mode: "per_walk", priceAmount: 250 }];
+  assert.equal(
+    liveQuoteKey("sitter-1", { ...boardingDraft, serviceOfferings: offered }, true),
+    "",
+  );
+  assert.equal(
+    liveQuoteKey("sitter-1", { ...boardingDraft, serviceOfferings: [] }, true),
+    "",
+  );
+
+  const walkKey = liveQuoteKey(
+    "sitter-1",
+    {
+      sitterId: "sitter-1",
+      serviceType: "dog_walking",
+      mode: "per_walk",
+      date: "2026-11-02",
+      startTime: "09:00",
+      petIds: ["1"],
+      serviceOfferings: offered,
+    },
+    true,
+  );
+  assert.notEqual(walkKey, "");
+  assert.match(walkKey, /per_walk/);
+
+  const durationKey = liveQuoteKey(
+    "sitter-1",
+    {
+      sitterId: "sitter-1",
+      serviceType: "dog_walking",
+      mode: "duration",
+      date: "2026-11-02",
+      startTime: "09:00",
+      durationMinutes: 30,
+      petIds: ["1"],
+      serviceOfferings: offered,
+    },
+    true,
+  );
+  assert.equal(durationKey, "");
+});
+
+test("unoffered service types and modes are not treated as available", () => {
+  const offerings = [
+    { type: "in_home", mode: "overnight", priceAmount: 700 },
+    { type: "dog_walking", mode: "duration", durationMinutes: 45, priceAmount: 180 },
+  ];
+  assert.deepEqual(offeredServiceTypes(offerings), ["dog_walking", "in_home"]);
+  assert.deepEqual(offeredWalkDurations(offerings), [45]);
+  assert.deepEqual(offeredInHomeModes(offerings), ["overnight"]);
+  assert.equal(hasOffering(offerings, "boarding"), false);
+  assert.equal(hasOffering(offerings, "in_home", { mode: "visit" }), false);
+  assert.equal(hasOffering(offerings, "in_home", { mode: "overnight" }), true);
+  assert.equal(
+    hasOffering(offerings, "dog_walking", { mode: "duration", durationMinutes: 30 }),
+    false,
+  );
+  assert.equal(
+    hasOffering(offerings, "dog_walking", { mode: "duration", durationMinutes: 45 }),
+    true,
+  );
+});
+
+test("per_walk quote sends per_walk mode, not duration", () => {
+  const body = shapeQuoteRequest({
+    sitterId: "sitter-1",
+    serviceType: "dog_walking",
+    mode: "per_walk",
+    date: "2026-11-02",
+    startTime: "09:00",
+    petIds: ["4"],
+  });
+  assert.equal(body.mode, "per_walk");
+  assert.equal("durationMinutes" in body, false);
+  assert.equal("totalPrice" in body, false);
+});
+
+test("in-home book now is blocked until owner address is set", () => {
+  const visit = {
+    serviceType: "in_home",
+    mode: "visit",
+    date: "2026-11-02",
+    startTime: "13:00",
+    visitHours: 2,
+    petIds: ["3"],
+    ownerAddress: "",
+  };
+  assert.equal(inHomeAddressMissing(visit), true);
+  const { errors } = validateBookingForm({ ...visit, requireAddress: true });
+  assert.match(errors.ownerAddress, /address/);
+  assert.equal(inHomeAddressMissing({ ...visit, ownerAddress: "12 Ari, Bangkok" }), false);
+  assert.equal(
+    inHomeAddressMissing({ ...visit, serviceType: "boarding", ownerAddress: "" }),
+    false,
+  );
 });
 
 test("same quote inputs do not refetch on re-render", async () => {

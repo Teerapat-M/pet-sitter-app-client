@@ -8,13 +8,20 @@ import { SERVICES } from "@/lib/services";
 import { quotePhase3Booking } from "@/lib/api";
 import { HOURLY_TIMES } from "@/lib/booking";
 import {
+  IN_HOME_ADDRESS_REQUIRED_MESSAGE,
   WALK_DURATIONS,
+  canQuoteOffering,
   createLiveQuoteSession,
   draftForServiceType,
   formatQuoteLine,
   formatQuoteTotal,
+  inHomeAddressMissing,
   isDogPet,
   liveQuoteKey,
+  offeredInHomeModes,
+  offeredServiceTypes,
+  offeredWalkDurations,
+  offeredWalkModes,
   quoteUnavailable,
   validateBookingForm,
 } from "@/lib/phase3Booking";
@@ -84,8 +91,20 @@ export default function ServiceBookingForm({
   bookingChecking,
   isOwnSitter,
   onBook,
+  serviceOfferings,
 }) {
-  const serviceType = draft.serviceType || "boarding";
+  const offerings = serviceOfferings ?? draft.serviceOfferings ?? [];
+  const knownOfferings = Array.isArray(offerings) && offerings.length > 0;
+  const offeredTypes = offeredServiceTypes(offerings);
+  const visibleServices = knownOfferings && offeredTypes.length
+    ? SERVICES.filter((service) => offeredTypes.includes(service.id))
+    : SERVICES;
+  const walkModes = offeredWalkModes(offerings);
+  const walkDurations = knownOfferings ? offeredWalkDurations(offerings) : WALK_DURATIONS;
+  const showPerWalk = knownOfferings && walkModes.includes("per_walk");
+  const showWalkDurations = !knownOfferings || walkModes.includes("duration");
+  const inHomeModes = knownOfferings ? offeredInHomeModes(offerings) : ["visit", "overnight"];
+  const serviceType = draft.serviceType || visibleServices[0]?.id || "boarding";
   const dogsOnly = serviceType === "dog_walking";
   const visiblePets = dogsOnly ? pets.filter(isDogPet).concat(pets.filter((pet) => !isDogPet(pet))) : pets;
   const { errors } = validateBookingForm({
@@ -93,6 +112,8 @@ export default function ServiceBookingForm({
     pets,
     requireAddress: serviceType === "in_home",
   });
+  const missingAddress = inHomeAddressMissing(draft);
+  const cannotQuote = knownOfferings && !canQuoteOffering(offerings, draft);
 
   function patch(next) {
     onChange({ ...draft, ...next });
@@ -114,14 +135,14 @@ export default function ServiceBookingForm({
     <Card className="rounded-card bg-surface p-5 shadow-card">
       <h2 className="text-h3">Book {firstName}</h2>
       <div className="mt-4 flex gap-2">
-        {SERVICES.map((service) => {
+        {visibleServices.map((service) => {
           const active = service.id === serviceType;
           return (
             <button
               key={service.id}
               type="button"
               data-service={service.id}
-              onClick={() => onChange(draftForServiceType(draft, service.id))}
+              onClick={() => onChange(draftForServiceType(draft, service.id, offerings))}
               className={`flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-2 text-[11px] font-bold ${
                 active ? "bg-primary text-white" : "border border-line bg-surface text-ink-600"
               }`}
@@ -193,23 +214,40 @@ export default function ServiceBookingForm({
             </select>
           </label>
           <FieldError message={errors.startTime} />
-          <div className="flex gap-2">
-            {WALK_DURATIONS.map((minutes) => {
-              const active = Number(draft.durationMinutes) === minutes;
-              return (
-                <button
-                  key={minutes}
-                  type="button"
-                  onClick={() => patch({ durationMinutes: minutes, mode: "duration" })}
-                  className={`flex-1 rounded-full px-3 py-2 text-caption font-bold ${
-                    active ? "bg-primary text-white" : "border border-line text-ink-600"
-                  }`}
-                >
-                  {minutes} min
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap gap-2">
+            {showPerWalk ? (
+              <button
+                type="button"
+                onClick={() => patch({ mode: "per_walk", durationMinutes: "" })}
+                className={`flex-1 rounded-full px-3 py-2 text-caption font-bold ${
+                  draft.mode === "per_walk" ? "bg-primary text-white" : "border border-line text-ink-600"
+                }`}
+              >
+                Per walk
+              </button>
+            ) : null}
+            {showWalkDurations
+              ? (walkDurations.length ? walkDurations : WALK_DURATIONS).map((minutes) => {
+                  const active =
+                    draft.mode !== "per_walk" && Number(draft.durationMinutes) === minutes;
+                  return (
+                    <button
+                      key={minutes}
+                      type="button"
+                      onClick={() => patch({ durationMinutes: minutes, mode: "duration" })}
+                      className={`flex-1 rounded-full px-3 py-2 text-caption font-bold ${
+                        active ? "bg-primary text-white" : "border border-line text-ink-600"
+                      }`}
+                    >
+                      {minutes} min
+                    </button>
+                  );
+                })
+              : null}
           </div>
+          {showPerWalk && !showWalkDurations ? (
+            <p className="text-caption text-ink-400">This sitter prices walks per walk.</p>
+          ) : null}
           <FieldError message={errors.durationMinutes} />
         </div>
       ) : null}
@@ -217,13 +255,15 @@ export default function ServiceBookingForm({
       {serviceType === "in_home" ? (
         <div className="mt-4 grid gap-3">
           <div className="flex gap-2">
-            {["visit", "overnight"].map((mode) => {
+            {(inHomeModes.length ? inHomeModes : ["visit", "overnight"]).map((mode) => {
               const active = draft.mode === mode;
               return (
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => patch({ mode })}
+                  onClick={() =>
+                    onChange(draftForServiceType({ ...draft, mode }, "in_home", offerings))
+                  }
                   className={`flex-1 rounded-full px-3 py-2 text-caption font-bold ${
                     active ? "bg-primary text-white" : "border border-line text-ink-600"
                   }`}
@@ -354,10 +394,20 @@ export default function ServiceBookingForm({
         type="button"
         className="btn btn-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50"
         onClick={onBook}
-        disabled={bookingChecking || isOwnSitter || unavailable}
+        disabled={bookingChecking || isOwnSitter || unavailable || missingAddress || cannotQuote}
       >
         {bookingChecking ? "Checking..." : "Book now"}
       </button>
+      {missingAddress ? (
+        <p className="mt-3 text-caption text-danger" role="status">
+          {errors.ownerAddress || IN_HOME_ADDRESS_REQUIRED_MESSAGE}
+        </p>
+      ) : null}
+      {cannotQuote && !missingAddress ? (
+        <p className="mt-3 text-caption text-danger" role="status">
+          This sitter does not offer the selected service.
+        </p>
+      ) : null}
       {isOwnSitter ? (
         <p className="mt-3 text-caption text-ink-400">
           You cannot book your own sitter profile

@@ -8,7 +8,8 @@ import { getToken, getUser } from "@/lib/auth";
 import { createConversation, getSitterAvailability, getSitters } from "@/lib/api";
 import {
   formatBookingDurationFromRecord,
-  formatBookingDateRangeFromRecord,
+  formatOwnerBookingDate,
+  formatOwnerBookingDateTime,
   isManyDayBookingRecord,
   normalizeBookedSlots,
   normalizeBookingDate,
@@ -287,11 +288,6 @@ export default function BookingHistoryPage() {
     });
   };
 
-  const formatTime = (timeString) => {
-    if (!timeString) return "";
-    return timeString.substring(0, 5);
-  };
-
   const formatTimestampTime = (dateString) => {
     if (!dateString) return "";
     return new Date(dateString).toLocaleTimeString("en-US", {
@@ -300,20 +296,13 @@ export default function BookingHistoryPage() {
     });
   };
 
-  // ticket 04: many days = ช่วงวัน · one day = วัน | เวลา
+  // Same Asia/Bangkok formatter as booking detail (10 Jan, 2027 | 9 AM)
   function formatHistoryDateTime(booking) {
-    if (isManyDayBookingRecord(booking)) {
-      return formatBookingDateRangeFromRecord(booking);
-    }
-    return `${formatDate(booking.start_date)} | ${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`;
+    return formatOwnerBookingDateTime(booking);
   }
 
-  // ticket 04: หัวการ์ด "Booking date" — many days แสดงช่วง
   function formatHistoryBookingDate(booking) {
-    if (isManyDayBookingRecord(booking)) {
-      return formatBookingDateRangeFromRecord(booking);
-    }
-    return formatDate(booking.start_date);
+    return formatOwnerBookingDate(booking);
   }
 
   // เปิด modal เขียนรีวิว โดยรีเซ็ตค่าดาว/ข้อความให้ว่างทุกครั้ง

@@ -22,6 +22,8 @@ const AUTH_PREFIXES = [
   "/complete-profile",
   "/auth",
   "/admin",
+  "/owner/walks",
+  "/sitter/walks",
 ];
 
 function isAuthPath(pathname) {

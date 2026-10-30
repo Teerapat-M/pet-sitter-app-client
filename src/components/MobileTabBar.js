@@ -44,6 +44,7 @@ const HIDDEN = [
   "/auth",
   "/admin",
   "/sitter",
+  "/owner/walks",
   "/privacy-policy",
   "/terms-of-service",
   "/data-deletion",

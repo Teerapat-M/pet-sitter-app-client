@@ -19,6 +19,8 @@ import {
 import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
 import { bookingChatHref, serviceTypeLabel } from "@/lib/phase3Booking";
 import CctvBadge from "@/components/CctvBadge";
+import WalkBookingLink from "@/components/walk/WalkBookingLink";
+import { isDogWalkingBooking } from "@/lib/walkTracking";
 import {
   errorToastClassNames,
   successToastClassNames,
@@ -178,19 +180,34 @@ export default function BookingDetailPage() {
               </button>
             ) : null}
             {statusKey === "in_service" ? (
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={isUpdatingStatus}
-                onClick={() =>
-                  runStatusAction(
-                    () => updateSitterBookingStatus(id, "completed"),
-                    "Booking completed",
-                  )
-                }
-              >
-                Success
-              </button>
+              isDogWalkingBooking(booking) ? (
+                <WalkBookingLink
+                  booking={booking}
+                  role="sitter"
+                  className="btn btn-primary"
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={isUpdatingStatus}
+                  onClick={() =>
+                    runStatusAction(
+                      () => updateSitterBookingStatus(id, "completed"),
+                      "Booking completed",
+                    )
+                  }
+                >
+                  Success
+                </button>
+              )
+            ) : null}
+            {statusKey === "completed" && isDogWalkingBooking(booking) ? (
+              <WalkBookingLink
+                booking={booking}
+                role="sitter"
+                className="btn btn-secondary"
+              />
             ) : null}
           </div>
         ) : null}
@@ -278,6 +295,15 @@ export default function BookingDetailPage() {
           <DetailField label="Owner address">
             {booking.owner_address || booking.ownerAddress}
           </DetailField>
+        ) : null}
+        {isDogWalkingBooking(booking) ? (
+          <div className="rounded-[1.1rem] bg-accent-50 px-4 py-3 text-caption font-extrabold text-accent-700">
+            {statusKey === "in_service"
+              ? "✓ GPS ready · owner will see your route"
+              : statusKey === "completed"
+                ? "Walk summary is available for this booking"
+                : "Live GPS tracking is included for this walk"}
+          </div>
         ) : null}
         <DetailField label="Booking Date">
           {booking ? formatBookedDateDetail(booking) : "—"}

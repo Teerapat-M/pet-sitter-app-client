@@ -584,6 +584,18 @@ export default function BookingFlow({
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <BookingStepper currentStep={step} />
 
+            {phase3?.serviceType === "dog_walking" ? (
+              <div className="flex items-start gap-2 rounded-[1.1rem] bg-accent-50 px-4 py-3 text-accent-700">
+                <span aria-hidden>📍</span>
+                <div>
+                  <p className="text-caption font-extrabold">Live GPS tracking</p>
+                  <p className="text-caption font-semibold text-accent-700/80">
+                    Follow the walk on a map in real time, plus a summary when it ends.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex flex-1 flex-col rounded-2xl bg-white shadow-(--shadow-card)">
               <div className="flex-1 px-4 pt-6 pb-6 sm:px-10 sm:pt-8 md:pb-0">
                 {step === 1 && (

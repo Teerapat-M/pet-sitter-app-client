@@ -249,6 +249,15 @@ export default function ServiceBookingForm({
             <p className="text-caption text-ink-400">This sitter prices walks per walk.</p>
           ) : null}
           <FieldError message={errors.durationMinutes} />
+          <div className="flex items-start gap-2 rounded-[1.1rem] bg-accent-50 px-4 py-3 text-accent-700">
+            <span aria-hidden>📍</span>
+            <div>
+              <p className="text-caption font-extrabold">Live GPS tracking</p>
+              <p className="text-caption font-semibold text-accent-700/80">
+                Follow the walk on a map in real time, plus a summary when it ends.
+              </p>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -378,6 +387,9 @@ export default function ServiceBookingForm({
         <div className="mt-2">
           <CctvBadge label="CCTV at this stay" />
         </div>
+      ) : null}
+      {serviceType === "dog_walking" ? (
+        <p className="mt-2 text-caption font-semibold text-accent-700">GPS tracking included</p>
       ) : null}
       {unavailable ? (
         <p className="mt-2 text-caption text-danger" role="alert">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,9 +17,9 @@ import { getFallbackSitter } from "@/lib/sitterCard";
 import CctvBadge from "@/components/CctvBadge";
 import { Card } from "@/components/ui/card";
 import ServiceBookingForm, { useLiveQuote } from "@/components/booking/ServiceBookingForm";
-import { normalizeBookingPet } from "@/lib/booking";
+import { normalizeBookingPet, toDateOnly } from "@/lib/booking";
 import {
-  offeringPrice,
+  serviceOfferingPriceLabel,
   toBookingSearchParams,
   validateBookingForm,
 } from "@/lib/phase3Booking";
@@ -308,12 +308,9 @@ function CctvPanel({ name }) {
 }
 
 function localIsoDate(offsetDays = 0) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const now = new Date();
+  now.setTime(now.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+  return toDateOnly(now);
 }
 
 function defaultBookingDraft() {
@@ -600,10 +597,15 @@ export default function PetSitterDetail({ sitterId }) {
   const [bookingChecking, setBookingChecking] = useState(false);
   const [pets, setPets] = useState([]);
   const [draft, setDraft] = useState(defaultBookingDraft);
+  const quoteDraft = useMemo(
+    () => ({ ...draft, sitterId }),
+    [draft, sitterId],
+  );
+  const quoteEnabled = isLoggedIn && !isOwnSitterListing(sitterId);
   const { quote, quoteError, quoting } = useLiveQuote(
     sitterId,
-    { ...draft, sitterId },
-    isLoggedIn && !isOwnSitterListing(sitterId),
+    quoteDraft,
+    quoteEnabled,
   );
 
   useEffect(() => {
@@ -816,36 +818,18 @@ export default function PetSitterDetail({ sitterId }) {
               ) : null}
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {SERVICES.map((service) => {
-                  const livePrice =
-                    service.id === "in_home"
-                      ? [
-                          offeringPrice(sitter.serviceOfferings, "in_home", "visit"),
-                          offeringPrice(sitter.serviceOfferings, "in_home", "overnight"),
-                        ]
-                      : [offeringPrice(sitter.serviceOfferings, service.id)];
-                  const priceLabel =
-                    service.id === "in_home" && livePrice.some((amount) => amount != null)
-                      ? [
-                          livePrice[0] != null ? `฿${livePrice[0].toLocaleString("en-US")} visit` : null,
-                          livePrice[1] != null ? `฿${livePrice[1].toLocaleString("en-US")} night` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")
-                      : livePrice[0] != null
-                        ? `฿${livePrice[0].toLocaleString("en-US")}${
-                            service.id === "boarding"
-                              ? " / night"
-                              : service.id === "dog_walking"
-                                ? " / walk"
-                                : ""
-                          }`
-                        : service.profilePrice;
+                  const priceLabel = serviceOfferingPriceLabel(
+                    sitter.serviceOfferings,
+                    service.id,
+                  );
                   return (
                     <Card key={service.id} className="rounded-card border border-line bg-surface p-4">
                       <p className="font-bold">
                         {service.icon} {service.tabLabel === "Walking" ? "Dog walking" : service.tabLabel}
                       </p>
-                      <p className="mt-1 text-label text-primary">{priceLabel}</p>
+                      {priceLabel ? (
+                        <p className="mt-1 text-label text-primary">{priceLabel}</p>
+                      ) : null}
                     </Card>
                   );
                 })}

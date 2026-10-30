@@ -13,6 +13,7 @@ import {
   normalizeBookedSlots,
   normalizeBookingDate,
   normalizeBookingTime,
+  toDateOnly,
 } from "@/lib/booking";
 import BookingDateTimeModal from "@/components/booking/BookingDateTimeModal";
 import Pagination from "@/components/Pagination";
@@ -275,8 +276,9 @@ export default function BookingHistoryPage() {
 
 
   const formatDate = (dateString) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
+    const dateOnly = toDateOnly(dateString);
+    if (!dateOnly) return "";
+    const date = new Date(`${dateOnly}T00:00:00`);
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       year: "numeric",

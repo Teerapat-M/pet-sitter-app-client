@@ -3,9 +3,13 @@ import test from "node:test";
 import {
   bookingChatHref,
   bookingStatusMeta,
+  createLiveQuoteSession,
   formatQuoteLine,
+  formatServiceDateTimeLabel,
+  liveQuoteKey,
   normalizeBookingStatus,
   parseBookingSearchParams,
+  serviceOfferingPriceLabel,
   serviceTypeLabel,
   shapeCreateRequest,
   shapeQuoteRequest,
@@ -156,4 +160,107 @@ test("search params round-trip without a total", () => {
 test("chat href uses conversation id from the booking", () => {
   assert.equal(bookingChatHref({ conversationId: "42" }), "/messages?id=42");
   assert.equal(bookingChatHref({}), "");
+});
+
+test("boarding search params drop leftover walk/in-home fields", () => {
+  const params = toBookingSearchParams({
+    ...boardingDraft,
+    date: "2026-01-10",
+    startTime: "09:00",
+    mode: "duration",
+    durationMinutes: 30,
+  });
+  assert.equal(params.get("checkIn"), "2026-11-01");
+  assert.equal(params.get("checkOut"), "2026-11-05");
+  assert.equal(params.get("date"), null);
+  assert.equal(params.get("startTime"), null);
+  assert.equal(params.get("mode"), null);
+  assert.equal(params.get("durationMinutes"), null);
+
+  const parsed = parseBookingSearchParams(
+    new URLSearchParams(
+      "sitterId=sitter-1&serviceType=boarding&checkIn=2027-01-10&checkOut=2027-01-12&date=2027-01-10&startTime=09:00&mode=duration&petIds=1",
+    ),
+  );
+  assert.equal(parsed.valid, true);
+  assert.equal(parsed.draft.startTime, "");
+  assert.equal(parsed.draft.date, "");
+  assert.equal(parsed.draft.mode, "");
+});
+
+test("boarding sidebar label is a date range, not leftover times", () => {
+  assert.equal(
+    formatServiceDateTimeLabel({
+      serviceType: "boarding",
+      checkIn: "2027-01-10",
+      checkOut: "2027-01-12",
+      startTime: "09:00",
+    }),
+    "10 Jan, 2027 - 12 Jan, 2027",
+  );
+});
+
+test("quote dates stay YYYY-MM-DD even when given T17:00Z", () => {
+  const body = shapeQuoteRequest({
+    sitterId: "sitter-1",
+    serviceType: "boarding",
+    checkIn: "2026-11-11T17:00:00.000Z",
+    checkOut: "2026-11-13T17:00:00.000Z",
+    petIds: [1],
+  });
+  assert.match(body.checkIn, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(body.checkOut, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(body.checkIn.includes("T"), false);
+  assert.equal(body.checkIn, "2026-11-12");
+  assert.equal(body.checkOut, "2026-11-14");
+});
+
+test("walking card uses per_walk offering, not a duration fallback", () => {
+  const offerings = [
+    { type: "dog_walking", mode: "duration", durationMinutes: 30, priceAmount: 200 },
+    { type: "dog_walking", mode: "per_walk", priceAmount: 250 },
+    { type: "boarding", priceAmount: 450 },
+  ];
+  assert.equal(serviceOfferingPriceLabel(offerings, "dog_walking"), "฿250 / walk");
+  assert.equal(serviceOfferingPriceLabel(offerings, "boarding"), "฿450 / night");
+});
+
+test("same quote inputs do not refetch on re-render", async () => {
+  const calls = [];
+  const session = createLiveQuoteSession({
+    quoteFn: async (body) => {
+      calls.push(body);
+      return { totalPrice: 4800, available: true };
+    },
+    debounceMs: 20,
+  });
+
+  const draftA = {
+    sitterId: "sitter-1",
+    serviceType: "boarding",
+    checkIn: "2026-11-10",
+    checkOut: "2026-11-12",
+    petIds: ["1"],
+  };
+  const keyA = liveQuoteKey("sitter-1", { ...draftA }, true);
+  const keyB = liveQuoteKey("sitter-1", { ...draftA }, true);
+  assert.equal(keyA, keyB);
+  assert.notEqual(keyA, "");
+
+  session.applyKey(keyA);
+  session.applyKey(keyB);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(calls.length, 1);
+  assert.equal(session.fetchCount, 1);
+
+  session.applyKey(keyA);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(calls.length, 1);
+
+  session.applyKey(
+    liveQuoteKey("sitter-1", { ...draftA, checkOut: "2026-11-13" }, true),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(calls.length, 2);
+  session.dispose();
 });

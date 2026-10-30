@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarDays, Clock, MapPin, PawPrint } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import CctvBadge from "@/components/CctvBadge";
@@ -9,11 +9,13 @@ import { quotePhase3Booking } from "@/lib/api";
 import { HOURLY_TIMES } from "@/lib/booking";
 import {
   WALK_DURATIONS,
+  createLiveQuoteSession,
+  draftForServiceType,
   formatQuoteLine,
   formatQuoteTotal,
   isDogPet,
+  liveQuoteKey,
   quoteUnavailable,
-  shapeQuoteRequest,
   validateBookingForm,
 } from "@/lib/phase3Booking";
 
@@ -119,13 +121,7 @@ export default function ServiceBookingForm({
               key={service.id}
               type="button"
               data-service={service.id}
-              onClick={() =>
-                patch({
-                  serviceType: service.id,
-                  mode: service.id === "in_home" ? draft.mode || "visit" : "",
-                  durationMinutes: service.id === "dog_walking" ? draft.durationMinutes || 30 : "",
-                })
-              }
+              onClick={() => onChange(draftForServiceType(draft, service.id))}
               className={`flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-2 text-[11px] font-bold ${
                 active ? "bg-primary text-white" : "border border-line bg-surface text-ink-600"
               }`}
@@ -378,46 +374,30 @@ export function useLiveQuote(sitterId, draft, enabled) {
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState("");
   const [quoting, setQuoting] = useState(false);
+  const sessionRef = useRef(null);
+  if (sessionRef.current == null) {
+    sessionRef.current = createLiveQuoteSession({
+      quoteFn: quotePhase3Booking,
+      debounceMs: 350,
+    });
+  }
 
-  const payload = useMemo(() => {
-    if (!enabled || !sitterId) return null;
-    const next = { ...draft, sitterId };
-    const { ok } = validateBookingForm(next);
-    if (!ok) return null;
-    return shapeQuoteRequest(next);
-  }, [draft, enabled, sitterId]);
+  const key = liveQuoteKey(sitterId, draft, enabled);
 
   useEffect(() => {
-    if (!payload) {
-      setQuote(null);
-      setQuoteError("");
-      return undefined;
-    }
+    const session = sessionRef.current;
+    session.subscribe({
+      onQuote: setQuote,
+      onError: setQuoteError,
+      onQuoting: setQuoting,
+    });
+    session.applyKey(key);
+  }, [key]);
 
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setQuoting(true);
-      quotePhase3Booking(payload)
-        .then((data) => {
-          if (cancelled) return;
-          setQuote(data ?? null);
-          setQuoteError("");
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          setQuote(null);
-          setQuoteError(err instanceof Error ? err.message : "Could not quote this booking");
-        })
-        .finally(() => {
-          if (!cancelled) setQuoting(false);
-        });
-    }, 350);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [payload]);
+  useEffect(() => {
+    const session = sessionRef.current;
+    return () => session.dispose();
+  }, []);
 
   return { quote, quoteError, quoting };
 }

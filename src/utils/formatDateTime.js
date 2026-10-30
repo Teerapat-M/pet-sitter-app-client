@@ -1,3 +1,5 @@
+import { formatBookingDate, toDateOnly } from "../lib/booking.js";
+
 /** 7:00:00 → 7 AM */
 export function formatTime(time) {
   if (!time) return "";
@@ -9,19 +11,17 @@ export function formatTime(time) {
 
 /** 2026-08-24 → 24 Aug */
 export function formatDay(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  return `${date.getDate()} ${date.toLocaleString("en-GB", { month: "short" })}`;
+  const dateOnly = toDateOnly(value);
+  if (!dateOnly) return "";
+  const formatted = formatBookingDate(dateOnly);
+  return formatted.replace(/, \d{4}$/, "");
 }
 
 /** 2022-10-16 → 16 Oct 2022 */
 export function formatDate(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  const day = date.getDate();
-  const month = date.toLocaleString("en-GB", { month: "short" });
-  const year = date.getFullYear();
-  return `${day} ${month} ${year}`;
+  const dateOnly = toDateOnly(value);
+  if (!dateOnly) return "";
+  return formatBookingDate(dateOnly).replace(",", "");
 }
 
 /** 14:32 */

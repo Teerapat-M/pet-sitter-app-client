@@ -3,6 +3,12 @@
  * Matches server docs/phase3-api.md — client never sends a trusted total.
  */
 
+import {
+  formatBookingDate,
+  formatTime12Hour,
+  toDateOnly,
+} from "./booking.js";
+
 export const SERVICE_TYPES = ["boarding", "dog_walking", "in_home"];
 export const WALK_DURATIONS = [30, 60];
 export const IN_HOME_MODES = ["visit", "overnight"];
@@ -110,8 +116,8 @@ export function validateBookingForm(draft = {}) {
   }
 
   if (serviceType === "boarding") {
-    const checkIn = trim(draft.checkIn);
-    const checkOut = trim(draft.checkOut);
+    const checkIn = toDateOnly(draft.checkIn);
+    const checkOut = toDateOnly(draft.checkOut);
     if (!DATE_RE.test(checkIn)) errors.checkIn = "Check-in date is required.";
     if (!DATE_RE.test(checkOut)) errors.checkOut = "Check-out date is required.";
     if (DATE_RE.test(checkIn) && DATE_RE.test(checkOut) && checkOut <= checkIn) {
@@ -120,7 +126,7 @@ export function validateBookingForm(draft = {}) {
   }
 
   if (serviceType === "dog_walking") {
-    if (!DATE_RE.test(trim(draft.date))) errors.date = "Walk date is required.";
+    if (!DATE_RE.test(toDateOnly(draft.date))) errors.date = "Walk date is required.";
     if (!TIME_RE.test(trim(draft.startTime))) {
       errors.startTime = "Start time is required.";
     }
@@ -142,7 +148,7 @@ export function validateBookingForm(draft = {}) {
       errors.mode = "Choose a daytime visit or overnight stay.";
     }
     if (mode === "visit") {
-      if (!DATE_RE.test(trim(draft.date))) errors.date = "Visit date is required.";
+      if (!DATE_RE.test(toDateOnly(draft.date))) errors.date = "Visit date is required.";
       if (!TIME_RE.test(trim(draft.startTime))) {
         errors.startTime = "Start time is required.";
       }
@@ -152,8 +158,8 @@ export function validateBookingForm(draft = {}) {
       }
     }
     if (mode === "overnight") {
-      const checkIn = trim(draft.checkIn);
-      const checkOut = trim(draft.checkOut);
+      const checkIn = toDateOnly(draft.checkIn);
+      const checkOut = toDateOnly(draft.checkOut);
       if (!DATE_RE.test(checkIn)) errors.checkIn = "Check-in date is required.";
       if (!DATE_RE.test(checkOut)) errors.checkOut = "Check-out date is required.";
       if (DATE_RE.test(checkIn) && DATE_RE.test(checkOut) && checkOut <= checkIn) {
@@ -182,14 +188,14 @@ export function shapeQuoteRequest(draft = {}) {
   if (petIds.length) body.petIds = petIds.map((id) => (/^\d+$/.test(id) ? Number(id) : id));
 
   if (serviceType === "boarding") {
-    body.checkIn = trim(draft.checkIn);
-    body.checkOut = trim(draft.checkOut);
+    body.checkIn = toDateOnly(draft.checkIn);
+    body.checkOut = toDateOnly(draft.checkOut);
     return body;
   }
 
   if (serviceType === "dog_walking") {
     body.mode = "duration";
-    body.date = trim(draft.date);
+    body.date = toDateOnly(draft.date);
     body.startTime = trim(draft.startTime);
     body.durationMinutes = Number(draft.durationMinutes);
     return body;
@@ -197,12 +203,12 @@ export function shapeQuoteRequest(draft = {}) {
 
   body.mode = trim(draft.mode);
   if (body.mode === "visit") {
-    body.date = trim(draft.date);
+    body.date = toDateOnly(draft.date);
     body.startTime = trim(draft.startTime);
     body.visitHours = Number(draft.visitHours);
   } else {
-    body.checkIn = trim(draft.checkIn);
-    body.checkOut = trim(draft.checkOut);
+    body.checkIn = toDateOnly(draft.checkIn);
+    body.checkOut = toDateOnly(draft.checkOut);
   }
   return body;
 }
@@ -267,28 +273,84 @@ export function quoteUnavailable(quote) {
   return quote && quote.available === false;
 }
 
+function serviceSearchFields(draft = {}) {
+  const serviceType = trim(draft.serviceType);
+  const fields = ["sitterId", "serviceType"];
+  if (serviceType === "boarding") {
+    return [...fields, "checkIn", "checkOut"];
+  }
+  if (serviceType === "dog_walking") {
+    return [...fields, "date", "startTime", "durationMinutes"];
+  }
+  if (serviceType === "in_home") {
+    const mode = trim(draft.mode) === "overnight" ? "overnight" : "visit";
+    if (mode === "overnight") {
+      return [...fields, "mode", "checkIn", "checkOut", "ownerAddress", "accessInstructions"];
+    }
+    return [...fields, "mode", "date", "startTime", "visitHours", "ownerAddress", "accessInstructions"];
+  }
+  return fields;
+}
+
 export function toBookingSearchParams(draft = {}) {
   const params = new URLSearchParams();
-  const fields = [
-    "sitterId",
-    "serviceType",
-    "mode",
-    "checkIn",
-    "checkOut",
-    "date",
-    "startTime",
-    "durationMinutes",
-    "visitHours",
-    "ownerAddress",
-    "accessInstructions",
-  ];
-  for (const key of fields) {
-    const value = trim(draft[key] != null ? String(draft[key]) : "");
+  for (const key of serviceSearchFields(draft)) {
+    const raw = draft[key];
+    const value =
+      key === "checkIn" || key === "checkOut" || key === "date"
+        ? toDateOnly(raw)
+        : trim(raw != null ? String(raw) : "");
     if (value) params.set(key, value);
   }
   const petIds = toIdList(draft.petIds);
   if (petIds.length) params.set("petIds", petIds.join(","));
   return params;
+}
+
+export function draftForServiceType(draft = {}, serviceType) {
+  const next = {
+    sitterId: draft.sitterId,
+    petIds: Array.isArray(draft.petIds) ? draft.petIds : toIdList(draft.petIds),
+    ownerAddress: trim(draft.ownerAddress),
+    accessInstructions: trim(draft.accessInstructions),
+    serviceType,
+    mode: "",
+    checkIn: "",
+    checkOut: "",
+    date: "",
+    startTime: "",
+    durationMinutes: "",
+    visitHours: "",
+  };
+
+  if (serviceType === "boarding") {
+    next.checkIn = toDateOnly(draft.checkIn) || toDateOnly(draft.date);
+    next.checkOut = toDateOnly(draft.checkOut);
+    return next;
+  }
+
+  if (serviceType === "dog_walking") {
+    next.mode = "duration";
+    next.date = toDateOnly(draft.date) || toDateOnly(draft.checkIn);
+    next.startTime = TIME_RE.test(trim(draft.startTime)) ? trim(draft.startTime) : "09:00";
+    next.durationMinutes = WALK_DURATIONS.includes(Number(draft.durationMinutes))
+      ? Number(draft.durationMinutes)
+      : 30;
+    return next;
+  }
+
+  const mode = trim(draft.mode) === "overnight" ? "overnight" : "visit";
+  next.mode = mode;
+  if (mode === "overnight") {
+    next.checkIn = toDateOnly(draft.checkIn);
+    next.checkOut = toDateOnly(draft.checkOut);
+  } else {
+    next.date = toDateOnly(draft.date) || toDateOnly(draft.checkIn);
+    next.startTime = TIME_RE.test(trim(draft.startTime)) ? trim(draft.startTime) : "09:00";
+    const hours = Number(draft.visitHours);
+    next.visitHours = Number.isInteger(hours) && hours >= 1 ? hours : 2;
+  }
+  return next;
 }
 
 export function parseBookingSearchParams(searchParams = {}) {
@@ -298,13 +360,13 @@ export function parseBookingSearchParams(searchParams = {}) {
   };
 
   const serviceType = get("serviceType");
-  const draft = {
+  const raw = {
     sitterId: get("sitterId"),
     serviceType,
     mode: get("mode"),
-    checkIn: get("checkIn") || get("startDate"),
-    checkOut: get("checkOut") || get("endDate"),
-    date: get("date") || get("startDate"),
+    checkIn: toDateOnly(get("checkIn") || get("startDate")),
+    checkOut: toDateOnly(get("checkOut") || get("endDate")),
+    date: toDateOnly(get("date") || get("startDate")),
     startTime: get("startTime"),
     durationMinutes: get("durationMinutes") ? Number(get("durationMinutes")) : "",
     visitHours: get("visitHours") ? Number(get("visitHours")) : "",
@@ -312,6 +374,7 @@ export function parseBookingSearchParams(searchParams = {}) {
     accessInstructions: get("accessInstructions"),
     petIds: toIdList(get("petIds")),
   };
+  const draft = draftForServiceType(raw, serviceType);
 
   if (!SERVICE_TYPES.includes(serviceType) || !draft.sitterId) {
     return { valid: false, missing: ["sitterId", "serviceType"].filter((key) => !draft[key] || (key === "serviceType" && !SERVICE_TYPES.includes(serviceType))) };
@@ -336,14 +399,177 @@ export function bookingChatHref(booking) {
   return `/messages?id=${encodeURIComponent(String(id))}`;
 }
 
-export function offeringPrice(offerings, serviceType, mode) {
-  const list = Array.isArray(offerings) ? offerings : [];
-  const match = list.find((item) => {
-    const type = trim(item?.type ?? item?.serviceType ?? item?.service_type);
-    if (type !== serviceType) return false;
-    if (!mode) return true;
-    return trim(item?.mode) === mode;
-  });
-  const amount = Number(match?.priceAmount ?? match?.price_amount ?? match?.price);
+function offeringAmount(item) {
+  const amount = Number(item?.priceAmount ?? item?.price_amount ?? item?.price);
   return Number.isFinite(amount) ? amount : null;
+}
+
+export function pickOffering(offerings, serviceType, { mode = "", durationMinutes } = {}) {
+  const list = (Array.isArray(offerings) ? offerings : []).filter((item) => {
+    const type = trim(item?.type ?? item?.serviceType ?? item?.service_type);
+    return type === serviceType;
+  });
+  if (!list.length) return null;
+
+  if (durationMinutes != null && durationMinutes !== "") {
+    const byDuration = list.find(
+      (item) => Number(item.durationMinutes ?? item.duration_minutes) === Number(durationMinutes),
+    );
+    if (byDuration) return byDuration;
+  }
+
+  if (mode) {
+    const byMode = list.find((item) => trim(item.mode) === mode);
+    if (byMode) return byMode;
+  }
+
+  if (serviceType === "dog_walking") {
+    return list.find((item) => trim(item.mode) === "per_walk") ?? list[0];
+  }
+
+  return list[0];
+}
+
+export function offeringPrice(offerings, serviceType, mode, extra = {}) {
+  return offeringAmount(pickOffering(offerings, serviceType, { mode, ...extra }));
+}
+
+export function serviceOfferingPriceLabel(offerings, serviceType) {
+  if (serviceType === "in_home") {
+    const visit = offeringPrice(offerings, "in_home", "visit");
+    const overnight = offeringPrice(offerings, "in_home", "overnight");
+    return [
+      visit != null ? `฿${visit.toLocaleString("en-US")} visit` : null,
+      overnight != null ? `฿${overnight.toLocaleString("en-US")} night` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  if (serviceType === "dog_walking") {
+    const chosen = pickOffering(offerings, "dog_walking", { mode: "per_walk" });
+    const amount = offeringAmount(chosen);
+    if (amount == null) return "";
+    if (trim(chosen?.mode) === "per_walk") {
+      return `฿${amount.toLocaleString("en-US")} / walk`;
+    }
+    const minutes = Number(chosen?.durationMinutes ?? chosen?.duration_minutes);
+    return Number.isFinite(minutes) && minutes > 0
+      ? `฿${amount.toLocaleString("en-US")} / ${minutes} min`
+      : `฿${amount.toLocaleString("en-US")} / walk`;
+  }
+
+  const amount = offeringPrice(offerings, serviceType);
+  if (amount == null) return "";
+  return `฿${amount.toLocaleString("en-US")} / night`;
+}
+
+export function formatServiceDateTimeLabel(draft = {}, quote = null) {
+  const serviceType = trim(draft.serviceType);
+  const overnight = serviceType === "in_home" && trim(draft.mode) === "overnight";
+  if (serviceType === "boarding" || overnight) {
+    const start = toDateOnly(draft.checkIn || quote?.startDate);
+    const end = toDateOnly(draft.checkOut || quote?.endDate);
+    if (start && end && end !== start) {
+      return `${formatBookingDate(start)} - ${formatBookingDate(end)}`;
+    }
+    return start ? formatBookingDate(start) : "";
+  }
+
+  const date = toDateOnly(draft.date || draft.checkIn || quote?.startDate);
+  const startTime = trim(draft.startTime || quote?.startTime);
+  if (date && startTime) {
+    return `${formatBookingDate(date)} | ${formatTime12Hour(startTime)}`;
+  }
+  return date ? formatBookingDate(date) : "";
+}
+
+export function liveQuoteKey(sitterId, draft, enabled) {
+  if (!enabled || !sitterId || !draft) return "";
+  const next = { ...draft, sitterId };
+  const { ok } = validateBookingForm(next);
+  if (!ok) return "";
+  return JSON.stringify(shapeQuoteRequest(next));
+}
+
+export function createLiveQuoteSession({ quoteFn, debounceMs = 350 } = {}) {
+  let lastKey = "";
+  let timer = null;
+  let abort = null;
+  let fetchCount = 0;
+  const listeners = {
+    onQuote: () => {},
+    onError: () => {},
+    onQuoting: () => {},
+  };
+
+  function cancelInFlight() {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (abort) {
+      abort.abort();
+      abort = null;
+    }
+  }
+
+  return {
+    get fetchCount() {
+      return fetchCount;
+    },
+    subscribe(next = {}) {
+      Object.assign(listeners, next);
+    },
+    applyKey(key) {
+      const nextKey = key || "";
+      if (nextKey === lastKey) return false;
+      lastKey = nextKey;
+      cancelInFlight();
+      if (!nextKey) {
+        listeners.onQuote(null);
+        listeners.onError("");
+        listeners.onQuoting(false);
+        return false;
+      }
+
+      const controller = new AbortController();
+      abort = controller;
+      timer = setTimeout(() => {
+        fetchCount += 1;
+        listeners.onQuoting(true);
+        let payload = null;
+        try {
+          payload = JSON.parse(nextKey);
+        } catch {
+          payload = null;
+        }
+        if (!payload) {
+          listeners.onQuoting(false);
+          return;
+        }
+        Promise.resolve(quoteFn(payload, { signal: controller.signal }))
+          .then((data) => {
+            if (controller.signal.aborted) return;
+            listeners.onQuote(data ?? null);
+            listeners.onError("");
+          })
+          .catch((err) => {
+            if (controller.signal.aborted || err?.name === "AbortError") return;
+            listeners.onQuote(null);
+            listeners.onError(
+              err instanceof Error ? err.message : "Could not quote this booking",
+            );
+          })
+          .finally(() => {
+            if (!controller.signal.aborted) listeners.onQuoting(false);
+          });
+      }, debounceMs);
+      return true;
+    },
+    dispose() {
+      lastKey = "\0";
+      cancelInFlight();
+    },
+  };
 }

@@ -1,4 +1,14 @@
+import { toDateOnly } from "../lib/booking.js";
+
 const MIN_OWNER_AGE = 18;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+export function isValidEmail(email) {
+  const value = String(email ?? "").trim();
+  if (!value) return false;
+  return EMAIL_PATTERN.test(value);
+}
+
 export function getAge(dateOfBirth) {
   const birth = new Date(`${dateOfBirth}T00:00:00`);
   const today = new Date();
@@ -11,11 +21,7 @@ export function getAge(dateOfBirth) {
 }
 
 function toDateInputValue(value) {
-  if (!value) return "";
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
-  }
-  return String(value).slice(0, 10);
+  return toDateOnly(value);
 }
 
 export function getOwnerProfileFormValues(profile) {
@@ -50,8 +56,8 @@ export function validateProfile({ name, email, phone, idNumber, dateOfBirth }) {
   }
   if (!email.trim()) {
     errors.email = "Email is required";
-  } else if (!/^[^\s@]+@[^\s@]+\.com$/i.test(email.trim())) {
-    errors.email = "Email must include @ and end with .com";
+  } else if (!isValidEmail(email)) {
+    errors.email = "Enter a valid email address";
   }
   if (!phone) {
     errors.phone = "Phone is required";

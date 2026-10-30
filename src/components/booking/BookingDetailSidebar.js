@@ -41,6 +41,7 @@ export default function BookingDetailSidebar({
   hideTotal = false,
   quote = null,
   serviceLabel = "",
+  dateTimeLabel: dateTimeLabelProp,
 }) {
   const petCount = selectedPets.length;
   const quotedTotal = formatQuoteTotal(quote);
@@ -54,13 +55,15 @@ export default function BookingDetailSidebar({
     ? quotedTotal.replace("฿", "")
     : formatCurrency(previewTotal);
 
-  const dateTimeLabel = formatBookingDateTimeLabel({
-    startDate,
-    endDate,
-    startTime,
-    endTime,
-    isManyDays,
-  });
+  const dateTimeLabel =
+    dateTimeLabelProp ||
+    formatBookingDateTimeLabel({
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      isManyDays,
+    });
 
   const durationLabel = isManyDays
     ? formatBookingDuration(nights, "Day")

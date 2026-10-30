@@ -31,6 +31,7 @@ import {
 import { useLiveQuote } from "@/components/booking/ServiceBookingForm";
 import {
   formatQuoteTotal,
+  formatServiceDateTimeLabel,
   quoteUnavailable,
   shapeCreateRequest,
   toBookingSearchParams,
@@ -93,17 +94,15 @@ export default function BookingFlow({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [profileIncomplete, setProfileIncomplete] = useState(false);
-  const liveQuote = useLiveQuote(
-    sitterId,
-    phase3
-      ? {
-          ...phase3,
-          sitterId,
-          petIds: selectedPetIds.length ? selectedPetIds : phase3.petIds,
-        }
-      : {},
-    Boolean(phase3),
-  );
+  const quoteDraft = useMemo(() => {
+    if (!phase3) return null;
+    return {
+      ...phase3,
+      sitterId,
+      petIds: selectedPetIds.length ? selectedPetIds : phase3.petIds,
+    };
+  }, [phase3, sitterId, selectedPetIds]);
+  const liveQuote = useLiveQuote(sitterId, quoteDraft, Boolean(quoteDraft));
 
   useEffect(() => {
     let cancelled = false;
@@ -402,18 +401,23 @@ export default function BookingFlow({
     ? quotedTotal.replace("฿", "").trim()
     : formatCurrency(previewTotal);
 
+  const phase3Range =
+    phase3?.serviceType === "boarding" || phase3?.mode === "overnight";
   const detailProps = {
     sitter,
     startDate: phase3?.checkIn || phase3?.date || startDate,
     endDate: phase3?.checkOut || phase3?.date || endDate,
-    startTime: phase3?.startTime || startTime,
-    endTime,
+    startTime: phase3Range ? "" : phase3?.startTime || startTime,
+    endTime: phase3Range ? "" : endTime,
     hours,
-    isManyDays,
+    isManyDays: phase3 ? phase3Range : isManyDays,
     nights,
     selectedPets,
     quote: liveQuote.quote,
     serviceLabel: phase3?.serviceType?.replaceAll("_", " "),
+    dateTimeLabel: phase3
+      ? formatServiceDateTimeLabel(quoteDraft, liveQuote.quote)
+      : undefined,
   };
 
   function renderNavButtons({ fullWidth = false } = {}) {

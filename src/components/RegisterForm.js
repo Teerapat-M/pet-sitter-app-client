@@ -5,18 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { register } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
-import SocialAuthButtons from "@/components/SocialAuthButtons";
 import PasswordInput from "@/components/PasswordInput";
-import LegalAuthNotice from "@/components/legal/LegalAuthNotice";
+import { Card } from "@/components/ui/card";
 import { validatePassword } from "@/utils/validatePassword";
 
-// หน้าสมัครเดียว — toggle Owner/Sitter ส่ง asSitter ให้ backend
 export default function RegisterForm({
-  title = "Join Us!",
-  subtitle = "Find your perfect pet sitter with us",
+  title = "Create account",
+  subtitle = "I want to...",
   loginHref = "/login/owner",
   loginPrompt = "Already have an account?",
-  loginLabel = "Login",
+  loginLabel = "Log in ›",
   initialMode = "owner",
 }) {
   const router = useRouter();
@@ -25,6 +23,7 @@ export default function RegisterForm({
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -35,14 +34,10 @@ export default function RegisterForm({
     return `input ${errors[field] ? "input-error" : ""}`;
   }
 
-  /** แยก error จาก API ไปที่ฟิลด์ที่ถูกต้อง (email / phone) */
   function applyRegisterApiError(message) {
     const lower = message.toLowerCase();
 
-    if (
-      lower.includes("phone") ||
-      message.includes("Phone number is already in use")
-    ) {
+    if (lower.includes("phone") || message.includes("Phone number is already in use")) {
       setErrors((prev) => ({ ...prev, phone: message }));
       return;
     }
@@ -57,7 +52,6 @@ export default function RegisterForm({
       return;
     }
 
-    // error ทั่วไป — แสดงใต้ฟอร์ม
     setError(message);
   }
 
@@ -65,7 +59,6 @@ export default function RegisterForm({
     const newErrors = {};
     const trimmedName = name.trim();
 
-    // Name: บังคับ + ความยาว 6–20 ตัว (นับหลัง trim)
     if (!trimmedName) {
       newErrors.name = "Name is required";
     } else if (trimmedName.length < 6 || trimmedName.length > 20) {
@@ -84,10 +77,13 @@ export default function RegisterForm({
       newErrors.phone = "Phone number must be 10 digits and start with 0";
     }
 
-    // ticket 01: กฎความยาวรหัสผ่านอยู่ที่ validatePassword (ใช้ร่วมกับ Reset password ใน ticket 02)
     const passwordError = validatePassword(password);
     if (passwordError) {
       newErrors.password = passwordError;
+    }
+
+    if (!agreed) {
+      newErrors.agreed = "Please agree to the Terms and Privacy Policy";
     }
 
     setErrors(newErrors);
@@ -113,7 +109,6 @@ export default function RegisterForm({
         asSitter,
       });
       saveAuth(data, true);
-      // Sitter → หน้า profile | Owner → homepage
       router.push(asSitter ? "/sitter/profile" : "/");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Register failed";
@@ -124,53 +119,53 @@ export default function RegisterForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:gap-5">
-      <header className="flex flex-col items-center gap-1.5 text-center sm:gap-2">
-        <h1 className="text-h2">{title}</h1>
-        <p className="text-body-2 text-gray-400">{subtitle}</p>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <header>
+        <h2 className="text-h2">{title}</h2>
+        <p className="mt-1 text-body-2 text-ink-400">{subtitle}</p>
       </header>
 
-      <div
-        className="mx-auto flex w-full max-w-none rounded-full bg-gray-100 p-1 sm:max-w-70"
-        role="tablist"
-        aria-label="Register as"
-      >
-        <button
+      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Account type">
+        <Card
+          as="button"
           type="button"
-          role="tab"
-          aria-selected={mode === "owner"}
-          className={`min-h-11 flex-1 rounded-full py-2 text-body-3 font-bold transition ${
-            mode === "owner"
-              ? "bg-white text-orange-500 ring-1 ring-orange-500"
-              : "text-gray-400"
-          }`}
+          interactive
+          role="radio"
+          aria-checked={mode === "owner"}
           onClick={() => setMode("owner")}
-        >
-          Owner
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "sitter"}
-          className={`min-h-11 flex-1 rounded-full py-2 text-body-3 font-bold transition ${
-            mode === "sitter"
-              ? "bg-white text-orange-500 ring-1 ring-orange-500"
-              : "text-gray-400"
+          className={`rounded-card border p-4 text-left ${
+            mode === "owner" ? "border-primary bg-primary-50" : "border-line bg-surface"
           }`}
-          onClick={() => setMode("sitter")}
         >
-          Sitter
-        </button>
+          <p className="text-2xl" aria-hidden>🐶</p>
+          <p className="mt-2 font-extrabold">Book care</p>
+          <p className="text-caption text-ink-400">Pet owner</p>
+        </Card>
+        <Card
+          as="button"
+          type="button"
+          interactive
+          role="radio"
+          aria-checked={mode === "sitter"}
+          onClick={() => setMode("sitter")}
+          className={`rounded-card border p-4 text-left ${
+            mode === "sitter" ? "border-primary bg-primary-50" : "border-line bg-surface"
+          }`}
+        >
+          <p className="text-2xl" aria-hidden>🐕</p>
+          <p className="mt-2 font-extrabold">Offer care</p>
+          <p className="text-caption text-ink-400">Sitter / walker</p>
+        </Card>
       </div>
 
       <label className="flex flex-col gap-2">
-        <span className="text-body-3 font-bold text-black">Name</span>
+        <span className="text-label text-ink-900">Full name</span>
         <input
           className={getInputClassName("name")}
           type="text"
           name="name"
           autoComplete="name"
-          placeholder="Your name"
+          placeholder="Bell W."
           maxLength={20}
           value={name}
           onChange={(event) => {
@@ -178,35 +173,35 @@ export default function RegisterForm({
             setErrors((prev) => ({ ...prev, name: "" }));
           }}
         />
-        {errors.name ? <p className="text-body-3 text-red">{errors.name}</p> : null}
+        {errors.name ? <p className="text-caption text-danger">{errors.name}</p> : null}
       </label>
 
       <label className="flex flex-col gap-2">
-        <span className="text-body-3 font-bold text-black">Email</span>
+        <span className="text-label text-ink-900">Email</span>
         <input
           className={getInputClassName("email")}
           type="email"
           name="email"
           autoComplete="email"
-          placeholder="email@company.com"
+          placeholder="bell@example.com"
           value={email}
           onChange={(event) => {
             setEmail(event.target.value);
             setErrors((prev) => ({ ...prev, email: "" }));
           }}
         />
-        {errors.email ? <p className="text-body-3 text-red">{errors.email}</p> : null}
+        {errors.email ? <p className="text-caption text-danger">{errors.email}</p> : null}
       </label>
 
       <label className="flex flex-col gap-2">
-        <span className="text-body-3 font-bold text-black">Phone</span>
+        <span className="text-label text-ink-900">Phone</span>
         <input
           className={getInputClassName("phone")}
           type="tel"
           name="phone"
           inputMode="numeric"
           autoComplete="tel"
-          placeholder="Your phone number"
+          placeholder="0812345678"
           maxLength={10}
           value={phone}
           onChange={(event) => {
@@ -215,11 +210,11 @@ export default function RegisterForm({
             setError("");
           }}
         />
-        {errors.phone ? <p className="text-body-3 text-red">{errors.phone}</p> : null}
+        {errors.phone ? <p className="text-caption text-danger">{errors.phone}</p> : null}
       </label>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor="register-password" className="text-body-3 font-bold text-black">
+        <label htmlFor="register-password" className="text-label text-ink-900">
           Password
         </label>
         <PasswordInput
@@ -233,28 +228,41 @@ export default function RegisterForm({
             setErrors((prev) => ({ ...prev, password: "" }));
           }}
         />
-        {errors.password ? (
-          <p className="text-body-3 text-red">{errors.password}</p>
-        ) : null}
+        {errors.password ? <p className="text-caption text-danger">{errors.password}</p> : null}
       </div>
 
+      <label className="flex items-start gap-3 text-body-2 text-ink-600">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(event) => {
+            setAgreed(event.target.checked);
+            setErrors((prev) => ({ ...prev, agreed: "" }));
+          }}
+          className="mt-1 size-4 accent-primary"
+        />
+        <span>
+          I agree to the{" "}
+          <Link href="/terms-of-service" className="font-bold text-primary">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy-policy" className="font-bold text-primary">
+            Privacy Policy
+          </Link>
+        </span>
+      </label>
+      {errors.agreed ? <p className="text-caption text-danger">{errors.agreed}</p> : null}
+
       {error && !errors.email && !errors.phone ? (
-        <p className="text-center text-body-3 text-red">{error}</p>
+        <p className="text-center text-caption text-danger">{error}</p>
       ) : null}
 
       <button className="btn btn-primary w-full" type="submit" disabled={loading}>
-        {loading
-          ? "Registering..."
-          : asSitter
-            ? "Register as Sitter"
-            : "Register as Owner"}
+        {loading ? "Creating account..." : "Create account"}
       </button>
 
-      <SocialAuthButtons remember />
-
-      <LegalAuthNotice />
-
-      <p className="text-center text-body-3 text-gray-500">
+      <p className="text-center text-body-2 text-ink-600">
         {loginPrompt}{" "}
         <Link href={loginHref} className="font-bold text-primary">
           {loginLabel}

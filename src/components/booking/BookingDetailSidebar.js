@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import {
   calculateBookingPreviewTotal,
   formatBookingDateTimeLabel,
@@ -59,7 +60,7 @@ export default function BookingDetailSidebar({
     : formatBookingDuration(hours, "hours");
 
   return (
-    <aside className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-(--shadow-card) md:h-full md:w-82 md:shrink-0">
+    <Card as="aside" className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-(--shadow-card) md:h-full md:w-82 md:shrink-0">
       <div className="flex flex-1 flex-col px-4 pt-5 pb-5 sm:px-8 sm:pt-6 sm:pb-6">
         <h2 className="text-h4 font-bold text-gray-900">Booking Detail</h2>
         <div className="mt-4 h-px w-full bg-gray-100" aria-hidden />
@@ -89,6 +90,6 @@ export default function BookingDetailSidebar({
           </span>
         </div>
       ) : null}
-    </aside>
+    </Card>
   );
 }

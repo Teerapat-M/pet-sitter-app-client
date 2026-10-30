@@ -1,6 +1,12 @@
 // src/lib — คุยกับ backend / เก็บ session
 // เรียก API ตาม NEXT_PUBLIC_API_URL จาก .env.example (local:4000 | prod: Render)
 import { clearAuth, getToken } from "@/lib/auth";
+import { onboardingSeenBody } from "@/lib/onboarding";
+import {
+  FALLBACK_PET_TYPES,
+  PET_TYPES_ENDPOINT,
+  normalizePetTypeList,
+} from "@/lib/petSearch";
 import { formatDate } from "@/utils/formatDateTime";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -82,6 +88,17 @@ export async function checkHealth() {
 export async function getUsers() {
   const json = await apiFetch("/api/users");
   return json.data ?? [];
+}
+
+export async function getPetTypes() {
+  try {
+    const json = await apiFetch(PET_TYPES_ENDPOINT);
+    const types = normalizePetTypeList(json);
+    if (types.length) return types;
+  } catch {
+    // Keep seeded types if the catalog request fails.
+  }
+  return FALLBACK_PET_TYPES;
 }
 
 export async function getSitters({
@@ -295,6 +312,19 @@ export async function getProfile() {
 }
 
 /**
+ * Persist the first-visit tour flag on the user.
+ * PATCH /api/users/me/onboarding  body: { seen: true | false }
+ * sets users.onboarding_seen_at. Guests skip this and use localStorage only.
+ */
+export async function markOnboardingSeen(seen) {
+  const json = await apiFetch("/api/users/me/onboarding", {
+    method: "PATCH",
+    body: onboardingSeenBody(seen),
+  });
+  return json.data;
+}
+
+/**
  * สร้าง booking — cash | stripe
  * many days: startDate + endDate เท่านั้น · one day: + startTime/endTime
  */
@@ -422,6 +452,16 @@ export async function createConversation(otherUserId) {
 export async function getConversations() {
   const json = await apiFetch("/api/conversations");
   return json.data ?? [];
+}
+
+export async function getOwnerBooking(id) {
+  const json = await apiFetch(`/api/bookings/owner/${encodeURIComponent(id)}`);
+  return json.data;
+}
+
+export async function getSitterBooking(id) {
+  const json = await apiFetch(`/api/sitters/bookings/${encodeURIComponent(id)}`);
+  return json.data;
 }
 
 export async function getNotifications() {

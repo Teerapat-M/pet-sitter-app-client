@@ -9,14 +9,15 @@ import {
 } from "@/lib/supabase";
 import { errorToastClassNames } from "@/lib/toastStyles";
 
-/**
- * ปุ่ม Facebook / Google (ticket 04)
- * กดแล้ว → stash Remember me → Supabase signInWithOAuth → /auth/callback
- */
 export default function SocialAuthButtons({ remember = true }) {
   const [loadingProvider, setLoadingProvider] = useState(null);
 
   async function handleOAuth(provider) {
+    if (provider === "line") {
+      toast("LINE login is not configured yet.", { classNames: errorToastClassNames });
+      return;
+    }
+
     if (!isSupabaseConfigured()) {
       toast(
         "Social login is not configured. Add Supabase keys to .env.local.",
@@ -26,12 +27,10 @@ export default function SocialAuthButtons({ remember = true }) {
     }
 
     setLoadingProvider(provider);
-    // เก็บค่า Remember ข้าม redirect (หน้า callback จะอ่านตอน saveAuth)
     stashOAuthRemember(remember);
 
     try {
       await signInWithOAuthProvider(provider);
-      // สำเร็จแล้วเบราว์เซอร์จะออกจากหน้านี้ไป Google/Facebook
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Social login failed";
@@ -43,36 +42,32 @@ export default function SocialAuthButtons({ remember = true }) {
   const busy = Boolean(loadingProvider);
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <span className="h-px flex-1 bg-gray-200" />
-        <span className="shrink-0 text-body-3 text-gray-400">Or Continue With</span>
-        <span className="h-px flex-1 bg-gray-200" />
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-caption text-ink-400">or</span>
+        <span className="h-px flex-1 bg-line" />
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:gap-3">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => handleOAuth("facebook")}
-          className="btn btn-social w-full gap-1.5 sm:gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <img src="/icon/facebook.svg" alt="" className="size-5 shrink-0" />
-          <span className="truncate">
-            {loadingProvider === "facebook" ? "..." : "Facebook"}
-          </span>
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => handleOAuth("google")}
-          className="btn btn-social w-full gap-1.5 sm:gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <img src="/icon/google.svg" alt="" className="size-5 shrink-0" />
-          <span className="truncate">
-            {loadingProvider === "google" ? "..." : "Gmail"}
-          </span>
-        </button>
-      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => handleOAuth("google")}
+        className="btn btn-social w-full disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <img src="/icon/google.svg" alt="" className="size-5 shrink-0" />
+        {loadingProvider === "google" ? "..." : "Continue with Google"}
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => handleOAuth("line")}
+        className="btn btn-social w-full disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span className="flex size-5 items-center justify-center rounded-sm bg-[#06C755] text-[10px] font-black text-white">
+          LINE
+        </span>
+        Continue with LINE
+      </button>
     </div>
   );
 }

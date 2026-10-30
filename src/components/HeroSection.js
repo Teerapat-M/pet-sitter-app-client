@@ -1,58 +1,54 @@
-import Image from "next/image";
+"use client";
+
 import SearchBar from "./SearchBar";
 
-export default function HeroSection() {
-    return (
-        <section className="relative w-full bg-white pt-6 sm:pt-10 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
-            {/* แบนเนอร์ด้านบน (ภาพแมว - หัวข้อหลัก - ภาพหมา) */}
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 items-center gap-8 lg:gap-4 relative">
-                {/* ฝั่งซ้าย: ภาพประกอบแมว */}
-                <div className="lg:col-span-3 flex justify-center lg:justify-start order-2 lg:order-1">
-                    <div className="relative w-[240px] sm:w-[280px] lg:w-full max-w-[320px]">
-                        <Image
-                            src="/image/section-cat.png"
-                            alt="Cats Illustration"
-                            width={340}
-                            height={360}
-                            className="w-full h-auto object-contain"
-                            priority
-                        />
-                    </div>
-                </div>
+export default function HeroSection({ greeting = null }) {
+  return (
+    <section className="psp-container pt-6 pb-4 md:pt-10 md:pb-8">
+      {greeting}
 
-                {/* ตรงกลาง: หัวข้อหลักและคำโปรย */}
-                <div className="lg:col-span-6 text-center order-1 lg:order-2 px-2">
-                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-[#000000] tracking-tight leading-[1.15]">
-                        Pet Sitter<span className="text-[#FF7037]">,</span>
-                        <br />
-                        Perfect<span className="text-[#76D0FC]">,</span>
-                        <br />
-                        For Your Pet<span className="text-[#FFCA62]">.</span>
-                    </h1>
-                    <p className="mt-5 text-base sm:text-lg text-gray-500 font-medium max-w-md mx-auto">
-                        Find your perfect pet sitter with us.
-                    </p>
-                </div>
+      <div className="relative rounded-tile bg-primary-50 px-5 py-8 md:px-12 md:py-14">
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-tile"
+          aria-hidden
+        >
+          <div className="absolute -right-8 top-4 hidden size-72 rounded-full bg-[#ffe8d4] md:block lg:right-16 lg:size-80" />
+        </div>
 
-                {/* ฝั่งขวา: ภาพประกอบหมา */}
-                <div className="lg:col-span-3 flex justify-center lg:justify-end order-3">
-                    <div className="relative w-[240px] sm:w-[280px] lg:w-full max-w-[320px]">
-                        <Image
-                            src="/image/section-dog.png"
-                            alt="Dog Illustration"
-                            width={340}
-                            height={360}
-                            className="w-full h-auto object-contain"
-                            priority
-                        />
-                    </div>
-                </div>
-            </div>
+        <div className="relative z-10">
+          <div className="max-w-xl">
+            <h1 className="hidden text-display text-ink-900 md:block">
+              Trusted care for your pet, with eyes on every moment.
+            </h1>
+            <p className="mt-3 hidden max-w-md text-body-lg text-ink-600 md:block">
+              Boarding with live CCTV · dog walks with GPS · in-home sitters
+            </p>
+          </div>
+          <div className="mt-6 hidden w-full max-w-4xl md:block">
+            <SearchBar />
+          </div>
+        </div>
 
-            {/* ส่วนช่องค้นหา Pet Sitter */}
-            <div className="mt-12 sm:mt-16">
-                <SearchBar />
-            </div>
-        </section>
-    );
+        <div className="relative z-10 flex min-h-28 items-center justify-center gap-3 md:absolute md:right-16 md:top-1/2 md:mt-0 md:min-h-0 md:-translate-y-1/2">
+          <span className="text-5xl md:text-8xl" aria-hidden>
+            🐶
+          </span>
+          <span className="text-5xl md:text-8xl" aria-hidden>
+            🐱
+          </span>
+          <p className="text-h3 text-primary md:hidden">Happy pets</p>
+        </div>
+        <div className="absolute bottom-4 left-4 z-10 md:top-8 md:right-16 md:bottom-auto md:left-auto">
+          <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-2 text-caption font-semibold text-ink-900 shadow-card">
+            <span className="size-2 rounded-full bg-live" aria-hidden />
+            Live walk · 1.8 km
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 md:hidden">
+        <SearchBar compactUntilOpen />
+      </div>
+    </section>
+  );
 }

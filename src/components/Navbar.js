@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { clearAuth, getToken, getUser, updateStoredUser, saveAuth } from "@/lib/auth";
-import { becomeSitter } from "@/lib/api";
-import { useUnreadChatCount } from "@/lib/useUnreadChatCount";
+import { PawPrint, RefreshCw, Settings, UserRound, X } from "lucide-react";
+import Logo from "@/components/brand/Logo";
 import NotificationBell from "@/components/NotificationBell";
+import { becomeSitter } from "@/lib/api";
+import { clearAuth, getToken, getUser, saveAuth, updateStoredUser } from "@/lib/auth";
+import { useUnreadChatCount } from "@/lib/useUnreadChatCount";
+import { cn } from "@/lib/utils";
 
 const FALLBACK_AVATAR = "/icon/user.svg";
 
@@ -22,49 +24,17 @@ function getAvatarSrc(user) {
   );
 }
 
-const MENU_ITEMS = [
-  { href: "/owner/profile", label: "Profile", icon: "/navbar/menu-profile.svg" },
-  { href: "/owner/pets", label: "Your Pet", icon: "/navbar/menu-paw.svg" },
-  { href: "/owner/bookings", label: "History", icon: "/navbar/menu-history.svg" },
+const NAV_LINKS = [
+  { href: "/find-sitter", label: "Find sitters" },
+  { href: "/owner/bookings", label: "Bookings", auth: true },
+  { href: "/messages", label: "Messages", auth: true },
+  { href: "/owner/pets", label: "My pets", auth: true },
 ];
-
-function Logo() {
-  return (
-    <Link
-      href="/"
-      className="relative block h-6 w-[79px] shrink-0 md:h-10 md:w-[132px]"
-      aria-label="Sitter home"
-    >
-      <span className="absolute top-[9.68%] right-[17.58%] bottom-[11.15%] left-[1.96%]">
-        <img
-          src="/navbar/logo-sitter.svg"
-          alt=""
-          className="size-full object-contain object-left"
-        />
-      </span>
-      <span className="absolute top-[9.68%] right-[1.96%] bottom-[48.39%] left-[85.29%]">
-        <img
-          src="/navbar/logo-star.svg"
-          alt=""
-          className="size-full object-contain"
-        />
-      </span>
-    </Link>
-  );
-}
-
-function MenuItemIcon({ src }) {
-  return (
-    <span className="relative block size-5 overflow-clip">
-      <img src={src} alt="" className="size-full object-contain" />
-    </span>
-  );
-}
 
 function BecomeSitterModal({ onCancel, onConfirm, loading, error }) {
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/55 p-4"
       onClick={loading ? undefined : onCancel}
       role="presentation"
     >
@@ -72,44 +42,34 @@ function BecomeSitterModal({ onCancel, onConfirm, loading, error }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="become-sitter-title"
-        className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-[var(--shadow-card)]"
+        className="w-full max-w-md overflow-hidden rounded-card bg-surface shadow-card"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h3 id="become-sitter-title" className="text-h4 text-gray-900">
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+          <h3 id="become-sitter-title" className="text-h4 text-ink-900">
             Become a Pet Sitter
           </h3>
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="cursor-pointer rounded-lg p-1 text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded-lg p-1 text-ink-400 transition-colors hover:text-ink-600 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
         <div className="px-6 py-6">
-          <p className="text-body-2 text-gray-500">
+          <p className="text-body-2 text-ink-600">
             Are you sure you want to become a pet sitter?
           </p>
-          {error ? <p className="mt-3 text-body-3 text-red">{error}</p> : null}
+          {error ? <p className="mt-3 text-body-2 text-danger">{error}</p> : null}
         </div>
         <div className="flex items-center gap-3 px-6 pb-6">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={loading}
-            className="btn btn-secondary flex-1"
-          >
+          <button type="button" onClick={onCancel} disabled={loading} className="btn btn-secondary flex-1">
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading}
-            className="btn btn-primary flex-1"
-          >
+          <button type="button" onClick={onConfirm} disabled={loading} className="btn btn-primary flex-1">
             {loading ? "Confirming..." : "Confirm"}
           </button>
         </div>
@@ -118,56 +78,23 @@ function BecomeSitterModal({ onCancel, onConfirm, loading, error }) {
   );
 }
 
-function IconButton({
-  src,
-  alt,
-  hasDot,
-  badge = 0,
-  href,
-  onClick,
-  variant = "circle",
-}) {
-  const isPlain = variant === "plain";
-  const className = isPlain
-    ? "relative flex size-6 shrink-0 cursor-pointer items-center justify-center"
-    : "relative flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-100";
-  const label = badge > 0 ? `${alt}, ${badge} unread` : alt;
-  const showDot = hasDot || (isPlain && badge > 0);
-  const inner = (
-    <>
-      <span className="relative block size-6 overflow-clip">
-        <img src={src} alt="" className="size-full object-contain" />
-      </span>
-      {!isPlain && badge > 0 ? (
-        <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white">
-          {badge > 9 ? "9+" : badge}
-        </span>
-      ) : showDot ? (
-        <img
-          src="/navbar/icon-dot.svg"
-          alt=""
-          className={
-            isPlain
-              ? "absolute -top-0.5 -right-0.5 size-1.5"
-              : "absolute top-1 right-1.5 size-1.5"
-          }
-        />
-      ) : null}
-    </>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className={className} aria-label={label} onClick={onClick}>
-        {inner}
-      </Link>
-    );
-  }
-
+function NavLink({ href, label, pathname, onClick }) {
+  const active =
+    href === "/find-sitter"
+      ? pathname.startsWith("/find-sitter")
+      : pathname === href || pathname.startsWith(`${href}/`);
   return (
-    <button type="button" className={className} aria-label={label} onClick={onClick}>
-      {inner}
-    </button>
+    <Link
+      href={href}
+      onClick={onClick}
+      className={cn(
+        "text-body-2 font-semibold transition-colors",
+        active ? "text-primary" : "text-ink-600 hover:text-ink-900",
+      )}
+      aria-current={active ? "page" : undefined}
+    >
+      {label}
+    </Link>
   );
 }
 
@@ -176,13 +103,10 @@ export default function Navbar() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [becomeSitterOpen, setBecomeSitterOpen] = useState(false);
   const [becomeSitterLoading, setBecomeSitterLoading] = useState(false);
   const [becomeSitterError, setBecomeSitterError] = useState("");
   const menuRef = useRef(null);
-  const mobileNavRef = useRef(null);
-  const mobileToggleRef = useRef(null);
   const isLoggedIn = Boolean(user);
   const isSitter = Boolean(user?.isSitter);
   const unreadChatCount = useUnreadChatCount(isLoggedIn);
@@ -222,6 +146,8 @@ export default function Navbar() {
           email: json.data.email,
           phone: json.data.phone,
           avatarUrl: json.data.avatar_url ?? json.data.avatarUrl,
+          onboarding_seen_at:
+            json.data.onboarding_seen_at ?? json.data.onboardingSeenAt ?? null,
         });
         if (!cancelled && nextUser) setUser(nextUser);
       } catch {
@@ -255,22 +181,6 @@ export default function Navbar() {
   }, [menuOpen]);
 
   useEffect(() => {
-    if (!mobileMenuOpen) return;
-
-    function handlePointerDown(event) {
-      if (
-        !mobileNavRef.current?.contains(event.target) &&
-        !mobileToggleRef.current?.contains(event.target)
-      ) {
-        setMobileMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [mobileMenuOpen]);
-
-  useEffect(() => {
     if (!becomeSitterOpen) return;
 
     function handleKeyDown(event) {
@@ -283,13 +193,8 @@ export default function Navbar() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [becomeSitterOpen, becomeSitterLoading]);
 
-  function closeMenus() {
-    setMenuOpen(false);
-    setMobileMenuOpen(false);
-  }
-
   function handleOpenBecomeSitter() {
-    closeMenus();
+    setMenuOpen(false);
     setBecomeSitterError("");
     setBecomeSitterOpen(true);
   }
@@ -327,230 +232,149 @@ export default function Navbar() {
   }
 
   function handleLogout() {
-    closeMenus();
+    setMenuOpen(false);
     clearAuth();
     setUser(null);
-    window.location.href = "/";
+    router.push("/");
   }
+
+  function handleReplayTour() {
+    setMenuOpen(false);
+    window.dispatchEvent(new Event("psp-replay-tour"));
+  }
+
+  const visibleLinks = NAV_LINKS.filter((link) => isLoggedIn || !link.auth);
 
   return (
     <>
-    <header className="sticky top-0 z-50 bg-[#FFFFFF] shadow-[0_1px_0_0_var(--gray-200)]">
-      <nav className="mx-auto flex h-12 w-full items-center justify-between px-5 md:h-20 md:px-20">
-        <Logo />
+      <header className="sticky top-0 z-50 border-b border-line bg-surface">
+        <nav className="psp-container flex h-14 items-center justify-between md:h-20">
+          <Logo />
 
-        {isLoggedIn ? (
-          <div className="hidden items-center gap-6 md:flex">
-            <div className="flex items-center gap-3">
-              <NotificationBell enabled={isLoggedIn} />
-              <IconButton
-                src="/navbar/icon-chat.svg"
-                alt="Messages"
-                href="/messages"
-                hasDot={unreadChatCount > 0}
-              />
+          <div className="hidden items-center gap-8 md:flex">
+            {visibleLinks.map((link) => (
+              <span key={link.href} className="relative">
+                <NavLink href={link.href} label={link.label} pathname={pathname} />
+                {link.href === "/messages" && unreadChatCount > 0 ? (
+                  <span className="absolute -top-1 -right-3 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
+                    {unreadChatCount > 9 ? "9+" : unreadChatCount}
+                  </span>
+                ) : null}
+              </span>
+            ))}
+          </div>
 
-              <div className="relative" ref={menuRef}>
-                <button
-                  type="button"
-                  className="relative flex size-12 cursor-pointer items-center justify-center overflow-clip rounded-full bg-gray-200"
-                  aria-label="Open profile menu"
-                  aria-expanded={menuOpen}
-                  onClick={() => setMenuOpen((open) => !open)}
-                >
-                  {isRemoteAvatar ? (
-                    <img
-                      key={avatarSrc}
-                      src={avatarSrc}
-                      alt={user?.name || "Profile"}
-                      className="size-12 rounded-full object-cover"
-                    />
-                  ) : (
-                    <img
-                      src={FALLBACK_AVATAR}
-                      alt={user?.name || "Profile"}
-                      className="size-6"
-                    />
-                  )}
-                </button>
+          <div className="flex items-center gap-2 md:gap-3">
+            {isLoggedIn ? (
+              <>
+                <NotificationBell enabled={isLoggedIn} />
+                <div className="relative" ref={menuRef}>
+                  <button
+                    type="button"
+                    className="relative flex size-9 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-accent-50 md:size-11"
+                    aria-label="Open profile menu"
+                    aria-expanded={menuOpen}
+                    onClick={() => setMenuOpen((open) => !open)}
+                  >
+                    {isRemoteAvatar ? (
+                      <img
+                        key={avatarSrc}
+                        src={avatarSrc}
+                        alt={user?.name || "Profile"}
+                        className="size-9 rounded-full object-cover md:size-11"
+                      />
+                    ) : (
+                      <span className="text-lg" aria-hidden>
+                        😊
+                      </span>
+                    )}
+                  </button>
 
-                {menuOpen ? (
-                  <div className="absolute top-[calc(100%+8px)] right-0 z-50 flex min-w-[186px] w-max flex-col overflow-clip rounded-lg bg-[#FFFFFF] py-1 shadow-[4px_4px_24px_0px_rgba(0,0,0,0.04)]">
-                    <div className="flex flex-col py-2">
-                      {MENU_ITEMS.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className="flex w-full items-center gap-3 px-6 py-2 text-body-2 text-black hover:bg-gray-100"
-                          onClick={closeMenus}
+                  {menuOpen ? (
+                    <div className="absolute top-[calc(100%+8px)] right-0 z-50 w-64 overflow-hidden rounded-card bg-surface py-2 shadow-float">
+                      <div className="border-b border-line px-4 py-3">
+                        <p className="truncate font-extrabold text-ink-900">
+                          {user?.name || "Account"}
+                        </p>
+                        {user?.email ? (
+                          <p className="truncate text-caption text-ink-400">{user.email}</p>
+                        ) : null}
+                      </div>
+                      <Link
+                        href="/owner/profile"
+                        className="flex items-center gap-3 px-4 py-2.5 text-body-2 text-ink-900 hover:bg-primary-50"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <UserRound className="size-4 text-ink-400" aria-hidden />
+                        Profile
+                      </Link>
+                      <Link
+                        href="/owner/pets"
+                        className="flex items-center gap-3 px-4 py-2.5 text-body-2 text-ink-900 hover:bg-primary-50"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <PawPrint className="size-4 text-ink-400" aria-hidden />
+                        My pets
+                      </Link>
+                      <Link
+                        href="/owner/profile"
+                        className="flex items-center gap-3 px-4 py-2.5 text-body-2 text-ink-900 hover:bg-primary-50"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <Settings className="size-4 text-ink-400" aria-hidden />
+                        Settings
+                      </Link>
+                      <div className="px-2 py-1">
+                        <button
+                          type="button"
+                          className="flex w-full cursor-pointer items-center gap-3 rounded-xl bg-primary-50 px-3 py-2.5 text-left text-body-2 font-bold text-primary hover:bg-primary-50"
+                          onClick={handleReplayTour}
                         >
-                          <MenuItemIcon src={item.icon} />
-                          {item.label}
-                        </Link>
-                      ))}
+                          <RefreshCw className="size-4" aria-hidden />
+                          Show tour again
+                        </button>
+                      </div>
                       {isSitter ? (
                         <Link
                           href="/sitter/profile"
-                          className="flex w-full items-center gap-3 px-6 py-2 text-body-2 text-black hover:bg-gray-100"
-                          onClick={closeMenus}
+                          className="flex items-center gap-3 px-4 py-2.5 text-body-2 text-ink-900 hover:bg-primary-50"
+                          onClick={() => setMenuOpen(false)}
                         >
-                          <MenuItemIcon src="/navbar/menu-profile.svg" />
-                          Sitter Profile
+                          Sitter dashboard
                         </Link>
                       ) : (
                         <button
                           type="button"
-                          className="flex w-full cursor-pointer items-center gap-3 px-6 py-2 text-left text-body-2 text-black hover:bg-gray-100"
+                          className="flex w-full cursor-pointer px-4 py-2.5 text-left text-body-2 text-ink-900 hover:bg-primary-50"
                           onClick={handleOpenBecomeSitter}
                         >
-                          <MenuItemIcon src="/navbar/menu-profile.svg" />
-                          Become a Pet Sitter
+                          Become a pet sitter
                         </button>
                       )}
-                    </div>
-                    <div className="flex flex-col border-t border-gray-200 py-2">
                       <button
                         type="button"
-                        className="flex w-full cursor-pointer items-center gap-3 px-6 py-2 text-left text-body-2 text-black hover:bg-gray-100"
+                        className="flex w-full cursor-pointer border-t border-line px-4 py-2.5 text-left text-body-2 font-bold text-danger hover:bg-primary-50"
                         onClick={handleLogout}
                       >
-                        <MenuItemIcon src="/navbar/menu-logout.svg" />
                         Log out
                       </button>
                     </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <Link href="/find-sitter" className="btn btn-primary min-w-[120px] text-[#FFFFFF]">
-              Find A Pet Sitter
-            </Link>
-          </div>
-        ) : (
-          <div className="hidden items-center gap-4 md:flex">
-            <Link
-              href="/register?type=sitter"
-              className="px-6 py-4 text-body-1 text-black"
-            >
-              Register
-            </Link>
-            <Link href="/login" className="px-6 py-4 text-body-1 text-black">
-              Login
-            </Link>
-            <Link href="/find-sitter" className="btn btn-primary min-w-[120px] text-[#FFFFFF]">
-              Find A Pet Sitter
-            </Link>
-          </div>
-        )}
-
-        <div className="flex shrink-0 items-center gap-2 md:hidden">
-          {isLoggedIn ? (
-            <>
-              <NotificationBell enabled={isLoggedIn} variant="plain" />
-              <IconButton
-                src="/navbar/icon-chat.svg"
-                alt="Messages"
-                href="/messages"
-                hasDot={unreadChatCount > 0}
-                variant="plain"
-              />
-            </>
-          ) : null}
-          <button
-            ref={mobileToggleRef}
-            type="button"
-            className="flex size-11 shrink-0 items-center justify-center rounded-full text-black"
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileMenuOpen}
-            onClick={() => setMobileMenuOpen((open) => !open)}
-          >
-            {mobileMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
-          </button>
-        </div>
-      </nav>
-
-      {mobileMenuOpen ? (
-        <div
-          ref={mobileNavRef}
-          className="flex flex-col gap-1 border-t border-gray-200 bg-[#FFFFFF] px-5 py-4 md:hidden"
-        >
-          {isLoggedIn ? (
-            <>
-              {MENU_ITEMS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-3 px-2 py-3 text-body-2 text-black"
-                  onClick={closeMenus}
-                >
-                  <MenuItemIcon src={item.icon} />
-                  {item.label}
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-body-2 font-bold text-primary md:font-semibold md:text-ink-600">
+                  Log in
                 </Link>
-              ))}
-              {isSitter ? (
-                <Link
-                  href="/sitter/profile"
-                  className="flex items-center gap-3 px-2 py-3 text-body-2 text-black"
-                  onClick={closeMenus}
-                >
-                  <MenuItemIcon src="/navbar/menu-profile.svg" />
-                  Sitter Profile
+                <Link href="/register" className="btn btn-primary hidden h-11 px-5 md:inline-flex">
+                  Create account
                 </Link>
-              ) : (
-                <button
-                  type="button"
-                  className="flex cursor-pointer items-center gap-3 px-2 py-3 text-left text-body-2 text-black"
-                  onClick={handleOpenBecomeSitter}
-                >
-                  <MenuItemIcon src="/navbar/menu-profile.svg" />
-                  Become a Pet Sitter
-                </button>
-              )}
-              <button
-                type="button"
-                className="flex cursor-pointer items-center gap-3 px-2 py-3 text-left text-body-2 text-black"
-                onClick={handleLogout}
-              >
-                <MenuItemIcon src="/navbar/menu-logout.svg" />
-                Log out
-              </button>
-              <Link
-                href="/find-sitter"
-                className="btn btn-primary mt-2 w-full text-[#FFFFFF]"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Find A Pet Sitter
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/register?type=sitter"
-                className="px-2 py-3 text-body-1 text-black"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Register
-              </Link>
-              <Link
-                href="/login"
-                className="px-2 py-3 text-body-1 text-black"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Login
-              </Link>
-              <Link
-                href="/find-sitter"
-                className="btn btn-primary mt-2 w-full text-[#FFFFFF]"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Find A Pet Sitter
-              </Link>
-            </>
-          )}
-        </div>
-      ) : null}
-    </header>
+              </>
+            )}
+          </div>
+        </nav>
+      </header>
 
       {becomeSitterOpen ? (
         <BecomeSitterModal

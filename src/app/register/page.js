@@ -1,19 +1,28 @@
-import AuthShell from "@/components/AuthShell";
+import AuthSplit from "@/components/AuthSplit";
 import RegisterForm from "@/components/RegisterForm";
 
 export const metadata = {
-  title: "Register | Pet Sitter App",
+  title: "Create account | Pet Sitter Plus",
 };
 
-// /register — หน้าสมัครเดียว มี toggle Owner / Sitter
-// ?type=sitter (จากปุ่ม Become a Pet Sitter) → เปิดมาพร้อม tab Sitter
 export default async function RegisterPage({ searchParams }) {
   const { type } = await searchParams;
   const initialMode = type === "sitter" ? "sitter" : "owner";
 
   return (
-    <AuthShell variant="light">
+    <AuthSplit
+      panel="mint"
+      headline={
+        <>
+          Join as an owner
+          <br />
+          or become a sitter.
+        </>
+      }
+      sub="Sitters with CCTV get a verified badge and more bookings."
+      photoLabel="🏠 Sitter home photo"
+    >
       <RegisterForm initialMode={initialMode} />
-    </AuthShell>
+    </AuthSplit>
   );
 }

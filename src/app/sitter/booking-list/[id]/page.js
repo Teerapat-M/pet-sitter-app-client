@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Eye, X } from "lucide-react";
 import Icon from "@/components/Icon";
+import { Card } from "@/components/ui/card";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
@@ -218,9 +219,11 @@ export default function BookingDetailPage() {
             <ul className="flex flex-wrap gap-4">
               {pets.map((pet) => (
                 <li key={pet.id}>
-                  <button
+                  <Card
+                    as="button"
                     type="button"
-                    className="flex w-51.75 cursor-pointer flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-6 text-left"
+                    interactive
+                    className="flex w-51.75 flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-6 text-left"
                     onClick={() => setShowPetModal(pet)}
                   >
                     {pet.avatar_url ? (
@@ -243,7 +246,7 @@ export default function BookingDetailPage() {
                         {pet.pet_type}
                       </p>
                     </div>
-                  </button>
+                  </Card>
                 </li>
               ))}
             </ul>

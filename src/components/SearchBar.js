@@ -1,191 +1,148 @@
-'use client';
+"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CalendarDays, ChevronUp, MapPin, Search } from "lucide-react";
+import { getPetTypes } from "@/lib/api";
+import {
+  FALLBACK_PET_TYPES,
+  countsFromSearchParams,
+  formatSearchCompactSummary,
+  serializePetSearchQuery,
+} from "@/lib/petSearch";
+import { Card } from "@/components/ui/card";
+import PetsPicker from "./PetsPicker";
 
-export default function SearchBar() {
-    const router = useRouter();
-    const [selectedPets, setSelectedPets] = useState([]);
-    const [selectedRatings, setSelectedRatings] = useState([]);
-    const [experience, setExperience] = useState("");
+const PRESERVED_SEARCH_KEYS = ["rating", "experience", "service"];
 
-    const petOptions = [
-        { id: "dog", label: "Dog" },
-        { id: "cat", label: "Cat" },
-        { id: "bird", label: "Bird" },
-        { id: "rabbit", label: "Rabbit" },
-    ];
+export default function SearchBar({
+  defaultLocation = "",
+  defaultDate = "",
+  defaultPets = "",
+  defaultPetCounts = "",
+  actionLabel = "Search",
+  compactUntilOpen = false,
+}) {
+  const router = useRouter();
+  const [expanded, setExpanded] = useState(!compactUntilOpen);
+  const [location, setLocation] = useState(defaultLocation);
+  const [date, setDate] = useState(defaultDate);
+  const [types, setTypes] = useState(FALLBACK_PET_TYPES);
+  const [counts, setCounts] = useState(() =>
+    countsFromSearchParams({
+      petCounts: defaultPetCounts,
+      pets: defaultPets,
+    }),
+  );
 
-    const ratingOptions = [5, 4, 3, 2, 1];
-
-    // เพิ่ม/เอาชนิดสัตว์เลี้ยงออกจากตัวกรอง (เลือกได้หลายชนิดพร้อมกัน)
-    const togglePet = (petId) => {
-        if (selectedPets.includes(petId)) {
-            setSelectedPets(selectedPets.filter((p) => p !== petId));
-        } else {
-            setSelectedPets([...selectedPets, petId]);
-        }
+  useEffect(() => {
+    let cancelled = false;
+    getPetTypes()
+      .then((list) => {
+        if (!cancelled && list.length) setTypes(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
+  }, []);
 
-    // เพิ่ม/เอาระดับดาวออกจากตัวกรอง (เลือกได้หลายระดับพร้อมกัน)
-    const toggleRating = (rating) => {
-        setSelectedRatings((prev) =>
-            prev.includes(rating)
-                ? prev.filter((value) => value !== rating)
-                : [...prev, rating],
-        );
-    };
+  function handleSearch(event) {
+    event.preventDefault();
+    const params = serializePetSearchQuery({
+      q: location,
+      date,
+      counts,
+      types,
+    });
 
-    // รวบรวมตัวกรองที่เลือกไว้เป็น query string แล้วพาไปหน้า /find-sitter
-    const handleSearch = (e) => {
-        e.preventDefault();
-        const params = new URLSearchParams();
-        if (selectedPets.length) params.set("petTypes", selectedPets.join(","));
-        if (selectedRatings.length) params.set("rating", selectedRatings.join(","));
-        if (experience) {
-            // ตัดคำว่า "Years" ออก เหลือแค่ตัวเลขช่วงปี เช่น "0-2 Years" -> "0-2"
-            params.set("experience", experience.replace(/\s*Years$/i, ""));
-        }
-        const query = params.toString();
-        router.push(query ? `/find-sitter?${query}` : "/find-sitter");
-    };
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/find-sitter")) {
+      const current = new URLSearchParams(window.location.search);
+      for (const key of PRESERVED_SEARCH_KEYS) {
+        const value = current.get(key);
+        if (value) params.set(key, value);
+      }
+    }
 
+    const query = params.toString();
+    router.push(query ? `/find-sitter?${query}` : "/find-sitter");
+  }
+
+  const compactSummary = formatSearchCompactSummary({
+    location,
+    date,
+    counts,
+    types,
+  });
+
+  if (compactUntilOpen && !expanded) {
     return (
-        <div className="w-full max-w-[68.75rem] mx-auto rounded-[1.25rem] overflow-hidden shadow-sm flex flex-col bg-white">
-            <form onSubmit={handleSearch} className="flex flex-col">
-                {/* แถวบน: ตัวกรองชนิดสัตว์เลี้ยง */}
-                <div className="bg-[#F8F9FB] px-5 sm:px-6 lg:px-8 py-5 flex flex-col lg:flex-row items-start lg:items-center gap-3 lg:gap-6">
-                    <span className="text-[15px] font-bold text-gray-800">
-                        Pet Type:
-                    </span>
-                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
-                        {petOptions.map((pet) => {
-                            const isChecked = selectedPets.includes(pet.id);
-                            return (
-                                <label
-                                    key={pet.id}
-                                    className="flex items-center gap-2.5 cursor-pointer select-none group"
-                                >
-                                    {/* Checkbox ที่ทำสไตล์เอง (ซ่อน input จริงไว้ ใช้ div/svg แสดงผลแทน) */}
-                                    <div className="relative flex items-center justify-center">
-                                        <input
-                                            type="checkbox"
-                                            className="peer sr-only"
-                                            checked={isChecked}
-                                            onChange={() => togglePet(pet.id)}
-                                        />
-                                        <div className="w-5 h-5 bg-white border border-gray-200 rounded-[4px] peer-checked:border-[#FF7037] peer-checked:bg-[#FF7037] transition-all"></div>
-                                        {isChecked && (
-                                            <svg
-                                                className="absolute w-3.5 h-3.5 text-white pointer-events-none"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="3"
-                                                    d="M5 13l4 4L19 7"
-                                                />
-                                            </svg>
-                                        )}
-                                    </div>
-                                    <span className="text-[15px] font-medium text-gray-600 group-hover:text-gray-800 transition-colors">
-                                        {pet.label}
-                                    </span>
-                                </label>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* แถวล่าง: คะแนนรีวิว, ประสบการณ์, และปุ่มค้นหา */}
-                <div className="bg-white px-5 sm:px-6 lg:px-8 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-4 xl:gap-6">
-                    {/* คะแนนรีวิว */}
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 w-full lg:w-auto">
-                        <span className="text-[15px] font-bold text-gray-800 whitespace-nowrap">
-                            Rating:
-                        </span>
-                        <div className="flex items-center gap-1.5 flex-wrap w-full pb-1 sm:pb-0 scrollbar-hide">
-                            {ratingOptions.map((rating) => {
-                                const isSelected = selectedRatings.includes(rating);
-                                return (
-                                    <button
-                                        key={rating}
-                                        type="button"
-                                        aria-pressed={isSelected}
-                                        onClick={() => toggleRating(rating)}
-                                        className={`group flex cursor-pointer items-center gap-1 rounded-lg border px-2.5 py-1.5 transition-all ${isSelected
-                                            ? "border-[#FF7037] bg-white hover:bg-[#FFF1EC]"
-                                            : "border-gray-200 bg-white hover:border-[#FF7037] hover:bg-[#FFF1EC]"
-                                            }`}
-                                    >
-                                        <span className={`text-[14px] font-medium transition-colors ${isSelected ? "text-[#FF7037]" : "text-gray-500 group-hover:text-[#FF7037]"}`}>
-                                            {rating}
-                                        </span>
-                                        <div className="flex items-center gap-[2px]">
-                                            {Array.from({ length: rating }).map((_, i) => (
-                                                <svg
-                                                    key={i}
-                                                    className="w-[18px] h-[18px] text-[#1CCD83] fill-current"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd" />
-                                                </svg>
-                                            ))}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* ประสบการณ์ */}
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-3 w-full lg:w-auto">
-                        <span className="text-[15px] font-bold text-gray-800 whitespace-nowrap">
-                            Experience:
-                        </span>
-                        <div className="relative w-full lg:w-auto">
-                            <select
-                                value={experience}
-                                onChange={(e) => setExperience(e.target.value)}
-                                className={`appearance-none bg-white border border-gray-200 rounded-lg pl-4 pr-10 py-2 text-[14px] font-medium focus:outline-none focus:border-gray-300 cursor-pointer w-full lg:min-w-[120px] ${
-                                    experience ? "text-gray-500" : "text-gray-400"
-                                }`}
-                            >
-                                <option value="">Select</option>
-                                <option value="0-2 Years">0-2 Years</option>
-                                <option value="3-5 Years">3-5 Years</option>
-                                <option value="5+ Years">5+ Years</option>
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
-                                <svg
-                                    className="w-4 h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M19 9l-7 7-7-7"
-                                    />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ปุ่มค้นหา */}
-                    <button
-                        type="submit"
-                        className="w-full lg:w-auto flex-shrink-0 cursor-pointer rounded-full bg-[#FF7037] px-12 py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#FF986F] active:bg-[#E44A0C]"
-                    >
-                        Search
-                    </button>
-                </div>
-            </form>
-        </div>
+      <Card
+        as="button"
+        type="button"
+        interactive
+        onClick={() => setExpanded(true)}
+        aria-expanded={false}
+        aria-label="Open search"
+        className="flex w-full items-center gap-3 rounded-card bg-surface px-4 py-3 shadow-card"
+      >
+        <Search className="size-5 shrink-0 text-ink-400" aria-hidden />
+        <span className="min-w-0 text-left">
+          <span className="block text-caption text-ink-400">Search</span>
+          <span
+            className={`block truncate font-extrabold ${
+              compactSummary ? "text-ink-900" : "text-ink-400"
+            }`}
+          >
+            {compactSummary || "Ari, Bangkok · Any dates"}
+          </span>
+        </span>
+      </Card>
     );
+  }
+
+  return (
+    <form
+      onSubmit={handleSearch}
+      className="relative z-20 flex w-full min-w-0 flex-col gap-2 rounded-[1.75rem] bg-surface p-2 shadow-card lg:flex-row lg:flex-nowrap lg:items-center"
+    >
+      {compactUntilOpen ? (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="flex h-10 w-full items-center justify-center gap-1 text-caption font-bold text-ink-600 lg:hidden"
+          aria-label="Close search form"
+        >
+          <ChevronUp className="size-4" aria-hidden />
+          Close
+        </button>
+      ) : null}
+      <label className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-full px-4 lg:min-w-[12rem] lg:flex-[1.6]">
+        <MapPin className="size-4 shrink-0 text-primary" aria-hidden />
+        <span className="sr-only">Location</span>
+        <input
+          value={location}
+          onChange={(event) => setLocation(event.target.value)}
+          placeholder="Ari, Bangkok"
+          className="w-full min-w-0 bg-transparent text-body-2 text-ink-900 outline-none placeholder:text-ink-400"
+        />
+      </label>
+      <span className="hidden h-8 w-px shrink-0 bg-line lg:block" aria-hidden />
+      <label className="flex min-h-12 min-w-0 items-center gap-2 rounded-full px-4 lg:w-[11.5rem] lg:shrink-0">
+        <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden />
+        <span className="sr-only">Date</span>
+        <input
+          type="date"
+          value={date}
+          onChange={(event) => setDate(event.target.value)}
+          className="w-full min-w-0 bg-transparent text-body-2 text-ink-900 outline-none"
+        />
+      </label>
+      <span className="hidden h-8 w-px shrink-0 bg-line lg:block" aria-hidden />
+      <PetsPicker types={types} counts={counts} onChange={setCounts} />
+      <button type="submit" className="btn btn-primary min-w-32 shrink-0">
+        {actionLabel}
+      </button>
+    </form>
+  );
 }

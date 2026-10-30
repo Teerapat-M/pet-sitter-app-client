@@ -9,9 +9,7 @@ import { saveAuth } from "@/lib/auth";
 import { errorToastClassNames } from "@/lib/toastStyles";
 import SocialAuthButtons from "@/components/SocialAuthButtons";
 import PasswordInput from "@/components/PasswordInput";
-import LegalAuthNotice from "@/components/legal/LegalAuthNotice";
 
-/** แปลง message จาก BE → ข้อความ toast (แยกอีเมล / รหัส) */
 function getLoginToastMessage(message) {
   const lower = String(message).toLowerCase();
 
@@ -27,13 +25,12 @@ function getLoginToastMessage(message) {
   return message || "Login failed";
 }
 
-// ฟอร์ม login ร่วม — หน้า page เป็นคนเปิด Remember / social
 export default function LoginForm({
   title,
   subtitle,
   registerHref,
   registerPrompt,
-  registerLabel = "Register",
+  registerLabel = "Create an account ›",
   showRemember = false,
   showForgotPassword = false,
   showSocial = false,
@@ -44,7 +41,6 @@ export default function LoginForm({
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  // ลิงก์ไป /forgot-password — พกอีเมลที่พิมพ์ไว้ (ถ้ามี)
   const forgotPasswordHref = (() => {
     const trimmed = email.trim();
     return trimmed
@@ -58,15 +54,12 @@ export default function LoginForm({
 
     try {
       const data = await login({ email, password });
-      // ถ้าหน้าไม่มี Remember ให้ persist เสมอ
       saveAuth(data, showRemember ? remember : true);
 
-      // Sitter → profile | Owner → homepage (อ่าน isSitter จาก API)
       const isSitter = Boolean(data?.user?.isSitter);
       router.push(isSitter ? "/sitter/profile" : "/");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
-      // Toast มุมขวาล่าง — แยกอีเมลผิด / รหัสผิด ตาม message จาก BE
       toast(getLoginToastMessage(message), {
         classNames: errorToastClassNames,
       });
@@ -76,20 +69,20 @@ export default function LoginForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 sm:gap-6">
-      <header className="flex flex-col items-center gap-1.5 text-center sm:gap-2">
-        <h1 className="text-h2">{title}</h1>
-        <p className="text-body-2 text-gray-400">{subtitle}</p>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <header>
+        <h2 className="text-h2">{title}</h2>
+        <p className="mt-1 text-body-2 text-ink-400">{subtitle}</p>
       </header>
 
       <label className="flex flex-col gap-2">
-        <span className="text-body-3 font-bold text-black">Email</span>
+        <span className="text-label text-ink-900">Email</span>
         <input
           className="input"
           type="email"
           name="email"
           autoComplete="email"
-          placeholder="email@company.com"
+          placeholder="bell@example.com"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -97,7 +90,7 @@ export default function LoginForm({
       </label>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor="login-password" className="text-body-3 font-bold text-black">
+        <label htmlFor="login-password" className="text-label text-ink-900">
           Password
         </label>
         <PasswordInput
@@ -110,47 +103,33 @@ export default function LoginForm({
         />
       </div>
 
-      {showRemember && showForgotPassword ? (
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <label className="flex min-h-11 items-center gap-2 text-body-3 text-gray-500">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(event) => setRemember(event.target.checked)}
-              className="size-4 shrink-0"
-            />
-            Remember?
-          </label>
-          {/* ticket 02: ไปหน้าขอลิงก์รีเซ็ต → POST /api/auth/forgot-password */}
-          <Link
-            href={forgotPasswordHref}
-            className="inline-flex min-h-11 items-center text-body-3 font-medium text-primary"
-          >
-            Forget Password?
-          </Link>
-        </div>
-      ) : null}
-
-      {showForgotPassword && !showRemember ? (
-        <p className="text-center">
-          <Link
-            href={forgotPasswordHref}
-            className="inline-flex min-h-11 items-center text-body-3 font-medium text-primary"
-          >
-            Forget Password?
+      {showForgotPassword ? (
+        <p className="text-right">
+          <Link href={forgotPasswordHref} className="text-caption font-bold text-primary">
+            Forgot password?
           </Link>
         </p>
       ) : null}
 
+      {showRemember ? (
+        <label className="flex min-h-11 items-center gap-2 text-body-2 text-ink-600">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(event) => setRemember(event.target.checked)}
+            className="size-4 accent-primary"
+          />
+          Remember me
+        </label>
+      ) : null}
+
       <button className="btn btn-primary w-full" type="submit" disabled={loading}>
-        {loading ? "Logging in..." : "Login"}
+        {loading ? "Logging in..." : "Log in"}
       </button>
 
       {showSocial ? <SocialAuthButtons remember={showRemember ? remember : true} /> : null}
 
-      {showSocial ? <LegalAuthNotice /> : null}
-
-      <p className="text-center text-body-3 text-gray-500">
+      <p className="text-center text-body-2 text-ink-600">
         {registerPrompt}{" "}
         <Link href={registerHref} className="font-bold text-primary">
           {registerLabel}

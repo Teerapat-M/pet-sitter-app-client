@@ -4,16 +4,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PawPrint } from "lucide-react";
-import AccountSidebar from "../../../components/AccountSidebar";
 import { getOwnerPets } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { Card } from "@/components/ui/card";
 
-const BADGE_CLASS = {
-  Dog: "badge-dog",
-  Cat: "badge-cat",
-  Bird: "badge-bird",
-  Rabbit: "badge-rabbit",
-};
+const TINTS = ["bg-primary-50", "bg-accent-50", "bg-yellow-light"];
+
+function formatAge(age) {
+  const months = Number(age);
+  if (!Number.isFinite(months) || age === "") return "";
+  if (months < 12) return `${months} mo`;
+  const years = Math.floor(months / 12);
+  return `${years} y`;
+}
 
 export default function OwnerPetsPage() {
   const router = useRouter();
@@ -34,9 +37,9 @@ export default function OwnerPetsPage() {
       setLoadError("");
 
       try {
-        const pets = await getOwnerPets();
+        const nextPets = await getOwnerPets();
         if (cancelled) return;
-        setPets(pets);
+        setPets(nextPets);
       } catch (error) {
         if (cancelled) return;
         if (error.message === "NO_TOKEN" || error.message === "Unauthorized") {
@@ -56,70 +59,84 @@ export default function OwnerPetsPage() {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <div className="mx-4 mt-6 flex w-full min-w-0 flex-col pb-8 sm:mx-6 lg:mx-10">
-        <div className="flex w-full min-w-0 flex-col gap-4 lg:flex-row lg:justify-center lg:gap-0">
-          <AccountSidebar />
+    <div className="min-h-screen bg-background pb-24 md:pb-10">
+      <div className="psp-container py-8">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-h1">My pets</h1>
+            <p className="mt-1 text-body-2 text-ink-400">
+              Profiles sitters see when you book
+            </p>
+          </div>
+          <Link href="/owner/pets/create" className="btn btn-primary shrink-0">
+            + Add pet
+          </Link>
+        </div>
 
-          <section className="card flex w-full flex-col p-4 sm:p-6 lg:m-4 lg:ml-6 lg:min-h-[888px] lg:w-2/3 lg:p-10">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-h3">Your Pet</h3>
-              <Link
-                href="/owner/pets/create"
-                className="btn btn-primary w-auto shrink-0"
+        {loadError ? (
+          <p className="mt-4 text-body-2 text-danger">{loadError}</p>
+        ) : null}
+
+        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
+          {isLoading ? (
+            <p className="text-body-2 text-ink-400">Loading pets...</p>
+          ) : pets.length === 0 && !loadError ? (
+            <p className="text-body-2 text-ink-400">
+              You don&apos;t have any pets yet.
+            </p>
+          ) : (
+            pets.map((pet, index) => (
+              <Card
+                as="article"
+                key={pet.id}
+                className={`overflow-hidden rounded-card bg-surface shadow-card ${
+                  pet.isSuspended ? "opacity-70" : ""
+                }`}
               >
-                Create Pet
-              </Link>
-            </div>
-
-            {loadError && (
-              <p className="mt-4 text-body-3 text-red-500">{loadError}</p>
-            )}
-
-            <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-4">
-              {isLoading ? (
-                <p className="text-body-2 text-gray-500">Loading pets...</p>
-              ) : pets.length === 0 && !loadError ? (
-                <p className="text-body-2 text-gray-500">
-                  You don&apos;t have any pets yet.
-                </p>
-              ) : (
-                pets.map((pet) => (
-                  <Link
-                    key={pet.id}
-                    href={`/owner/pets/${pet.id}`}
-                    className={`flex min-w-0 flex-col items-center rounded-2xl border bg-white px-6 py-8 transition hover:border-orange-400 ${
-                      pet.isSuspended ? "border-red-200 opacity-70" : "border-gray-200"
-                    }`}
-                  >
-                    {pet.image ? (
-                      <img
-                        src={pet.image}
-                        alt={pet.name}
-                        className="size-28 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex size-28 items-center justify-center rounded-full bg-gray-200">
-                        <PawPrint
-                          className="size-12 text-white"
-                          aria-hidden="true"
-                        />
-                      </div>
-                    )}
-                    <h4 className="mt-3 truncate text-h4 text-black sm:mt-4">
-                      {pet.name}
-                    </h4>
-                    <span className={`badge mt-2 ${BADGE_CLASS[pet.type] ?? ""}`}>
-                      {pet.type}
+                <div className={`flex h-40 items-center justify-center ${TINTS[index % TINTS.length]}`}>
+                  {pet.image ? (
+                    <img src={pet.image} alt="" className="size-full object-cover" />
+                  ) : pet.type?.toLowerCase() === "dog" ? (
+                    <span className="text-5xl" aria-hidden>🐶</span>
+                  ) : pet.type?.toLowerCase() === "cat" ? (
+                    <span className="text-5xl" aria-hidden>🐱</span>
+                  ) : (
+                    <PawPrint className="size-12 text-primary" aria-hidden />
+                  )}
+                </div>
+                <div className="p-5">
+                  <h2 className="text-h3">{pet.name}</h2>
+                  <p className="mt-1 text-caption text-ink-600">
+                    {pet.type}
+                    {pet.breed ? ` · ${pet.breed}` : ""}
+                    {formatAge(pet.age) ? ` · ${formatAge(pet.age)}` : ""}
+                    {pet.weight
+                      ? ` · ${String(pet.weight).toLowerCase().includes("kg") ? pet.weight : `${pet.weight} kg`}`
+                      : ""}
+                  </p>
+                  {pet.about ? (
+                    <p className="mt-2 text-caption text-ink-400">{pet.about}</p>
+                  ) : null}
+                  {pet.isSuspended ? (
+                    <span className="mt-2 inline-block text-caption font-bold text-danger">
+                      Suspended
                     </span>
-                    {pet.isSuspended ? (
-                      <span className="mt-2 text-body-3 font-medium text-red">Suspended</span>
-                    ) : null}
-                  </Link>
-                ))
-              )}
-            </div>
-          </section>
+                  ) : null}
+                  <div className="mt-5 grid grid-cols-2 gap-2">
+                    <Link
+                      href={`/owner/pets/${pet.id}`}
+                      className="btn btn-secondary h-11 px-3 text-caption"
+                    >
+                      Edit profile
+                    </Link>
+                    <Link href="/find-sitter" className="btn btn-primary h-11 px-3 text-caption">
+                      Book care
+                    </Link>
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     </div>

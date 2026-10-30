@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PawPrint } from "lucide-react";
 import Icon from "@/components/Icon";
+import { Card } from "@/components/ui/card";
 
 /** map ประเภทสัตว์ → class badge ใน globals.css */
 const PET_BADGE = {
@@ -73,14 +74,16 @@ export default function YourPetStep({
           const remote = isRemoteSrc(pet.avatarUrl);
 
           return (
-            <label
+            <Card
+              as="label"
               key={pet.id}
-              className={`relative flex w-full min-w-0 flex-col items-center rounded-2xl border border-gray-100 bg-white px-4 py-5 transition-colors md:min-h-55 md:py-6 ${
+              interactive={eligible}
+              className={`relative flex w-full min-w-0 flex-col items-center rounded-2xl border border-gray-100 bg-white px-4 py-5 md:min-h-55 md:py-6 ${
                 !eligible
                   ? "cursor-not-allowed opacity-40"
                   : selected
-                    ? "cursor-pointer border-orange-500"
-                    : "cursor-pointer hover:border-orange-200"
+                    ? "border-orange-500"
+                    : "hover:border-orange-200"
               }`}
             >
               <input
@@ -122,13 +125,15 @@ export default function YourPetStep({
               <div className="mt-2">
                 <PetTypeBadge petType={pet.petType} />
               </div>
-            </label>
+            </Card>
           );
         })}
 
-        <Link
+        <Card
+          as={Link}
+          interactive
           href="/owner/pets"
-          className="flex w-full min-w-0 flex-col items-center justify-center gap-3 rounded-2xl bg-orange-100 px-4 py-8 transition-colors hover:bg-orange-200 md:min-h-55 md:gap-4 md:py-6"
+          className="flex w-full min-w-0 flex-col items-center justify-center gap-3 rounded-2xl bg-orange-100 px-4 py-8 hover:bg-orange-200 md:min-h-55 md:gap-4 md:py-6"
         >
           <span className="flex size-12 items-center justify-center rounded-full bg-orange-500">
             <Icon src="/icon/plus.svg" className="size-6 text-white" />
@@ -136,7 +141,7 @@ export default function YourPetStep({
           <span className="text-center text-body-1 font-bold text-orange-500">
             Create New Pet
           </span>
-        </Link>
+        </Card>
       </div>
     </section>
   );

@@ -1,21 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Icon from "./Icon";
 import Pagination from "./Pagination";
 import PetSitterCard from "./PetSitterCard";
 import SitterCardOverlay from "./find-sitter/SitterCardOverlay";
+import SearchBar from "./SearchBar";
 import { getSitters } from "@/lib/api";
 import { getSitterCoords } from "@/lib/sitterLocation";
+import { SERVICES } from "@/lib/services";
+import { cn } from "@/lib/utils";
+import {
+    FALLBACK_PET_TYPES,
+    countsFromSearchParams,
+    formatPetsSummary,
+    formatSitterResultsHeading,
+    parsePetCounts,
+} from "@/lib/petSearch";
 
 const Map = dynamic(() => import("@/components/Map"), {
     ssr: false,
     loading: () => (
-        <div className="flex h-full w-full animate-pulse items-center justify-center bg-gray-100 text-gray-400 font-medium">
-            กำลังโหลดแผนที่...
+        <div className="flex h-full w-full animate-pulse items-center justify-center bg-primary-50 text-ink-400 font-medium">
+            Loading map...
         </div>
     ),
 });
@@ -28,7 +37,7 @@ const PET_OPTIONS = [
 ];
 
 const RATING_OPTIONS = [5, 4, 3, 2, 1];
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 6;
 const MAP_LIMIT = 1000;
 
 function parsePetTypes(value) {
@@ -36,6 +45,15 @@ function parsePetTypes(value) {
         .split(",")
         .map((item) => item.trim().toLowerCase())
         .filter((item) => PET_OPTIONS.some((pet) => pet.id === item));
+}
+
+function countsForSelectedPets(petTypes, petCountsValue) {
+    const existing = parsePetCounts(petCountsValue);
+    const counts = {};
+    petTypes.forEach((id) => {
+        counts[id] = Math.max(1, Number(existing[id]) || 1);
+    });
+    return counts;
 }
 
 function parseRatings(value) {
@@ -61,7 +79,7 @@ function experienceToQuery(value) {
 
 function RatingStars({ count }) {
     return (
-        <div className="flex items-center gap-0.5 text-green">
+        <div className="flex items-center gap-0.5 text-success">
             {Array.from({ length: count }).map((_, i) => (
                 <Icon key={i} src="/icon/star.svg" className="h-[18px] w-[18px]" />
             ))}
@@ -76,10 +94,12 @@ export default function PetSitterList() {
     const [selectedPets, setSelectedPets] = useState([]);
     const [selectedRatings, setSelectedRatings] = useState([]);
     const [experience, setExperience] = useState("");
+    const [service, setService] = useState("");
     const [viewMode, setViewMode] = useState("list");
     const [currentPage, setCurrentPage] = useState(1);
     const [sitters, setSitters] = useState([]);
     const [totalPages, setTotalPages] = useState(0);
+    const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [selectedSitterId, setSelectedSitterId] = useState(null);
@@ -94,6 +114,7 @@ export default function PetSitterList() {
         setSelectedPets(parsePetTypes(searchParams.get("petTypes")));
         setSelectedRatings(parseRatings(searchParams.get("rating")));
         setExperience(experienceToForm(searchParams.get("experience") ?? ""));
+        setService(searchParams.get("service") ?? "");
         setCurrentPage(Number.isInteger(page) && page > 0 ? page : 1);
     }, [searchParams]);
 
@@ -116,6 +137,7 @@ export default function PetSitterList() {
             const data = result.data || [];
             setSitters(data);
             setTotalPages(isMap ? 0 : result.pagination?.totalPages || 0);
+            setTotal(result.pagination?.total ?? data.length);
             if (data.length > 0) {
                 setSelectedSitterId(data[0].id);
                 setMapCenter(getSitterCoords(data[0]));
@@ -123,6 +145,7 @@ export default function PetSitterList() {
         } catch (err) {
             setSitters([]);
             setTotalPages(0);
+            setTotal(0);
             setError(err instanceof Error ? err.message : "Failed to load pet sitters");
         } finally {
             setLoading(false);
@@ -137,8 +160,11 @@ export default function PetSitterList() {
     };
 
     useEffect(() => {
-        syncFormFromUrl();
-        fetchSitters();
+        const frame = requestAnimationFrame(() => {
+            syncFormFromUrl();
+            fetchSitters();
+        });
+        return () => cancelAnimationFrame(frame);
     }, [syncFormFromUrl, fetchSitters]);
 
     const updateUrl = (next) => {
@@ -147,6 +173,21 @@ export default function PetSitterList() {
         if (next.petTypes.length) params.set("petTypes", next.petTypes.join(","));
         if (next.ratings.length) params.set("rating", next.ratings.join(","));
         if (next.experience) params.set("experience", experienceToQuery(next.experience));
+        if (next.service) params.set("service", next.service);
+        const date = searchParams.get("date");
+        if (date) params.set("date", date);
+        const petCounts = countsForSelectedPets(
+            next.petTypes,
+            searchParams.get("petCounts"),
+        );
+        const petsSummary = formatPetsSummary(petCounts, FALLBACK_PET_TYPES);
+        if (petsSummary) params.set("pets", petsSummary);
+        if (next.petTypes.length) {
+            params.set(
+                "petCounts",
+                next.petTypes.map((id) => `${id}:${petCounts[id]}`).join(","),
+            );
+        }
         if (next.page > 1) params.set("page", String(next.page));
 
         const queryString = params.toString();
@@ -155,7 +196,7 @@ export default function PetSitterList() {
 
     const togglePet = (petId) => {
         setSelectedPets((prev) =>
-            prev.includes(petId) ? prev.filter((p) => p !== petId) : [...prev, petId]
+            prev.includes(petId) ? prev.filter((p) => p !== petId) : [...prev, petId],
         );
     };
 
@@ -172,6 +213,7 @@ export default function PetSitterList() {
         setSelectedPets([]);
         setSelectedRatings([]);
         setExperience("");
+        setService("");
     };
 
     const handleSearch = (e) => {
@@ -181,6 +223,7 @@ export default function PetSitterList() {
             petTypes: selectedPets,
             ratings: selectedRatings,
             experience,
+            service,
             page: 1,
         });
     };
@@ -197,68 +240,56 @@ export default function PetSitterList() {
         router.push(queryString ? `/find-sitter?${queryString}` : "/find-sitter");
     };
 
-    const viewToggle = (
-        <div className="flex items-center justify-center gap-2.5">
-            <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border bg-white px-4 py-2 text-body-2 font-medium transition-colors ${
-                    viewMode === "list"
-                        ? "border-orange-500 text-orange-500 hover:bg-orange-100"
-                        : "border-gray-200 text-gray-300 hover:border-gray-300 hover:text-gray-400"
-                }`}
-            >
-                <Icon src="/icon/list.svg" className="h-5 w-5" />
-                List
-            </button>
-            <button
-                type="button"
-                onClick={() => setViewMode("map")}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border bg-white px-4 py-2 text-body-2 font-medium transition-colors ${
-                    viewMode === "map"
-                        ? "border-orange-500 text-orange-500 hover:bg-orange-100"
-                        : "border-gray-200 text-gray-300 hover:border-gray-300 hover:text-gray-400"
-                }`}
-            >
-                <Icon src="/icon/map.svg" className="h-5 w-5" />
-                Map
-            </button>
-        </div>
-    );
+    const locationLabel = String(searchParams.get("q") ?? "").trim();
+    const dateLabel = searchParams.get("date") || "Any dates";
+    const petsLabel =
+        searchParams.get("pets") ||
+        formatPetsSummary(
+            countsFromSearchParams({
+                petCounts: searchParams.get("petCounts"),
+                pets: searchParams.get("pets"),
+            }),
+        ) ||
+        "Any pets";
+    const serviceLabel = SERVICES.find((item) => item.id === service)?.label || "sitters";
 
     return (
-        <div className="min-h-full bg-[#FAFAFB] px-4 py-8 sm:px-8">
-            <div className="mx-auto max-w-7xl">
-                <div className="mb-6 hidden items-center justify-between lg:flex">
-                    <h1 className="text-h3 font-bold text-gray-900">
-                        Search For Pet Sitter
-                    </h1>
-                    {viewToggle}
-                </div>
+        <div className="min-h-full bg-background pb-24 md:pb-10">
+            <div className="psp-container py-6 md:py-10">
+                <h1 className="text-h1">Find a sitter</h1>
 
-                <div className={`grid grid-cols-1 gap-8 lg:grid-cols-[24rem_1fr] ${
+                <div className="mt-4">
+                    <SearchBar
+                        defaultLocation={searchParams.get("q") ?? ""}
+                        defaultDate={searchParams.get("date") ?? ""}
+                        defaultPets={searchParams.get("pets") ?? ""}
+                        defaultPetCounts={searchParams.get("petCounts") ?? ""}
+                        actionLabel="Update"
+                    />
+                </div>
+                <p className="mt-3 hidden text-caption text-ink-400 md:block">
+                    {[locationLabel, dateLabel, petsLabel].filter(Boolean).join(" · ")}
+                </p>
+
+                <div className={`mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr] ${
                     viewMode === "map" ? "lg:items-stretch" : "lg:items-start"
                 }`}>
-                <aside className={viewMode === "list" ? "lg:sticky lg:top-6 lg:self-start" : ""}>
+                <aside className={viewMode === "list" ? "lg:sticky lg:top-24 lg:self-start" : ""}>
                     <form
                         onSubmit={handleSearch}
-                        className="relative overflow-hidden rounded-[1.25rem] bg-white shadow-sm lg:flex lg:flex-col lg:gap-6 lg:rounded-xl lg:p-6 lg:shadow-[var(--shadow-card)]"
+                        className="rounded-card bg-surface p-5 shadow-card"
                     >
                         <button
                             type="button"
                             aria-expanded={filtersOpen}
                             aria-label={filtersOpen ? "Hide search filters" : "Show search filters"}
                             onClick={() => setFiltersOpen((open) => !open)}
-                            className={`flex cursor-pointer items-center text-[15px] font-bold text-gray-900 lg:hidden ${
-                                filtersOpen
-                                    ? "absolute top-3 right-3 z-10 rounded-full p-1"
-                                    : "w-full justify-between px-5 py-4"
-                            }`}
+                            className="mb-3 flex w-full cursor-pointer items-center justify-between text-label text-ink-900 lg:hidden"
                         >
-                            {!filtersOpen && <span>Search</span>}
+                            <span>Filters</span>
                             <Icon
                                 src="/icon/chevron-down.svg"
-                                className={`h-5 w-5 text-gray-400 transition-transform duration-300 ${
+                                className={`h-5 w-5 text-ink-400 transition-transform ${
                                     filtersOpen ? "rotate-180" : ""
                                 }`}
                             />
@@ -269,155 +300,163 @@ export default function PetSitterList() {
                                 filtersOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                             }`}
                         >
-                            <div className="min-h-0 overflow-hidden lg:flex lg:flex-col lg:gap-6">
-                                <div className="hidden lg:flex lg:flex-col">
-                                    <h2 className="text-[15px] font-bold text-gray-900">Search:</h2>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={query}
-                                            onChange={(e) => setQuery(e.target.value)}
-                                            className="input pr-11"
-                                            aria-label="Search pet sitters"
-                                        />
-                                        <Icon
-                                            src="/icon/search.svg"
-                                            className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-gray-400"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="bg-[#F8F9FB] px-5 py-5 pr-12 lg:bg-transparent lg:px-0 lg:py-0 lg:pr-0">
-                                    <div className="flex flex-col gap-3 lg:gap-3">
-                                        <span className="text-[15px] font-bold text-gray-900">Pet Type:</span>
-                                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 lg:flex-nowrap lg:gap-8">
-                                            {PET_OPTIONS.map((pet) => {
-                                                const isChecked = selectedPets.includes(pet.id);
-                                                return (
-                                                    <label
-                                                        key={pet.id}
-                                                        className="group flex shrink-0 cursor-pointer items-center gap-2 select-none"
-                                                    >
-                                                        <div className="relative flex items-center justify-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="peer sr-only"
-                                                                checked={isChecked}
-                                                                onChange={() => togglePet(pet.id)}
-                                                            />
-                                                            <div className="h-5 w-5 rounded-[4px] border border-gray-200 bg-white transition-all peer-checked:border-orange-500 peer-checked:bg-orange-500" />
-                                                            {isChecked && (
-                                                                <Icon
-                                                                    src="/icon/check.svg"
-                                                                    className="pointer-events-none absolute h-3.5 w-3.5 text-white"
-                                                                />
-                                                            )}
-                                                        </div>
-                                                        <span className="text-[15px] font-medium text-gray-500 transition-colors group-hover:text-gray-900">
-                                                            {pet.label}
-                                                        </span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-5 px-5 py-5 lg:gap-6 lg:px-0 lg:py-0">
-                                    <div className="flex flex-col gap-3">
-                                        <span className="text-[15px] font-bold text-gray-900">Rating:</span>
-                                        <div className="flex flex-wrap gap-2">
-                                            {RATING_OPTIONS.map((rating) => {
-                                                const isSelected = selectedRatings.includes(rating);
-                                                return (
-                                                    <button
-                                                        key={rating}
-                                                        type="button"
-                                                        aria-pressed={isSelected}
-                                                        onClick={() => toggleRating(rating)}
-                                                        className={`group flex cursor-pointer items-center gap-1 rounded-lg border px-2.5 py-1.5 transition-all ${
-                                                            isSelected
-                                                                ? "border-orange-500 bg-white hover:bg-orange-100"
-                                                                : "border-gray-200 bg-white hover:border-orange-500 hover:bg-orange-100"
-                                                        }`}
-                                                    >
-                                                        <span
-                                                            className={`text-[14px] font-medium transition-colors ${
-                                                                isSelected
-                                                                    ? "text-orange-500"
-                                                                    : "text-gray-500 group-hover:text-orange-500"
-                                                            }`}
-                                                        >
-                                                            {rating}
-                                                        </span>
-                                                        <RatingStars count={rating} />
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-col gap-3">
-                                        <span className="text-[15px] font-bold text-gray-900">
-                                            Experience:
-                                        </span>
-                                        <div className="relative">
-                                            <select
-                                                value={experience}
-                                                onChange={(e) => setExperience(e.target.value)}
-                                                className={`input appearance-none cursor-pointer pr-10 ${
-                                                    experience ? "text-gray-500" : "text-gray-400"
-                                                }`}
+                            <div className="min-h-0 overflow-hidden">
+                                <p className="text-label text-ink-900">Service</p>
+                                <div className="mt-3 flex flex-col gap-2">
+                                    {SERVICES.map((item) => {
+                                        const active = service === item.id;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                type="button"
+                                                onClick={() => setService(active ? "" : item.id)}
+                                                className={cn(
+                                                    "flex h-12 items-center gap-2 rounded-full border px-4 text-left text-body-2 font-semibold",
+                                                    active
+                                                        ? "border-primary bg-primary text-white"
+                                                        : "border-line-strong bg-surface text-ink-900",
+                                                )}
                                             >
-                                                <option value="">
-                                                    Select experience
-                                                </option>
-                                                <option value="0-2 Years">0-2 Years</option>
-                                                <option value="3-5 Years">3-5 Years</option>
-                                                <option value="5+ Years">5+ Years</option>
-                                            </select>
-                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
-                                                <Icon src="/icon/chevron-down.svg" className="h-4 w-4" />
-                                            </div>
+                                                <span aria-hidden>{item.icon}</span>
+                                                {item.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <p className="mt-6 text-label text-ink-900">Filters</p>
+                                <div className="mt-3 rounded-card bg-accent-50 p-3">
+                                    <p className="text-label text-accent-700">Watch CCTV live</p>
+                                    <p className="mt-1 text-caption text-ink-600">
+                                        Sitters with cameras show a CCTV badge. Live view opens during a boarding stay — later phase.
+                                    </p>
+                                </div>
+
+                                <div className="mt-5">
+                                    <span className="text-label text-ink-900">Pet type</span>
+                                    <div className="mt-3 flex flex-col gap-2">
+                                        {PET_OPTIONS.map((pet) => (
+                                            <label key={pet.id} className="flex cursor-pointer items-center gap-2 text-body-2 text-ink-600">
+                                                <input
+                                                    type="checkbox"
+                                                    className="size-4 accent-secondary"
+                                                    checked={selectedPets.includes(pet.id)}
+                                                    onChange={() => togglePet(pet.id)}
+                                                />
+                                                {pet.label === "Cat" ? "Accepts cats" : pet.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="mt-5">
+                                    <span className="text-label text-ink-900">Rating</span>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {RATING_OPTIONS.map((rating) => {
+                                            const isSelected = selectedRatings.includes(rating);
+                                            return (
+                                                <button
+                                                    key={rating}
+                                                    type="button"
+                                                    aria-pressed={isSelected}
+                                                    onClick={() => toggleRating(rating)}
+                                                    className={`group flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1.5 ${
+                                                        isSelected
+                                                            ? "border-primary text-primary"
+                                                            : "border-line-strong text-ink-600"
+                                                    }`}
+                                                >
+                                                    <span className="text-caption">{rating}</span>
+                                                    <RatingStars count={rating} />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="mt-5">
+                                    <span className="text-label text-ink-900">Experience</span>
+                                    <div className="relative mt-2">
+                                        <select
+                                            value={experience}
+                                            onChange={(e) => setExperience(e.target.value)}
+                                            className={`input appearance-none cursor-pointer pr-10 ${
+                                                experience ? "text-ink-600" : "text-ink-400"
+                                            }`}
+                                        >
+                                            <option value="">Any experience</option>
+                                            <option value="0-2 Years">0-2 Years</option>
+                                            <option value="3-5 Years">3-5 Years</option>
+                                            <option value="5+ Years">5+ Years</option>
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-ink-400">
+                                            <Icon src="/icon/chevron-down.svg" className="h-4 w-4" />
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div className="flex flex-col gap-3 lg:flex-row">
-                                        <button type="button" onClick={handleClear} className="btn btn-secondary w-full lg:flex-1">
-                                            Clear
-                                        </button>
-                                        <button type="submit" className="btn btn-primary w-full lg:flex-1">
-                                            Search
-                                        </button>
-                                    </div>
+                                <div className="mt-6 flex flex-col gap-2">
+                                    <button type="button" onClick={handleClear} className="btn btn-secondary w-full">
+                                        Clear
+                                    </button>
+                                    <button type="submit" className="btn btn-primary w-full">
+                                        Apply
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </form>
                 </aside>
 
-                <div className="flex flex-col items-center gap-4 lg:hidden">
-                    <h1 className="text-center text-h3 font-bold text-gray-900">
-                        Search For Pet Sitter
-                    </h1>
-                    {viewToggle}
-                </div>
+                <section
+                    className={viewMode === "map" ? "relative min-h-96 lg:min-h-0" : "flex min-w-0 flex-col"}
+                >
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-h4">
+                            {formatSitterResultsHeading({
+                                count: total || sitters.length,
+                                serviceLabel,
+                                location: locationLabel,
+                            })}
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode("list")}
+                                className={cn(
+                                    "rounded-full px-3 py-1.5 text-caption",
+                                    viewMode === "list" ? "bg-primary-50 text-primary" : "text-ink-400",
+                                )}
+                            >
+                                List
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode("map")}
+                                className={cn(
+                                    "rounded-full px-3 py-1.5 text-caption",
+                                    viewMode === "map" ? "bg-primary-50 text-primary" : "text-ink-400",
+                                )}
+                            >
+                                Map
+                            </button>
+                        </div>
+                    </div>
 
-                <section className={viewMode === "map" ? "relative min-h-96 lg:min-h-0" : "flex min-w-0 flex-col"}>
                     {loading ? (
-                        <p className="rounded-xl bg-white p-6 text-body-2 text-gray-400">
-                            Loading pet sitters...
-                        </p>
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            {Array.from({ length: 6 }).map((_, i) => (
+                                <div key={i} className="h-72 animate-pulse rounded-card bg-primary-50" />
+                            ))}
+                        </div>
                     ) : error ? (
-                        <p className="rounded-xl bg-white p-6 text-body-2 text-red">
-                            {error}
-                        </p>
+                        <p className="rounded-card bg-surface p-6 text-body-2 text-danger">{error}</p>
                     ) : sitters.length === 0 ? (
-                        <p className="rounded-xl bg-white p-6 text-body-2 text-gray-400">
-                            No pet sitters found
+                        <p className="rounded-card bg-surface p-6 text-body-2 text-ink-400">
+                            No sitters match — widen distance or clear filters.
                         </p>
                     ) : viewMode === "map" ? (
-                        <div className="relative h-96 w-full overflow-hidden rounded-2xl border border-gray-200 shadow-[var(--shadow-card)] lg:absolute lg:inset-0 lg:h-auto">
+                        <div className="relative h-96 w-full overflow-hidden rounded-tile border border-line shadow-card lg:absolute lg:inset-0 lg:h-auto lg:top-14">
                             <Map
                                 center={mapCenter}
                                 zoom={mapZoom}
@@ -448,28 +487,27 @@ export default function PetSitterList() {
                             />
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-4">
-                            {sitters.map((sitter) => (
-                                <Link
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            {sitters.map((sitter, index) => (
+                                <PetSitterCard
                                     key={sitter.id}
-                                    href={`/find-sitter/${sitter.id}`}
-                                    className="block rounded-xl transition-shadow hover:shadow-[var(--shadow-card)]"
-                                >
-                                    <PetSitterCard {...sitter} />
-                                </Link>
+                                    sitter={sitter}
+                                    index={index}
+                                />
                             ))}
                         </div>
                     )}
+
+                    {viewMode === "list" && totalPages > 1 && (
+                        <div className="mt-8">
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={goToPage}
+                            />
+                        </div>
+                    )}
                 </section>
-                {viewMode === "list" && totalPages > 1 && (
-                    <div className="col-span-full mt-8">
-                        <Pagination
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={goToPage}
-                        />
-                    </div>
-                )}
                 </div>
             </div>
         </div>

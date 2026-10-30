@@ -96,6 +96,7 @@ function MessagesView() {
   currentUserIdRef.current = currentUserId;
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const didAutoOpen = useRef(false);
 
   const activeConversation = useMemo(
     () => conversations.find((item) => sameId(item.id, activeId)) ?? null,
@@ -138,6 +139,7 @@ function MessagesView() {
   useEffect(() => {
     if (!getToken()) {
       router.replace("/login");
+      setLoading(false);
       return;
     }
 
@@ -160,6 +162,14 @@ function MessagesView() {
       cancelled = true;
     };
   }, [loadConversations, router]);
+
+  useEffect(() => {
+    if (loading || activeId || didAutoOpen.current || conversations.length === 0) return;
+    const desktop = window.matchMedia("(min-width: 768px)").matches;
+    if (!desktop) return;
+    didAutoOpen.current = true;
+    router.replace(`/messages?id=${conversations[0].id}`);
+  }, [activeId, conversations, loading, router]);
 
   useEffect(() => {
     if (!activeId || !getToken()) {
@@ -322,7 +332,7 @@ function MessagesView() {
   if (loading) return <MessagesFallback />;
 
   return (
-    <div className="flex h-full min-h-0 flex-1">
+    <div className="flex h-full min-h-0 flex-1 gap-4 bg-background p-4 md:p-6 pb-24 md:pb-6">
       <ConversationList
         conversations={conversations}
         activeId={activeId}
@@ -341,7 +351,7 @@ function MessagesView() {
         }`}
       >
         {error ? (
-          <p className="border-b border-red-light bg-red-light px-4 py-3 text-body-3 text-red md:px-10">
+          <p className="border-b border-red-light bg-red-light px-4 py-3 text-caption text-danger md:px-6">
             {error}
           </p>
         ) : null}

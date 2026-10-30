@@ -1,96 +1,56 @@
-import Image from "next/image";
-import Icon from "./Icon";
+import Link from "next/link";
+import CctvBadge from "./CctvBadge";
+import { Card } from "@/components/ui/card";
+import { formatSitterCard } from "@/lib/sitterCard";
 
-const PET_BADGE = {
-    dog: "badge-dog",
-    cat: "badge-cat",
-    bird: "badge-bird",
-    rabbit: "badge-rabbit",
-};
+export default function PetSitterCard({ sitter, index = 0 }) {
+  const card = formatSitterCard(sitter, index);
+  const petIcons = card.petTypes
+    .map((type) => {
+      const key = String(type).toLowerCase();
+      if (key === "dog") return "🐕";
+      if (key === "cat") return "🐱";
+      if (key === "bird") return "🐦";
+      if (key === "rabbit") return "🐰";
+      return null;
+    })
+    .filter(Boolean)
+    .join(" ");
 
-function Stars({ count }) {
-    return (
-        <div className="flex items-center gap-0.5 text-green" aria-label={`${count} star rating`}>
-            {Array.from({ length: count }).map((_, i) => (
-                <Icon key={i} src="/icon/star.svg" className="h-5 w-5" />
-            ))}
+  return (
+    <Card
+      as={Link}
+      interactive
+      href={`/find-sitter/${card.id}`}
+      className="block overflow-hidden rounded-card bg-surface shadow-card"
+    >
+      <div className="relative aspect-[16/11] overflow-hidden" style={{ backgroundColor: card.photoTint }}>
+        {card.photo ? (
+          <img src={card.photo} alt="" className="size-full object-cover" />
+        ) : (
+          <div className="flex size-full items-center justify-center text-body-2 text-primary-600">
+            🐾 Pet photo
+          </div>
+        )}
+        <div className="absolute top-3 left-3">
+          <CctvBadge />
         </div>
-    );
-}
-
-export default function PetSitterCard({
-    title,
-    sitterName,
-    avatarUrl,
-    location,
-    rating = 0,
-    petTypes = [],
-    imageUrl,
-}) {
-    return (
-        <article className="flex cursor-pointer flex-col gap-4 rounded-xl bg-white p-4 sm:flex-row sm:gap-6 sm:p-5">
-            <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-xl sm:h-46 sm:w-62">
-                {imageUrl ? (
-                    <Image
-                        src={imageUrl}
-                        alt={title}
-                        fill
-                        sizes="(max-width: 640px) 100vw, 248px"
-                        className="object-cover"
-                        unoptimized={String(imageUrl).startsWith("http")}
-                    />
-                ) : (
-                    <div className="h-full w-full bg-gray-100" />
-                )}
-            </div>
-
-            <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                        {avatarUrl && (
-                            <Image
-                                src={avatarUrl}
-                                alt={sitterName || title}
-                                width={48}
-                                height={48}
-                                className="avatar h-12 w-12 shrink-0"
-                                unoptimized={String(avatarUrl).startsWith("http")}
-                            />
-                        )}
-                        <h3 className="truncate text-h4 text-gray-900">{title}</h3>
-                    </div>
-                    <Stars count={rating} />
-                </div>
-
-                {sitterName && (
-                    <p className="mt-1 text-body-3 text-gray-400">By {sitterName}</p>
-                )}
-
-                {location && (
-                    <div className="mt-2 flex items-center gap-1.5 text-body-3 text-gray-400">
-                        <Icon src="/icon/map-pin.svg" className="h-4 w-4" />
-                        <span>{location}</span>
-                    </div>
-                )}
-
-                {petTypes.length > 0 && (
-                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
-                        {petTypes.map((type) => {
-                            const key = String(type).toLowerCase();
-                            const label = key.charAt(0).toUpperCase() + key.slice(1);
-
-                            return (
-                                <span
-                                    key={type}
-                                    className={`badge ${PET_BADGE[key] ?? ""}`}
-                                >
-                                    {label}
-                                </span>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-        </article>
-    );
+      </div>
+      <div className="p-4">
+        <h3 className="text-h4 text-ink-900">{card.name}</h3>
+        <p className="mt-1 text-caption text-ink-600">
+          ⭐ {card.ratingLabel}
+          {card.distanceLabel ? ` · ${card.distanceLabel}` : ""}
+        </p>
+        <p className="mt-2 text-body-2" aria-hidden>
+          🏠 {petIcons || "🐾"}
+        </p>
+        {card.priceLabel ? (
+          <p className="mt-3 text-label text-primary">{card.priceLabel}</p>
+        ) : (
+          <p className="mt-3 text-label text-primary">View profile</p>
+        )}
+      </div>
+    </Card>
+  );
 }

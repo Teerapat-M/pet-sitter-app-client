@@ -32,6 +32,163 @@ export function formatWalkDistance(meters) {
   return `${(value / 1000).toFixed(2)} km`;
 }
 
+/** Frame stats use one decimal km ("2.4 km") rather than two. */
+export function formatWalkStatDistance(meters) {
+  const value = Number(meters);
+  if (!Number.isFinite(value) || value < 0) return "0 m";
+  if (value < 1000) return `${Math.round(value)} m`;
+  const km = value / 1000;
+  const shown = km >= 10 ? km.toFixed(0) : km.toFixed(1);
+  return `${shown} km`;
+}
+
+export function formatWalkElapsed(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(value / 60);
+  const rest = value % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+}
+
+export function formatWalkPace(distanceM, durationS) {
+  const distance = Number(distanceM);
+  const duration = Number(durationS);
+  if (!Number.isFinite(distance) || distance < 50) return "—";
+  if (!Number.isFinite(duration) || duration <= 0) return "—";
+  const minPerKm = duration / 60 / (distance / 1000);
+  if (!Number.isFinite(minPerKm) || minPerKm <= 0 || minPerKm > 180) return "—";
+  return `${Math.round(minPerKm)}'/km`;
+}
+
+export function formatUpdatedAgo(iso, nowMs = Date.now()) {
+  if (!iso) return "";
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return "";
+  const delta = Math.max(0, Math.round((nowMs - then) / 1000));
+  if (delta < 5) return "updated just now";
+  if (delta < 60) return `updated ${delta}s ago`;
+  const minutes = Math.round(delta / 60);
+  if (minutes < 60) return `updated ${minutes}m ago`;
+  return "updated over an hour ago";
+}
+
+export function formatWalkDateHeading(iso) {
+  if (!iso) return "";
+  const date = iso instanceof Date ? iso : new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Bangkok",
+  });
+}
+
+export function addMinutesToClock(hhmm, minutes) {
+  const match = /^([01]?\d|2[0-3]):([0-5]\d)/.exec(String(hhmm ?? "").trim());
+  if (!match) return "";
+  const total = Number(match[1]) * 60 + Number(match[2]) + Number(minutes || 0);
+  const wrapped = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hours = Math.floor(wrapped / 60);
+  const mins = wrapped % 60;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
+export function firstPetName(booking) {
+  const listed = String(booking?.pet_names ?? booking?.petNames ?? "").split(",")[0].trim();
+  if (listed) return listed;
+  const pets = Array.isArray(booking?.pets) ? booking.pets : [];
+  return String(pets[0]?.name ?? "").trim() || "your pet";
+}
+
+export function firstPetBreed(booking) {
+  const pets = Array.isArray(booking?.pets) ? booking.pets : [];
+  return String(pets[0]?.breed ?? pets[0]?.pet_type ?? pets[0]?.petType ?? "").trim();
+}
+
+export function walkSitterName(booking) {
+  return (
+    String(
+      booking?.sitter_name ??
+        booking?.sitterName ??
+        booking?.sitter?.name ??
+        booking?.sitter?.fullName ??
+        "",
+    ).trim() || "your sitter"
+  );
+}
+
+export function walkOwnerName(booking) {
+  return (
+    String(
+      booking?.pet_owner_name ??
+        booking?.petOwnerName ??
+        booking?.pet_owner?.name ??
+        booking?.owner_name ??
+        booking?.owner?.name ??
+        "",
+    ).trim() || "the owner"
+  );
+}
+
+export function walkFirstName(name) {
+  const value = String(name ?? "").trim();
+  if (!value || value === "your sitter" || value === "the owner" || value === "your pet") {
+    return value;
+  }
+  return value.split(/\s+/)[0];
+}
+
+export function walkPickupAddress(booking) {
+  return String(
+    booking?.owner_address ??
+      booking?.ownerAddress ??
+      booking?.pickup_address ??
+      booking?.pickupAddress ??
+      "",
+  ).trim();
+}
+
+export function walkDurationMinutes(booking) {
+  const unit = String(booking?.duration_unit ?? booking?.durationUnit ?? "").trim();
+  const explicit = Number(booking?.durationMinutes ?? booking?.duration_minutes);
+  if (Number.isFinite(explicit) && explicit > 0 && explicit <= 180) return explicit;
+  const duration = Number(booking?.duration);
+  if ((unit === "walk" || unit === "minutes") && Number.isFinite(duration) && duration > 0) {
+    return duration;
+  }
+  return 0;
+}
+
+export function walkStartTimeLabel(booking) {
+  const raw = String(booking?.start_time ?? booking?.startTime ?? "").trim();
+  const match = /^([01]?\d|2[0-3]):([0-5]\d)/.exec(raw);
+  if (!match) return "";
+  return `${String(match[1]).padStart(2, "0")}:${match[2]}`;
+}
+
+export function walkBookingCode(booking) {
+  const raw = String(booking?.transaction_no ?? booking?.transactionNo ?? "").trim();
+  if (raw) return raw.replace(/^#/, "");
+  return "";
+}
+
+export function walkAdditionalNote(booking) {
+  return String(
+    booking?.additional_message ?? booking?.additionalMessage ?? booking?.message ?? "",
+  ).trim();
+}
+
+export function walkSitterId(booking) {
+  return String(
+    booking?.sitter?.id ?? booking?.sitter_id ?? booking?.sitterId ?? "",
+  ).trim();
+}
+
+export function lastPointAt(points = [], walk) {
+  const last = points[points.length - 1];
+  return last?.recordedAt ?? walk?.updatedAt ?? walk?.lastPoint?.recordedAt ?? "";
+}
+
 export function formatWalkDuration(seconds) {
   const value = Number(seconds);
   if (!Number.isFinite(value) || value < 0) return "0 min";
@@ -53,8 +210,9 @@ export function formatWalkClock(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleTimeString("en-GB", {
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
     timeZone: "Asia/Bangkok",
   });
 }

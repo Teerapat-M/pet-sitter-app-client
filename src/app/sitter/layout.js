@@ -10,6 +10,7 @@ import { clearAuth, getUser } from "@/lib/auth";
 import jwtInterceptor from "@/utils/jwtInterceptor";
 import { useUnreadChatCount } from "@/lib/useUnreadChatCount";
 import NotificationBell from "@/components/NotificationBell";
+import Navbar from "@/components/Navbar";
 
 jwtInterceptor();
 
@@ -81,6 +82,17 @@ export default function SitterLayout({ children }) {
 
   if (!isSitter) {
     return null;
+  }
+
+  if (pathname.startsWith("/sitter/walks")) {
+    return (
+      <>
+        <div className="hidden md:block">
+          <Navbar />
+        </div>
+        <div className="min-h-full bg-background">{children}</div>
+      </>
+    );
   }
 
   return (

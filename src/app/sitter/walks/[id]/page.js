@@ -43,35 +43,31 @@ export default function SitterWalkPage() {
 
   const backHref = `/sitter/booking-list/${encodeURIComponent(String(id))}`;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
-      {loading ? (
-        <p className="px-5 py-10 text-body-2 text-ink-400">Loading walk…</p>
-      ) : error || !booking ? (
-        <div className="px-5 py-10">
-          <p className="text-body-2 text-danger">{error || "Booking not found"}</p>
-          <Link href="/sitter/booking-list" className="mt-4 inline-flex text-caption font-semibold text-primary">
-            Back to bookings
-          </Link>
-        </div>
-      ) : !isDogWalkingBooking(booking) ? (
-        <div className="px-5 py-10">
-          <p className="text-body-2">GPS tracking is only for dog walking bookings.</p>
-          <Link href={backHref} className="mt-4 inline-flex text-caption font-semibold text-primary">
-            Back to booking
-          </Link>
-        </div>
-      ) : (
-        <SitterWalkView
-          bookingId={String(id)}
-          backHref={backHref}
-          title={
-            booking.pet_names ||
-            (booking.pets ?? []).map((pet) => pet.name).filter(Boolean).join(", ") ||
-            `Walk with ${booking.pet_owner_name || "owner"}`
-          }
-        />
-      )}
-    </div>
-  );
+  if (loading) {
+    return <p className="px-5 py-10 text-body-2 text-ink-400">Loading walk…</p>;
+  }
+
+  if (error || !booking) {
+    return (
+      <div className="px-5 py-10">
+        <p className="text-body-2 text-danger">{error || "Booking not found"}</p>
+        <Link href="/sitter/booking-list" className="mt-4 inline-flex text-caption font-semibold text-primary">
+          Back to bookings
+        </Link>
+      </div>
+    );
+  }
+
+  if (!isDogWalkingBooking(booking)) {
+    return (
+      <div className="px-5 py-10">
+        <p className="text-body-2">GPS tracking is only for dog walking bookings.</p>
+        <Link href={backHref} className="mt-4 inline-flex text-caption font-semibold text-primary">
+          Back to booking
+        </Link>
+      </div>
+    );
+  }
+
+  return <SitterWalkView booking={booking} bookingId={String(id)} backHref={backHref} />;
 }

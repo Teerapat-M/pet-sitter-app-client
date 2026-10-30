@@ -95,6 +95,10 @@ export default function BookingDetailSidebar({
               ? "-"
               : selectedPets.map((pet) => pet.name).join(", ")}
           </DetailBlock>
+
+          {String(serviceLabel).toLowerCase().includes("walk") ? (
+            <DetailBlock label="GPS tracking">Included</DetailBlock>
+          ) : null}
         </dl>
       </div>
 

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { CircleMarker, MapContainer, Polyline, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { BANGKOK_CENTER, pointsToLatLngs } from "@/lib/walkTracking";
+import { cn } from "@/lib/utils";
 
 function FitTrail({ latLngs, followLast }) {
   const map = useMap();
@@ -14,7 +15,7 @@ function FitTrail({ latLngs, followLast }) {
       map.setView(latLngs[0], Math.max(map.getZoom(), 16));
       return;
     }
-    map.fitBounds(latLngs, { padding: [32, 32], maxZoom: 17 });
+    map.fitBounds(latLngs, { padding: [36, 36], maxZoom: 17 });
   }, [latLngs, map]);
 
   useEffect(() => {
@@ -47,16 +48,18 @@ export default function WalkTrailMapInner({
   const last = latLngs[latLngs.length - 1];
   const start = latLngs[0];
   const center = last || start || BANGKOK_CENTER;
+  const samePoint = start && last && start[0] === last[0] && start[1] === last[1];
 
   return (
     <MapContainer
       center={center}
       zoom={15}
       scrollWheelZoom
-      className={className}
+      zoomControl={false}
+      className={cn("walk-map", className)}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitTrail latLngs={latLngs} followLast={live} />
@@ -66,22 +69,22 @@ export default function WalkTrailMapInner({
           pathOptions={{ color: "#FF8A3D", weight: 5, lineCap: "round", lineJoin: "round" }}
         />
       ) : null}
-      {start ? (
+      {start && !samePoint ? (
         <CircleMarker
           center={start}
-          radius={8}
-          pathOptions={{ color: "#1F7A66", fillColor: "#3CC8A8", fillOpacity: 1, weight: 2 }}
+          radius={7}
+          pathOptions={{ color: "#ffffff", fillColor: "#1F7A66", fillOpacity: 1, weight: 2 }}
         />
       ) : null}
       {last ? (
         <CircleMarker
           center={last}
-          radius={live ? 10 : 8}
+          radius={live ? 9 : 8}
           pathOptions={{
-            color: live ? "#E5484D" : "#1F7A66",
-            fillColor: live ? "#E5484D" : "#3CC8A8",
+            color: "#ffffff",
+            fillColor: "#3CC8A8",
             fillOpacity: 1,
-            weight: 2,
+            weight: 3,
           }}
         />
       ) : null}

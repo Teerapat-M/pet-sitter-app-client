@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Phone, SquarePen, X, MapPin, Star } from "lucide-react";
 import AccountSidebar from "../../../components/AccountSidebar";
@@ -28,6 +29,8 @@ import { checkoutBooking, getOwnerBooking } from "@/lib/api";
 import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
 import CctvBadge from "@/components/CctvBadge";
 import WalkBookingLink from "@/components/walk/WalkBookingLink";
+import { WalkTrailThumb } from "@/components/walk/WalkUi";
+import { firstPetName, isDogWalkingBooking, walkFirstName, walkOwnerHref, walkSitterName } from "@/lib/walkTracking";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PAGE_SIZE = 5; // แสดง booking แค่ 5 การ์ดล่าสุดต่อหน้า ที่เหลือกดเปลี่ยนหน้าดูผ่าน Pagination
@@ -211,6 +214,10 @@ export default function BookingHistoryPage() {
   }, [router, currentPage]);
 
   async function openBookingDetail(booking) {
+    if (isDogWalkingBooking(booking) && booking?.id) {
+      router.push(`/owner/bookings/${encodeURIComponent(String(booking.id))}`);
+      return;
+    }
     const normalized = normalizeOwnerBooking(booking);
     setSelectedBooking(normalized);
     try {
@@ -803,7 +810,29 @@ export default function BookingHistoryPage() {
                       </div>
                     )}
                     {/* สถานะ: กำลังรับบริการอยู่ */}
-                    {booking.status === "in_service" && (
+                    {booking.status === "in_service" && isDogWalkingBooking(booking) ? (
+                      <div
+                        className="flex w-full flex-col gap-3 rounded-[1.1rem] bg-accent-50 p-4 sm:flex-row sm:items-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-caption font-bold text-accent-700">Walk in progress</p>
+                          <p className="mt-1 text-h4">
+                            {firstPetName(booking)} is out with {walkFirstName(walkSitterName(booking))}
+                          </p>
+                          <Link
+                            href={walkOwnerHref(booking.id)}
+                            className="btn btn-accent mt-3 min-h-11"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            📍 Track walk live
+                          </Link>
+                        </div>
+                        <div className="h-24 w-full overflow-hidden rounded-[1rem] sm:h-24 sm:w-40">
+                          <WalkTrailThumb points={[]} className="h-full w-full" />
+                        </div>
+                      </div>
+                    ) : booking.status === "in_service" ? (
                       <div
                         className="w-full flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-between"
                         style={{ backgroundColor: "#F6F6F9", padding: "16px", gap: "16px", borderRadius: "8px", boxSizing: "border-box" }}
@@ -835,7 +864,7 @@ export default function BookingHistoryPage() {
                           </button>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                     {/* สถานะ: บริการเสร็จสิ้นแล้ว — แจ้งปัญหาได้ และเขียน/ดูรีวิวได้ */}
                     {(booking.status === "success" || booking.status === "completed") && (
                       <div

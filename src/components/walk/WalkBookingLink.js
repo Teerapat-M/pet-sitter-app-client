@@ -11,8 +11,9 @@ import {
 export default function WalkBookingLink({
   booking,
   role = "owner",
-  className = "btn btn-primary",
+  className = "btn btn-accent",
   onClick,
+  children,
 }) {
   if (!isDogWalkingBooking(booking) || !booking?.id) return null;
   const status = normalizeBookingStatus(booking.status);
@@ -21,7 +22,7 @@ export default function WalkBookingLink({
   if (status === "in_service") {
     return (
       <Link href={href} className={className} onClick={onClick}>
-        {role === "sitter" ? "Start walk" : "Track walk live"}
+        {children || (role === "sitter" ? "Start walk" : "Track walk live")}
       </Link>
     );
   }
@@ -29,7 +30,7 @@ export default function WalkBookingLink({
   if (status === "completed") {
     return (
       <Link href={href} className={className} onClick={onClick}>
-        Walk summary
+        {children || "Walk summary"}
       </Link>
     );
   }

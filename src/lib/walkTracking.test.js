@@ -3,17 +3,24 @@ import test from "node:test";
 import {
   WALK_FLUSH_MS,
   WALK_MAX_BATCH,
+  addMinutesToClock,
   applyWalkEvent,
   createWalkPointBuffer,
   emptyWalkView,
+  firstPetName,
+  formatUpdatedAgo,
   formatWalkDistance,
   formatWalkDuration,
+  formatWalkElapsed,
+  formatWalkPace,
+  formatWalkStatDistance,
   formatWalkSummary,
   isDogWalkingBooking,
   parseSseFrames,
   pathDistanceMeters,
   positionToPoint,
   shouldKeepClientPoint,
+  walkDurationMinutes,
 } from "./walkTracking.js";
 
 test("isDogWalkingBooking reads service_type and duration_unit walk", () => {
@@ -26,11 +33,25 @@ test("isDogWalkingBooking reads service_type and duration_unit walk", () => {
 test("distance and duration formatters match walk summary copy", () => {
   assert.equal(formatWalkDistance(640), "640 m");
   assert.equal(formatWalkDistance(2100), "2.10 km");
+  assert.equal(formatWalkStatDistance(2400), "2.4 km");
+  assert.equal(formatWalkStatDistance(4100), "4.1 km");
   assert.equal(formatWalkDuration(42), "1 min");
   assert.equal(formatWalkDuration(420), "7 min");
   assert.equal(formatWalkDuration(2760), "46 min");
   assert.equal(formatWalkDuration(3720), "1h 2m");
   assert.equal(formatWalkSummary({ distanceM: 2100, durationS: 2760 }), "2.10 km in 46 min");
+  assert.equal(formatWalkElapsed(1934), "32:14");
+  assert.equal(formatWalkElapsed(3520), "58:40");
+  assert.equal(formatWalkPace(2400, 1934), "13'/km");
+  assert.equal(formatWalkPace(4100, 3520), "14'/km");
+  assert.equal(formatWalkPace(0, 60), "—");
+  assert.equal(addMinutesToClock("08:02", 60), "09:02");
+  assert.equal(
+    formatUpdatedAgo("2026-11-14T01:02:00.000Z", Date.parse("2026-11-14T01:02:05.000Z")),
+    "updated 5s ago",
+  );
+  assert.equal(firstPetName({ pet_names: "Bobo, Milo" }), "Bobo");
+  assert.equal(walkDurationMinutes({ duration: 60, duration_unit: "walk" }), 60);
 });
 
 test("path distance is haversine along the trail", () => {

@@ -66,14 +66,11 @@ export default function OwnerWalkPage() {
     );
   }
 
-  const pets = booking.pet_names || (booking.pets ?? []).map((pet) => pet.name).filter(Boolean).join(", ");
-  const sitter = booking.sitter_name || booking.sitter?.name || "your sitter";
-
   return (
     <OwnerWalkView
+      booking={booking}
       bookingId={String(id)}
-      backHref="/owner/bookings"
-      title={pets ? `${pets} is out with ${sitter}` : `Walk with ${sitter}`}
+      backHref={`/owner/bookings/${encodeURIComponent(String(id))}`}
     />
   );
 }

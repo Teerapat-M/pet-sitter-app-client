@@ -91,43 +91,71 @@ export function useWalkRecorder(bookingId) {
     });
   }, [clearWatch, handleGeoError, handlePosition]);
 
+  const attachLiveSession = useCallback(
+    async (walk) => {
+      startedAtRef.current = walk?.startedAt || startedAtRef.current || new Date().toISOString();
+      setStartedAt(startedAtRef.current);
+      setEndedWalk(null);
+      if (!bufferRef.current) {
+        const buffer = createWalkPointBuffer({
+          flushMs: WALK_FLUSH_MS,
+          postFn: async (body) => {
+            if (typeof navigator !== "undefined" && navigator.onLine === false) {
+              const offlineError = new Error("offline");
+              offlineError.status = 0;
+              throw offlineError;
+            }
+            const result = await postWalkPoints(bookingId, body);
+            if (Number.isFinite(Number(result?.distanceM))) {
+              setDistanceM(Number(result.distanceM));
+            }
+            return result;
+          },
+        });
+        bufferRef.current = buffer;
+        buffer.start();
+      }
+      beginWatching();
+      if (!wakeLockRef.current) {
+        wakeLockRef.current = await requestWakeLock();
+      }
+      setStatus("live");
+    },
+    [beginWatching, bookingId],
+  );
+
   const start = useCallback(async () => {
     if (!bookingId || status === "live" || status === "starting") return;
     setStatus("starting");
     setError("");
     try {
       const walk = await startWalk(bookingId);
-      startedAtRef.current = walk?.startedAt || new Date().toISOString();
-      setStartedAt(startedAtRef.current);
-      setEndedWalk(null);
       setPoints([]);
       setDistanceM(Number(walk?.distanceM) || 0);
-
-      const buffer = createWalkPointBuffer({
-        flushMs: WALK_FLUSH_MS,
-        postFn: async (body) => {
-          if (typeof navigator !== "undefined" && navigator.onLine === false) {
-            const offlineError = new Error("offline");
-            offlineError.status = 0;
-            throw offlineError;
-          }
-          const result = await postWalkPoints(bookingId, body);
-          if (Number.isFinite(Number(result?.distanceM))) {
-            setDistanceM(Number(result.distanceM));
-          }
-          return result;
-        },
-      });
-      bufferRef.current = buffer;
-      buffer.start();
-      beginWatching();
-      wakeLockRef.current = await requestWakeLock();
-      setStatus("live");
+      await attachLiveSession(walk);
     } catch (err) {
       setStatus("idle");
       setError(err instanceof Error ? err.message : "Could not start the walk");
     }
-  }, [beginWatching, bookingId, status]);
+  }, [attachLiveSession, bookingId, status]);
+
+  const resume = useCallback(
+    async (walk) => {
+      if (!bookingId || status === "live" || status === "starting" || status === "ending") return;
+      setError("");
+      if (Array.isArray(walk?.points) && walk.points.length) {
+        setPoints(walk.points);
+        setDistanceM(Number(walk.distanceM) || 0);
+      } else if (walk?.lastPoint) {
+        setPoints([walk.lastPoint]);
+        setDistanceM(Number(walk?.distanceM) || 0);
+      } else {
+        setDistanceM(Number(walk?.distanceM) || 0);
+      }
+      await attachLiveSession(walk);
+    },
+    [attachLiveSession, bookingId, status],
+  );
 
   const stop = useCallback(async () => {
     if (!bookingId || (status !== "live" && status !== "starting")) return;
@@ -199,6 +227,7 @@ export function useWalkRecorder(bookingId) {
     elapsedS,
     pendingCount: bufferRef.current?.length ?? 0,
     start,
+    resume,
     stop,
   };
 }

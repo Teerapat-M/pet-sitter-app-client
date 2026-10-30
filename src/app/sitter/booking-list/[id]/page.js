@@ -296,6 +296,15 @@ export default function BookingDetailPage() {
             {booking.owner_address || booking.ownerAddress}
           </DetailField>
         ) : null}
+        {isDogWalkingBooking(booking) ? (
+          <div className="rounded-[1.1rem] bg-accent-50 px-4 py-3 text-caption font-extrabold text-accent-700">
+            {statusKey === "in_service"
+              ? "✓ GPS ready · owner will see your route"
+              : statusKey === "completed"
+                ? "Walk summary is available for this booking"
+                : "Live GPS tracking is included for this walk"}
+          </div>
+        ) : null}
         <DetailField label="Booking Date">
           {booking ? formatBookedDateDetail(booking) : "—"}
         </DetailField>

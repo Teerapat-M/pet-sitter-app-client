@@ -4,6 +4,7 @@ import {
   FALLBACK_PET_TYPES,
   countsFromSearchParams,
   formatPetsSummary,
+  formatSearchCompactSummary,
   parsePetCounts,
   parsePetsSummary,
   serializePetSearchQuery,
@@ -41,6 +42,18 @@ test("empty counts omit pet query params", () => {
   assert.equal(params.get("petTypes"), null);
   assert.equal(params.get("pets"), null);
   assert.equal(params.get("petCounts"), null);
+});
+
+test("compact search summary omits empty fields", () => {
+  assert.equal(formatSearchCompactSummary({}), "");
+  assert.equal(
+    formatSearchCompactSummary({
+      location: "Ari, Bangkok",
+      date: "2026-11-14",
+      counts: { dog: 2, cat: 1 },
+    }),
+    "Ari, Bangkok · 14 Nov · 2 dogs, 1 cat",
+  );
 });
 
 test("petCounts and summary strings round-trip", () => {

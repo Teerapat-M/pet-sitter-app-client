@@ -454,6 +454,16 @@ export async function getConversations() {
   return json.data ?? [];
 }
 
+export async function getOwnerBooking(id) {
+  const json = await apiFetch(`/api/bookings/owner/${encodeURIComponent(id)}`);
+  return json.data;
+}
+
+export async function getSitterBooking(id) {
+  const json = await apiFetch(`/api/sitters/bookings/${encodeURIComponent(id)}`);
+  return json.data;
+}
+
 export async function getNotifications() {
   const json = await apiFetch("/api/notifications");
   return json.data ?? { items: [], unreadCount: 0 };

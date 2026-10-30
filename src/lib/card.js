@@ -6,7 +6,7 @@ import { cn } from "./utils.js";
  * Transform + shadow only — no margin or size changes.
  */
 export const CARD_LIFT_CLASS =
-  "transition-all duration-200 hover:-translate-y-1 hover:shadow-lg motion-reduce:transform-none motion-reduce:transition-none";
+  "transition-all duration-200 hover:-translate-y-1 hover:shadow-lg motion-reduce:transform-none motion-reduce:translate-none motion-reduce:transition-none";
 
 export function cardClassName({ interactive = false, className } = {}) {
   return cn(className, CARD_LIFT_CLASS, interactive && "cursor-pointer");

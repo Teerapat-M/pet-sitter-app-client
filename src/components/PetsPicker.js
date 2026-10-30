@@ -48,7 +48,7 @@ export default function PetsPicker({
   }
 
   return (
-    <div className="relative min-w-0 flex-1" ref={rootRef}>
+    <div className="relative min-w-0 flex-1 lg:min-w-[12rem] lg:flex-[1.4]" ref={rootRef}>
       <button
         type="button"
         className="flex min-h-12 w-full items-center gap-2 rounded-full px-4 text-left"
@@ -60,7 +60,7 @@ export default function PetsPicker({
       >
         <PawPrint className="size-4 shrink-0 text-primary" aria-hidden />
         <span
-          className={`min-w-0 flex-1 truncate text-body-2 ${
+          className={`min-w-0 flex-1 truncate text-body-2 whitespace-nowrap ${
             summary ? "text-ink-900" : "text-ink-400"
           }`}
         >

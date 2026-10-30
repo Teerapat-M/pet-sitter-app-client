@@ -15,14 +15,16 @@ export default function HeroSection({ greeting = null }) {
           <div className="absolute -right-8 top-4 hidden size-72 rounded-full bg-[#ffe8d4] md:block lg:right-16 lg:size-80" />
         </div>
 
-        <div className="relative z-10 max-w-xl">
-          <h1 className="hidden text-display text-ink-900 md:block">
-            Trusted care for your pet, with eyes on every moment.
-          </h1>
-          <p className="mt-3 hidden max-w-md text-body-lg text-ink-600 md:block">
-            Boarding with live CCTV · dog walks with GPS · in-home sitters
-          </p>
-          <div className="mt-6 hidden md:block">
+        <div className="relative z-10">
+          <div className="max-w-xl">
+            <h1 className="hidden text-display text-ink-900 md:block">
+              Trusted care for your pet, with eyes on every moment.
+            </h1>
+            <p className="mt-3 hidden max-w-md text-body-lg text-ink-600 md:block">
+              Boarding with live CCTV · dog walks with GPS · in-home sitters
+            </p>
+          </div>
+          <div className="mt-6 hidden w-full max-w-4xl md:block">
             <SearchBar />
           </div>
         </div>
@@ -36,7 +38,7 @@ export default function HeroSection({ greeting = null }) {
           </span>
           <p className="text-h3 text-primary md:hidden">Happy pets</p>
         </div>
-        <div className="absolute bottom-4 left-4 z-10 md:right-24 md:bottom-8 md:left-auto">
+        <div className="absolute bottom-4 left-4 z-10 md:top-8 md:right-16 md:bottom-auto md:left-auto">
           <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-2 text-caption font-semibold text-ink-900 shadow-card">
             <span className="size-2 rounded-full bg-live" aria-hidden />
             Live walk · 1.8 km
@@ -45,7 +47,7 @@ export default function HeroSection({ greeting = null }) {
       </div>
 
       <div className="mt-4 md:hidden">
-        <SearchBar />
+        <SearchBar compactUntilOpen />
       </div>
     </section>
   );

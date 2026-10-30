@@ -8,6 +8,7 @@ const LIFT_TOKENS = [
   "hover:-translate-y-1",
   "hover:shadow-lg",
   "motion-reduce:transform-none",
+  "motion-reduce:translate-none",
   "motion-reduce:transition-none",
 ];
 

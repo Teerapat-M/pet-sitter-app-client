@@ -132,6 +132,30 @@ export function countsFromSearchParams({ petCounts, pets } = {}) {
   };
 }
 
+export function formatSearchDateLabel(date) {
+  const raw = String(date ?? "").trim();
+  if (!raw) return "";
+  const parsed = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+export function formatSearchCompactSummary({
+  location = "",
+  date = "",
+  counts = {},
+  types = FALLBACK_PET_TYPES,
+} = {}) {
+  const parts = [];
+  const query = String(location ?? "").trim();
+  if (query) parts.push(query);
+  const dateLabel = formatSearchDateLabel(date);
+  if (dateLabel) parts.push(dateLabel);
+  const pets = formatPetsSummary(counts, types);
+  if (pets) parts.push(pets);
+  return parts.join(" · ");
+}
+
 export function serializePetSearchQuery({
   q = "",
   date = "",

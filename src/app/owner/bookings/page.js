@@ -31,6 +31,7 @@ import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
 import CctvBadge from "@/components/CctvBadge";
 import WalkBookingLink from "@/components/walk/WalkBookingLink";
 import { WalkTrailThumb } from "@/components/walk/WalkUi";
+import { isBoardingBooking, ownerCctvHref } from "@/lib/cctv";
 import { firstPetName, isDogWalkingBooking, walkFirstName, walkOwnerHref, walkSitterName } from "@/lib/walkTracking";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -215,7 +216,7 @@ export default function BookingHistoryPage() {
   }, [router, currentPage]);
 
   async function openBookingDetail(booking) {
-    if (isDogWalkingBooking(booking) && booking?.id) {
+    if ((isDogWalkingBooking(booking) || isBoardingBooking(booking)) && booking?.id) {
       router.push(`/owner/bookings/${encodeURIComponent(String(booking.id))}`);
       return;
     }
@@ -799,7 +800,26 @@ export default function BookingHistoryPage() {
                       </div>
                     )}
                     {/* สถานะ: กำลังรับบริการอยู่ */}
-                    {booking.status === "in_service" && isDogWalkingBooking(booking) ? (
+                    {booking.status === "in_service" && isBoardingBooking(booking) ? (
+                      <div
+                        className="flex w-full flex-col gap-3 rounded-[1.1rem] bg-[#2b2622] p-4 text-white sm:flex-row sm:items-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-caption font-bold text-white/80">Watch CCTV live</p>
+                          <p className="mt-1 text-h4 text-white">
+                            {firstPetName(booking)} is at {walkFirstName(walkSitterName(booking))}&apos;s place
+                          </p>
+                          <Link
+                            href={ownerCctvHref(booking.id)}
+                            className="btn btn-accent mt-3 min-h-11"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Watch CCTV
+                          </Link>
+                        </div>
+                      </div>
+                    ) : booking.status === "in_service" && isDogWalkingBooking(booking) ? (
                       <div
                         className="flex w-full flex-col gap-3 rounded-[1.1rem] bg-accent-50 p-4 sm:flex-row sm:items-center"
                         onClick={(e) => e.stopPropagation()}
@@ -1030,6 +1050,12 @@ export default function BookingHistoryPage() {
                 <span className="text-body-2" style={{ color: "#3A3B46" }}>{selectedBooking.pet_names || "-"}</span>
               </div>
 
+              {normalizeBookingStatus(selectedBooking.status) === "in_service" &&
+              isBoardingBooking(selectedBooking) ? (
+                <Link href={ownerCctvHref(selectedBooking.id)} className="btn btn-accent w-fit">
+                  Watch CCTV
+                </Link>
+              ) : null}
               <WalkBookingLink
                 booking={selectedBooking}
                 role="owner"

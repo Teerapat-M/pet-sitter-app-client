@@ -23,7 +23,10 @@ const AUTH_PREFIXES = [
   "/auth",
   "/admin",
   "/owner/walks",
+  "/owner/cctv",
   "/sitter/walks",
+  "/sitter/cameras",
+  "/cctv-frames",
 ];
 
 function isAuthPath(pathname) {

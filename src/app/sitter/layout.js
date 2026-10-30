@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Calendar, List, UserRound, CreditCard, LogOut, MessagesSquare, ArrowLeftRight } from "lucide-react";
+import { Calendar, List, UserRound, CreditCard, LogOut, MessagesSquare, ArrowLeftRight, Video } from "lucide-react";
 import axios from "axios";
 import { clearAuth, getUser } from "@/lib/auth";
 import jwtInterceptor from "@/utils/jwtInterceptor";
@@ -36,6 +36,11 @@ const menuItems = [
     href: "/sitter/payout",
     label: "Payout Option",
     icon: CreditCard,
+  },
+  {
+    href: "/sitter/cameras",
+    label: "Cameras",
+    icon: Video,
   },
 ];
 
@@ -84,7 +89,7 @@ export default function SitterLayout({ children }) {
     return null;
   }
 
-  if (pathname.startsWith("/sitter/walks")) {
+  if (pathname.startsWith("/sitter/walks") || pathname.startsWith("/sitter/cameras")) {
     return (
       <>
         <div className="hidden md:block">

@@ -8,15 +8,15 @@ export const PREVIEW_ACCESS = {
 };
 
 export const PREVIEW_LIVE_CAMERAS = [
-  { id: "cam-1", name: "Play room", status: "online", isEnabled: true },
-  { id: "cam-2", name: "Garden", status: "online", isEnabled: true },
-  { id: "cam-3", name: "Bedroom", status: "online", isEnabled: true },
+  { id: "cam-1", name: "Cam 1 · Play room", status: "online", isEnabled: true },
+  { id: "cam-2", name: "Cam 2 · Garden", status: "online", isEnabled: true },
+  { id: "cam-3", name: "Cam 3 · Bedroom", status: "online", isEnabled: true },
 ];
 
 export const PREVIEW_OFFLINE_CAMERAS = [
-  { id: "cam-1", name: "Play room", status: "offline", isEnabled: false },
-  { id: "cam-2", name: "Garden", status: "online", isEnabled: true },
-  { id: "cam-3", name: "Bedroom", status: "reconnecting", isEnabled: true },
+  { id: "cam-1", name: "Cam 1 · Play room", status: "offline", isEnabled: false },
+  { id: "cam-2", name: "Cam 2 · Garden", status: "online", isEnabled: true },
+  { id: "cam-3", name: "Cam 3 · Bedroom", status: "reconnecting", isEnabled: true },
 ];
 
 export const PREVIEW_SITTER_CAMERAS = [

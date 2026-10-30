@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { cameraOfflineCopy, cameraStatusLabel, cameraTileKind } from "@/lib/cctv";
+import { cameraOfflineCopy, cameraStatusLabel, cameraViewerKind } from "@/lib/cctv";
 
 function LiveBadge({ kind }) {
   const live = kind === "live";
@@ -23,7 +23,10 @@ function LiveBadge({ kind }) {
 export default function CameraTile({
   camera,
   stream,
+  status,
+  error = "",
   canView = true,
+  preview = false,
   featured = false,
   muted = true,
   className,
@@ -33,10 +36,10 @@ export default function CameraTile({
   videoRef,
 }) {
   const innerRef = useRef(null);
-  const kind = cameraTileKind(camera, { canView });
+  const kind = cameraViewerKind(camera, { status, stream, error }, { canView, preview });
   const live = kind === "live";
   const hasStream = Boolean(stream);
-  const copy = cameraOfflineCopy(kind);
+  const copy = cameraOfflineCopy(kind, error);
 
   useEffect(() => {
     const node = innerRef.current;
@@ -58,12 +61,12 @@ export default function CameraTile({
       onClick={() => onSelect?.(camera)}
       className={cn(
         "relative flex w-full overflow-hidden rounded-[1.35rem] bg-ink-900 text-left text-white",
-        featured ? "min-h-64 md:min-h-80" : "min-h-40",
+        featured ? "h-44 lg:h-full lg:min-h-0 lg:flex-1" : "h-44 min-h-44",
         className,
       )}
     >
       <span
-        className={cn("block w-full shrink-0", featured ? "h-64 md:h-80" : "h-40")}
+        className={cn("block w-full shrink-0", featured ? "h-44 lg:h-full" : "h-44")}
         aria-hidden
       />
       <LiveBadge kind={kind} />

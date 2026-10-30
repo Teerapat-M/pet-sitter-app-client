@@ -35,6 +35,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
   const pcRef = useRef(null);
   const sessionRef = useRef("");
   const stoppedRef = useRef(false);
+  const hasTrackRef = useRef(false);
   const cameraId = camera?.id;
 
   const ensureSessionId = useCallback(() => {
@@ -50,6 +51,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
       if (stoppedRef.current) return;
       closePeerConnection(pcRef.current);
       pcRef.current = null;
+      hasTrackRef.current = false;
       setStream(null);
       setError("");
       setStatus("connecting");
@@ -60,9 +62,10 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
       pc.addTransceiver("video", { direction: "recvonly" });
       pc.addTransceiver("audio", { direction: "recvonly" });
       pc.ontrack = (event) => {
+        hasTrackRef.current = true;
         const next = event.streams?.[0] ?? new MediaStream([event.track]);
         setStream(next);
-        setStatus("live");
+        if (pc.connectionState === "connected") setStatus("live");
       };
       pc.onicecandidate = (iceEvent) => {
         const candidate = iceCandidatePayload(iceEvent.candidate);
@@ -74,9 +77,13 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
         });
       };
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === "failed") setStatus("reconnecting");
-        if (pc.connectionState === "disconnected") setStatus("reconnecting");
-        if (pc.connectionState === "connected") setStatus("live");
+        if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+          setStatus("reconnecting");
+          return;
+        }
+        if (pc.connectionState === "connected" && hasTrackRef.current) {
+          setStatus("live");
+        }
       };
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -88,6 +95,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
     } catch (err) {
       closePeerConnection(pcRef.current);
       pcRef.current = null;
+      hasTrackRef.current = false;
       setStream(null);
       if (err?.status === 409) {
         sessionRef.current = newSessionId();
@@ -130,6 +138,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
       if (event.sessionId && String(event.sessionId) !== sessionRef.current) return;
       closePeerConnection(pcRef.current);
       pcRef.current = null;
+      hasTrackRef.current = false;
       setStream(null);
       sessionRef.current = "";
       stoppedRef.current = SESSION_ENDED_STOP_REASONS.has(String(event.reason ?? ""));

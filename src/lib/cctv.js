@@ -3,15 +3,15 @@
  * Built against server PR #10 (`cursor/phase-5-cctv-3030`).
  * `docs/phase5-api.md` on that branch still describes unscoped GET /api/ice and
  * 8 viewers/camera; the review-fix source is the contract:
- * scoped ICE (cameraId and/or bookingId), short-lived TURN, 413, 2 owner sessions.
+ * scoped ICE (cameraId and/or bookingId), short-lived TURN, 413 (16KB), 2 owner sessions.
  */
 
 export const CCTV_HEARTBEAT_MS = 10_000;
 export const CCTV_STALE_MS = 30_000;
 export const CCTV_RETRY_MS = 2_000;
 export const CCTV_TZ = "Asia/Bangkok";
-/** Matches server parseSignalBody — oversized POST /signal is 413. */
-export const MAX_SIGNAL_BYTES = 6000;
+/** Matches server parseSignalBody (server PR #12) — oversized POST /signal is 413. */
+export const MAX_SIGNAL_BYTES = 16384;
 /** Review-fix contract: max live viewer sessions per owner per camera. */
 export const MAX_OWNER_SESSIONS_PER_CAMERA = 2;
 export const SESSION_ENDED_STOP_REASONS = new Set([
@@ -137,6 +137,36 @@ export function cameraTileKind(camera, { canView = true } = {}) {
   return "offline";
 }
 
+/**
+ * LIVE only when the viewer is actually connected (RTCPeerConnection
+ * `connected` + a media track). Preview tiles skip WebRTC and fall back to
+ * camera status so frame 08 still shows LIVE placeholders.
+ */
+export function cameraViewerKind(
+  camera,
+  viewer = {},
+  { canView = true, preview = false } = {},
+) {
+  if (!canView) return "window";
+  if (!camera) return "offline";
+  if (camera.isEnabled === false) return "disabled";
+
+  const viewerStatus = String(viewer.status ?? "").toLowerCase();
+  const hasTrack = Boolean(viewer.stream);
+
+  if (viewerStatus === "error" || viewerStatus === "forbidden") return "error";
+  if (viewerStatus === "ended") return "disabled";
+
+  if (preview) return cameraTileKind(camera, { canView });
+
+  if (viewerStatus === "live" && hasTrack) return "live";
+  if (viewerStatus === "connecting" || viewerStatus === "reconnecting") return "reconnecting";
+
+  const camStatus = String(camera.status ?? "").toLowerCase();
+  if (camStatus === "reconnecting") return "reconnecting";
+  return "offline";
+}
+
 export function cameraStatusLabel(kind) {
   if (kind === "live") return "LIVE";
   if (kind === "reconnecting") return "OFFLINE";
@@ -144,7 +174,10 @@ export function cameraStatusLabel(kind) {
   return "OFFLINE";
 }
 
-export function cameraOfflineCopy(kind) {
+export function cameraOfflineCopy(kind, error = "") {
+  if (kind === "error") {
+    return { title: "Camera offline", body: error || "Live signalling failed." };
+  }
   if (kind === "disabled") return { title: "Camera offline", body: "Sitter turned this camera off" };
   if (kind === "reconnecting") return { title: "Camera offline", body: "Reconnecting…" };
   if (kind === "window") return { title: "Live view not open yet", body: "" };

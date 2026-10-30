@@ -5,7 +5,9 @@ import {
   MAX_SIGNAL_BYTES,
   applyCameraEvent,
   canSendSignal,
+  cameraOfflineCopy,
   cameraTileKind,
+  cameraViewerKind,
   countLiveCameras,
   emptyCctvView,
   formatAvailableUntil,
@@ -57,12 +59,23 @@ test("GET /api/ice response maps iceServers and ignores extra TURN ttl fields", 
 });
 
 test("signalling over the byte limit is 413", () => {
-  assert.equal(MAX_SIGNAL_BYTES, 6000);
+  assert.equal(MAX_SIGNAL_BYTES, 16384);
   const small = { type: "ice", sessionId: "s1", candidate: { candidate: "candidate:1", sdpMid: "0" } };
   assert.equal(canSendSignal(small), true);
-  const huge = { type: "offer", sessionId: "s1", sdp: "v=0\n".repeat(4000) };
-  assert.equal(signalBodyBytes(huge) > MAX_SIGNAL_BYTES, true);
-  assert.equal(canSendSignal(huge), false);
+
+  const tenKbSdp = {
+    type: "offer",
+    sessionId: "s1",
+    sdp: `v=0\r\no=- 0 0 IN IP4 0.0.0.0\r\n${"a=ice-pwd:".padEnd(10_000, "x")}`,
+  };
+  const tenKbBytes = signalBodyBytes(tenKbSdp);
+  assert.ok(tenKbBytes > 10_000, `expected ~10KB SDP, got ${tenKbBytes}`);
+  assert.ok(tenKbBytes < MAX_SIGNAL_BYTES, `~10KB SDP must fit under ${MAX_SIGNAL_BYTES}, got ${tenKbBytes}`);
+  assert.equal(canSendSignal(tenKbSdp), true);
+
+  const over = { type: "offer", sessionId: "s1", sdp: "v=0\n".repeat(5_000) };
+  assert.equal(signalBodyBytes(over) > MAX_SIGNAL_BYTES, true);
+  assert.equal(canSendSignal(over), false);
   assert.equal(signalBodyBytes({ type: "ice", sessionId: "s1", candidate: { candidate: "a" } }) < MAX_SIGNAL_BYTES, true);
   const err = new Error("payload");
   err.status = 413;
@@ -102,6 +115,50 @@ test("applyCameraEvent snapshot and status updates", () => {
     isEnabled: true,
   });
   assert.equal(cameraTileKind(view.cameras[0]), "reconnecting");
+});
+
+test("viewer tile is LIVE only when connected with a track; errors show copy", () => {
+  const camera = { id: "c1", name: "Cam 1 · Play room", status: "online", isEnabled: true };
+  const stream = { id: "media" };
+
+  assert.equal(cameraViewerKind(camera, { status: "live", stream }, { canView: true }), "live");
+  assert.equal(cameraViewerKind(camera, { status: "live", stream: null }, { canView: true }), "offline");
+  assert.equal(cameraViewerKind(camera, { status: "connecting" }, { canView: true }), "reconnecting");
+  assert.equal(cameraViewerKind(camera, {}, { canView: true }), "offline");
+  assert.equal(
+    cameraViewerKind(camera, {}, { canView: true, preview: true }),
+    "live",
+  );
+
+  const tooMany = new Error("Too many live sessions for this camera");
+  tooMany.status = 429;
+  assert.equal(
+    cameraViewerKind(camera, { status: "error", error: signallingErrorMessage(tooMany) }, { canView: true }),
+    "error",
+  );
+  assert.match(cameraOfflineCopy("error", signallingErrorMessage(tooMany)).body, /Too many live views/i);
+
+  const oversized = new Error("payload");
+  oversized.status = 413;
+  assert.equal(
+    cameraViewerKind(camera, { status: "error", error: signallingErrorMessage(oversized) }, { canView: true }),
+    "error",
+  );
+  assert.match(cameraOfflineCopy("error", signallingErrorMessage(oversized)).body, /too large/i);
+
+  const forbidden = new Error("no");
+  forbidden.status = 403;
+  assert.equal(
+    cameraViewerKind(camera, { status: "forbidden", error: signallingErrorMessage(forbidden) }, { canView: true }),
+    "error",
+  );
+  assert.match(cameraOfflineCopy("error", signallingErrorMessage(forbidden)).body, /not available/i);
+
+  assert.equal(cameraViewerKind(camera, { status: "live", stream }, { canView: false }), "window");
+  assert.equal(
+    cameraViewerKind({ ...camera, isEnabled: false }, { status: "idle" }, { canView: true }),
+    "disabled",
+  );
 });
 
 test("Available until uses Asia/Bangkok", () => {

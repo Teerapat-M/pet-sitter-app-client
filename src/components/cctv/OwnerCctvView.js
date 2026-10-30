@@ -25,8 +25,33 @@ function venueName(booking) {
   return sitter ? `${sitter}'s place` : "Live cameras";
 }
 
+function featuredPlacement(camera, selectedId, cameras) {
+  const others = cameras.filter((item) => item.id !== selectedId);
+  if (camera.id === selectedId) {
+    if (others.length >= 3) return "lg:col-start-1 lg:row-start-1 lg:row-span-3";
+    if (others.length === 2) return "lg:col-start-1 lg:row-start-1 lg:row-span-2";
+    if (others.length === 0) return "lg:col-span-2 lg:row-start-1";
+    return "lg:col-start-1 lg:row-start-1";
+  }
+  const index = others.findIndex((item) => item.id === camera.id);
+  if (index === 0) return "lg:col-start-2 lg:row-start-1";
+  if (index === 1) return "lg:col-start-2 lg:row-start-2";
+  if (index === 2) return "lg:col-start-2 lg:row-start-3";
+  return "lg:col-start-2";
+}
+
+function afterCamerasRowClass(selectedId, cameras) {
+  const others = cameras.filter((item) => item.id !== selectedId);
+  const row = Math.max(others.length, 1) + 1;
+  if (row === 4) return "lg:row-start-4";
+  if (row === 3) return "lg:row-start-3";
+  return "lg:row-start-2";
+}
+
+const SNAPSHOT_PLACEHOLDERS = ["#6b5e54", "#5c6560", "#6a5c50"];
+
 export default function OwnerCctvView({ booking, bookingId, preview, backHref }) {
-  const [layout, setLayout] = useState("grid");
+  const [layout, setLayout] = useState("featured");
   const [selectedId, setSelectedId] = useState(preview?.cameras?.[0]?.id ?? "");
   const [muted, setMuted] = useState(true);
   const [snapshots, setSnapshots] = useState([]);
@@ -134,7 +159,10 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
           <CameraTile
             camera={camera}
             stream={viewer.stream}
+            status={viewer.status}
+            error={viewer.error}
             canView={canView}
+            preview={Boolean(preview)}
             featured={featured}
             muted={muted}
             className={className}
@@ -170,26 +198,56 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
           <p className="mt-2 text-caption text-danger">{gate}</p>
         ) : null}
 
-        <div className="mt-5 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_16.5rem] lg:items-start">
-          <div className="min-w-0 space-y-4 lg:col-start-1">
-            <div
-              className={cn(
-                "grid gap-3",
-                layout === "grid" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1",
-              )}
-            >
-              {cameras.map((camera) => {
-                const featured = camera.id === selected?.id;
-                const hidden = layout === "single" && !featured;
-                return (
-                  <div key={camera.id} className={cn("min-w-0", hidden && "hidden")}>
-                    {renderFeed(camera, { featured: featured || layout === "grid" })}
-                  </div>
-                );
-              })}
+        <div
+          className={cn(
+            "mt-5 grid grid-cols-1 gap-3",
+            layout === "featured"
+              ? "lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-stretch lg:gap-x-4"
+              : "md:grid-cols-2",
+          )}
+        >
+          {cameras.map((camera) => {
+            const featured = layout === "featured" && camera.id === selected?.id;
+            return (
+              <div
+                key={camera.id}
+                className={cn(
+                  "flex min-w-0 flex-col",
+                  layout === "featured" && featuredPlacement(camera, selected?.id, cameras),
+                )}
+              >
+                {renderFeed(camera, { featured })}
+              </div>
+            );
+          })}
+          <div
+            className={cn(
+              "space-y-3",
+              layout === "featured" && cn("lg:col-start-1", afterCamerasRowClass(selected?.id, cameras)),
+              layout === "grid" && "md:col-span-2",
+            )}
+          >
+            <div className="flex items-center justify-around rounded-[1.4rem] bg-surface px-2 py-3 shadow-card md:px-8">
+              <ToolButton icon={Camera} label="Snapshot" onClick={() => selected && capture(selected)} />
+              <ToolButton icon={Maximize2} label="Fullscreen" onClick={() => selected && requestFullscreen(selected)} />
+              <ToolButton
+                icon={layout === "grid" ? Square : Grid2x2}
+                label={layout === "grid" ? "Single" : "Grid view"}
+                onClick={() => setLayout((current) => (current === "grid" ? "featured" : "grid"))}
+              />
+              <ToolButton icon={muted ? VolumeX : Volume2} label="Sound" onClick={() => setMuted((value) => !value)} />
             </div>
+            <p className="rounded-[1.2rem] bg-primary-50 px-4 py-3 text-center text-caption text-ink-600 lg:hidden">
+              🔒 Only you can view · ends at check-out
+            </p>
           </div>
-          <div className="space-y-3 lg:col-start-2 lg:row-span-2">
+          <div
+            className={cn(
+              "space-y-3",
+              layout === "featured" && cn("lg:col-start-2", afterCamerasRowClass(selected?.id, cameras)),
+              layout === "grid" && "md:col-span-2",
+            )}
+          >
             {outside ? (
               <div className="rounded-[1.4rem] bg-surface p-6 text-center shadow-card">
                 <Clock className="mx-auto size-10 text-ink-400" aria-hidden />
@@ -203,13 +261,16 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
                   Remind me
                 </button>
               </div>
-            ) : null}
-            {!outside ? (
+            ) : (
               <div>
                 <h2 className="text-h4">Snapshots today</h2>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {[0, 1, 2].map((index) => (
-                    <div key={index} className="aspect-square overflow-hidden rounded-[1rem] bg-[#6b5e54]">
+                    <div
+                      key={index}
+                      className="aspect-square overflow-hidden rounded-[1rem]"
+                      style={{ backgroundColor: SNAPSHOT_PLACEHOLDERS[index] }}
+                    >
                       {snapshots[index] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={snapshots[index].url} alt="" className="size-full object-cover" />
@@ -218,22 +279,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
                   ))}
                 </div>
               </div>
-            ) : null}
-          </div>
-          <div className="space-y-3 lg:col-start-1">
-            <div className="flex items-center justify-around rounded-[1.4rem] bg-surface px-2 py-3 shadow-card md:justify-start md:gap-10 md:px-8">
-              <ToolButton icon={Camera} label="Snapshot" onClick={() => selected && capture(selected)} />
-              <ToolButton icon={Maximize2} label="Fullscreen" onClick={() => selected && requestFullscreen(selected)} />
-              <ToolButton
-                icon={layout === "grid" ? Square : Grid2x2}
-                label={layout === "grid" ? "Single" : "Grid view"}
-                onClick={() => setLayout((current) => (current === "grid" ? "single" : "grid"))}
-              />
-              <ToolButton icon={muted ? VolumeX : Volume2} label="Sound" onClick={() => setMuted((value) => !value)} />
-            </div>
-            <p className="rounded-[1.2rem] bg-primary-50 px-4 py-3 text-center text-caption text-ink-600 md:hidden">
-              🔒 Only you can view · ends at check-out
-            </p>
+            )}
           </div>
         </div>
         <p className="sr-only">At most {MAX_OWNER_SESSIONS_PER_CAMERA} live viewer sessions per camera.</p>

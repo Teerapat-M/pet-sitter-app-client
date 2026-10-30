@@ -1,5 +1,6 @@
 "use client";
 
+import Navbar from "@/components/Navbar";
 import OwnerBoardingBookingDetail from "@/components/cctv/OwnerBoardingBookingDetail";
 import OwnerCctvView from "@/components/cctv/OwnerCctvView";
 import SitterCameraDashboard from "@/components/cctv/SitterCameraDashboard";
@@ -12,9 +13,18 @@ import {
   PREVIEW_SITTER_CAMERAS,
 } from "@/lib/cctvPreview";
 
+function withOwnerChrome(node) {
+  return (
+    <>
+      <Navbar />
+      {node}
+    </>
+  );
+}
+
 export default function CctvFramesClient({ frame = "08" }) {
   if (frame === "09") {
-    return (
+    return withOwnerChrome(
       <OwnerCctvView
         booking={PREVIEW_BOARDING}
         bookingId={PREVIEW_BOARDING.id}
@@ -22,7 +32,7 @@ export default function CctvFramesClient({ frame = "08" }) {
           cameras: PREVIEW_OFFLINE_CAMERAS,
           access: { ...PREVIEW_ACCESS, canView: false },
         }}
-      />
+      />,
     );
   }
   if (frame === "13") {
@@ -48,18 +58,18 @@ export default function CctvFramesClient({ frame = "08" }) {
     );
   }
   if (frame === "18d") {
-    return (
+    return withOwnerChrome(
       <OwnerBoardingBookingDetail
         booking={PREVIEW_BOARDING}
         preview={{ cameras: PREVIEW_LIVE_CAMERAS, access: PREVIEW_ACCESS }}
-      />
+      />,
     );
   }
-  return (
+  return withOwnerChrome(
     <OwnerCctvView
       booking={PREVIEW_BOARDING}
       bookingId={PREVIEW_BOARDING.id}
       preview={{ cameras: PREVIEW_LIVE_CAMERAS, access: PREVIEW_ACCESS }}
-    />
+    />,
   );
 }

@@ -82,7 +82,9 @@ function NavLink({ href, label, pathname, onClick }) {
   const active =
     href === "/find-sitter"
       ? pathname.startsWith("/find-sitter")
-      : pathname === href || pathname.startsWith(`${href}/`);
+      : href === "/owner/bookings"
+        ? pathname.startsWith("/owner/bookings") || pathname.startsWith("/owner/cctv")
+        : pathname === href || pathname.startsWith(`${href}/`);
   return (
     <Link
       href={href}

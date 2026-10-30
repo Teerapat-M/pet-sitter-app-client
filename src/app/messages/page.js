@@ -96,6 +96,7 @@ function MessagesView() {
   currentUserIdRef.current = currentUserId;
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const didAutoOpen = useRef(false);
 
   const activeConversation = useMemo(
     () => conversations.find((item) => sameId(item.id, activeId)) ?? null,
@@ -138,6 +139,7 @@ function MessagesView() {
   useEffect(() => {
     if (!getToken()) {
       router.replace("/login");
+      setLoading(false);
       return;
     }
 
@@ -160,6 +162,14 @@ function MessagesView() {
       cancelled = true;
     };
   }, [loadConversations, router]);
+
+  useEffect(() => {
+    if (loading || activeId || didAutoOpen.current || conversations.length === 0) return;
+    const desktop = window.matchMedia("(min-width: 768px)").matches;
+    if (!desktop) return;
+    didAutoOpen.current = true;
+    router.replace(`/messages?id=${conversations[0].id}`);
+  }, [activeId, conversations, loading, router]);
 
   useEffect(() => {
     if (!activeId || !getToken()) {

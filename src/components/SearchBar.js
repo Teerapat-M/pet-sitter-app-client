@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, MapPin, PawPrint } from "lucide-react";
 
 export default function SearchBar({
-  defaultLocation = "",
-  defaultDate = "",
+  defaultLocation = "Ari, Bangkok",
+  defaultDate = "2026-11-14",
   defaultPets = "1 dog",
   actionLabel = "Search",
-  compact = false,
 }) {
   const router = useRouter();
   const [location, setLocation] = useState(defaultLocation);
@@ -29,11 +28,7 @@ export default function SearchBar({
   return (
     <form
       onSubmit={handleSearch}
-      className={`flex w-full flex-col gap-2 bg-surface p-2 shadow-card ${
-        compact
-          ? "rounded-card"
-          : "rounded-full lg:flex-row lg:items-center"
-      }`}
+      className="flex w-full flex-col gap-2 rounded-full bg-surface p-2 shadow-card lg:flex-row lg:items-center"
     >
       <label className="flex min-h-12 flex-1 items-center gap-2 rounded-full px-4">
         <MapPin className="size-4 shrink-0 text-primary" aria-hidden />

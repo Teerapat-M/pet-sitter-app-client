@@ -1,27 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CalendarDays, PawPrint } from "lucide-react";
 import { toast } from "sonner";
 import Icon from "./Icon";
 import Pagination from "./Pagination";
-import { createConversation, getProfile, getSitter, getSitterAvailability, getSitterReviews } from "@/lib/api";
+import { getMyPets, getProfile, getSitter, getSitterAvailability, getSitterReviews } from "@/lib/api";
 import BookingDateTimeModal from "@/components/booking/BookingDateTimeModal";
-
-const Map = dynamic(() => import("@/components/Map"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-72 w-full animate-pulse rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 font-medium">
-      กำลังโหลดแผนที่...
-    </div>
-  ),
-});
-
-import { getToken, getUser } from "@/lib/auth";
-import { getSitterCoords } from "@/lib/sitterLocation";
+import { getUser } from "@/lib/auth";
 import {
   bookingRangeOverlapsBooked,
   combineBookingDateTime,
@@ -32,13 +21,9 @@ import {
 import { MONTHS } from "@/components/booking/BookingCalendarPicker";
 import { errorToastClassNames } from "@/lib/toastStyles";
 import { isOwnerProfileComplete } from "@/utils/validateProfile";
-
-const PET_BADGE = {
-  dog: "badge-dog",
-  cat: "badge-cat",
-  bird: "badge-bird",
-  rabbit: "badge-rabbit",
-};
+import { SERVICES, quoteBooking } from "@/lib/services";
+import { getFallbackSitter } from "@/lib/sitterCard";
+import CctvBadge from "@/components/CctvBadge";
 
 function isRemoteSrc(src) {
   return String(src ?? "").startsWith("http");
@@ -107,8 +92,8 @@ function normalizeSitter(raw) {
     photos: collectPhotos(raw),
     introduction: firstString(raw.introduction),
     services: firstString(raw.services),
-    myPlace: firstString(raw.myPlace, raw.my_place),
     experience: formatExperience(raw.experience ?? raw.experience_years ?? raw.experienceYears),
+    cameraCount: Number(raw.camera_count ?? raw.cameraCount ?? raw.cameras?.length ?? 0) || 0,
     latitude: raw.latitude,
     longitude: raw.longitude,
   };
@@ -249,135 +234,230 @@ function LoginRequiredModal({ onClose, onLogin }) {
   );
 }
 
-function wrapPhotos(photos, start, count) {
-  const length = photos.length;
-  if (!length || count <= 0) return [];
-  return Array.from({ length: count }, (_, index) => {
-    const next = ((start + index) % length + length) % length;
-    return photos[next];
-  });
+function formatChipDate(iso) {
+  const date = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function Gallery({ photos, title }) {
-  const total = photos.length;
-  const [isLg, setIsLg] = useState(false);
-  const [offset, setOffset] = useState(photos.length > 1 ? 1 : 0);
-  const [animated, setAnimated] = useState(true);
-  const locked = useRef(false);
+function CoverPhoto({ src, title }) {
+  return (
+    <div className="relative flex min-h-56 items-center justify-center overflow-hidden rounded-tile bg-[#ffd7b8] lg:min-h-[22rem]">
+      {src ? (
+        <Image
+          src={src}
+          alt={title}
+          fill
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          className="object-cover"
+          priority
+          unoptimized={isRemoteSrc(src)}
+        />
+      ) : (
+        <p className="text-label text-primary-600">🐾 Large pet photo</p>
+      )}
+    </div>
+  );
+}
 
-  useEffect(() => {
-    const media = window.matchMedia("(min-width: 1024px)");
-    const sync = () => setIsLg(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
-
-  const visibleCount = isLg ? 3 : 1;
-  const canLoop = total > 1 && total >= visibleCount;
-  const cloneCount = canLoop ? visibleCount : 0;
-  const start = cloneCount;
-  const slides = canLoop
-    ? [
-        ...wrapPhotos(photos, total - cloneCount, cloneCount),
-        ...photos,
-        ...wrapPhotos(photos, 0, cloneCount),
-      ]
-    : photos;
-  const centered = isLg && total > 0 && total < visibleCount;
-
-  useEffect(() => {
-    setAnimated(false);
-    setOffset(start);
-    locked.current = false;
-  }, [start]);
-
-  if (total === 0) return null;
-
-  const go = (step) => {
-    if (!canLoop || locked.current) return;
-    locked.current = true;
-    setAnimated(true);
-    setOffset((value) => value + step);
-  };
-
-  const handleTransitionEnd = (event) => {
-    if (event.target !== event.currentTarget) return;
-    if (!canLoop) {
-      locked.current = false;
-      return;
-    }
-    if (offset >= start + total) {
-      setAnimated(false);
-      setOffset(start);
-    } else if (offset < start) {
-      setAnimated(false);
-      setOffset(start + total - 1);
-    }
-    locked.current = false;
-  };
+function GalleryThumbs({ photos }) {
+  const extras = photos.slice(1);
+  const extraCount = Math.max(0, photos.length - 2);
+  const items = [
+    { src: extras[0], label: "Garden", tint: "#ffd7b8", className: "row-span-2 min-h-[7.5rem]" },
+    { src: extras[1], label: "", tint: "#d7f3ea", className: "min-h-[3.5rem]" },
+    {
+      src: extras[2],
+      label: extraCount > 1 ? `+${extraCount} photos` : "+12 photos",
+      tint: "#ffe9b5",
+      className: "min-h-[3.5rem]",
+    },
+  ];
 
   return (
-    <div className="relative w-full pt-0">
-      <div className="relative overflow-hidden">
+    <div className="grid h-44 grid-cols-2 grid-rows-2 gap-3">
+      {items.map((item) => (
         <div
-          className={`flex ${animated ? "transition-transform duration-500 ease-out" : ""} ${
-            centered ? "mx-auto" : ""
-          }`}
-          style={{
-            width: `${(slides.length / visibleCount) * 100}%`,
-            transform: canLoop ? `translateX(-${(offset / slides.length) * 100}%)` : undefined,
-          }}
-          onTransitionEnd={handleTransitionEnd}
+          key={`${item.tint}-${item.label}`}
+          className={`relative flex items-end overflow-hidden rounded-2xl p-3 text-caption font-semibold text-primary-600 ${item.className}`}
+          style={{ backgroundColor: item.tint }}
         >
-          {slides.map((src, slideIndex) => (
-            <div
-              key={`${src}-${slideIndex}`}
-              className="relative h-72 shrink-0 px-1 lg:h-96"
-              style={{ width: `${100 / slides.length}%` }}
-            >
-              <div className="relative h-full overflow-hidden rounded-tile">
-                <Image
-                  src={src}
-                  alt={`${title} photo ${slideIndex + 1}`}
-                  fill
-                  sizes={isLg ? "33vw" : "100vw"}
-                  className="object-cover object-[50%_30%]"
-                  priority={slideIndex < visibleCount + start}
-                  unoptimized={isRemoteSrc(src)}
-                />
-              </div>
-            </div>
-          ))}
+          {item.src ? (
+            <Image
+              src={item.src}
+              alt={item.label || "Sitter photo"}
+              fill
+              sizes="160px"
+              className="object-cover"
+              unoptimized={isRemoteSrc(item.src)}
+            />
+          ) : null}
+          {item.label.startsWith("+") ? (
+            <span className="relative z-10 ml-auto rounded-full bg-ink-900 px-2.5 py-1 text-[11px] font-bold text-white">
+              {item.label}
+            </span>
+          ) : item.label ? (
+            <span className="relative z-10 text-caption font-semibold text-primary-600">
+              🪴 {item.label}
+            </span>
+          ) : null}
         </div>
+      ))}
+    </div>
+  );
+}
 
-        {canLoop && (
-          <>
-            <button
-              type="button"
-              onClick={() => go(-1)}
-              className="absolute top-1/2 left-4 z-10 flex size-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white text-gray-400 shadow-(--shadow-card) transition-colors hover:text-orange-500 lg:left-6"
-              aria-label="Previous photo"
-            >
-              <Icon src="/icon/chevron-left.svg" className="h-6 w-6" />
-            </button>
-            <button
-              type="button"
-              onClick={() => go(1)}
-              className="absolute top-1/2 right-4 z-10 flex size-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white text-gray-400 shadow-(--shadow-card) transition-colors hover:text-orange-500 lg:right-6"
-              aria-label="Next photo"
-            >
-              <Icon src="/icon/chevron-right.svg" className="h-6 w-6" />
-            </button>
-          </>
-        )}
+function CctvPanel({ name }) {
+  return (
+    <div className="rounded-tile bg-accent-50 p-4">
+      <p className="text-label text-accent-700">CCTV at {name}&apos;s place</p>
+      <p className="mt-1 text-body-2 text-ink-600">
+        Watch your pet live during the stay.
+      </p>
+      <div className="mt-3 flex gap-2">
+        {["Play room", "Garden", "Bedroom"].map((room) => (
+          <div
+            key={room}
+            className="flex h-16 flex-1 items-end rounded-xl bg-ink-900 p-2 text-caption text-white"
+          >
+            {room}
+          </div>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function BookingCard({
+  firstName,
+  serviceId,
+  onService,
+  startDate,
+  endDate,
+  onStartDate,
+  onEndDate,
+  petName,
+  petOptions,
+  onPet,
+  bookingChecking,
+  isOwnSitter,
+  onBook,
+}) {
+  const quote = quoteBooking(serviceId, startDate, endDate);
+
+  return (
+    <div className="rounded-card bg-surface p-5 shadow-card">
+      <h2 className="text-h3">Book {firstName}</h2>
+      <div className="mt-4 flex gap-2">
+        {SERVICES.map((service) => {
+          const active = service.id === serviceId;
+          return (
+            <button
+              key={service.id}
+              type="button"
+              data-service={service.id}
+              onClick={() => onService(service.id)}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-2 text-[11px] font-bold ${
+                active ? "bg-primary text-white" : "border border-line bg-surface text-ink-600"
+              }`}
+            >
+              <span aria-hidden>{service.icon}</span>
+              {service.tabLabel}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="relative mt-3">
+        <div className="flex min-h-12 items-center gap-2 rounded-full border border-line px-4">
+          <CalendarDays className="size-4 shrink-0 text-ink-400" aria-hidden />
+          <span className="text-body-2 font-semibold text-ink-900">
+            {formatChipDate(startDate)} → {formatChipDate(endDate)}
+          </span>
+        </div>
+        <div className="absolute inset-0 grid grid-cols-2">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(event) => onStartDate(event.target.value)}
+            aria-label="Start date"
+            className="cursor-pointer opacity-0"
+          />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(event) => onEndDate(event.target.value)}
+            aria-label="End date"
+            className="cursor-pointer opacity-0"
+          />
+        </div>
+      </div>
+
+      <label className="mt-3 flex min-h-12 items-center gap-2 rounded-full border border-line px-4">
+        <PawPrint className="size-4 shrink-0 text-ink-400" aria-hidden />
+        {petOptions.length > 0 ? (
+          <select
+            value={petName}
+            onChange={(event) => onPet(event.target.value)}
+            className="w-full bg-transparent text-body-2 font-semibold text-ink-900 outline-none"
+            aria-label="Pet"
+          >
+            {petOptions.map((pet) => (
+              <option key={pet} value={pet}>
+                {pet}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            value={petName}
+            onChange={(event) => onPet(event.target.value)}
+            className="w-full bg-transparent text-body-2 font-semibold text-ink-900 outline-none"
+            aria-label="Pet"
+          />
+        )}
+      </label>
+
+      <div className="mt-4 flex items-center justify-between text-body-2">
+        <span className="text-ink-600">{quote.line}</span>
+        <span className="text-h4 text-ink-900">฿{quote.total.toLocaleString("en-US")}</span>
+      </div>
+
+      <button
+        type="button"
+        className="btn btn-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={onBook}
+        disabled={bookingChecking || isOwnSitter}
+      >
+        {bookingChecking ? "Checking..." : "Book now"}
+      </button>
+      {isOwnSitter ? (
+        <p className="mt-3 text-caption text-ink-400">
+          You cannot book your own sitter profile
+        </p>
+      ) : null}
     </div>
   );
 }
 
 const REVIEW_PAGE_SIZE = 5;
 const RATING_FILTERS = [5, 4, 3, 2, 1];
+const FALLBACK_REVIEWS = [
+  {
+    id: "demo-anna",
+    name: "Anna & Mochi",
+    rating: 5,
+    comment: "Loved the live camera — so reassuring!",
+    date: "",
+  },
+  {
+    id: "demo-ken",
+    name: "Ken & Bobo",
+    rating: 5,
+    comment: "Great walks, GPS map was spot on.",
+    date: "",
+  },
+];
 
 function formatReviewDate(value) {
   if (!value) return "";
@@ -423,8 +503,9 @@ function FilterStars({ count }) {
 }
 
 function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const demo = String(sitterId).startsWith("demo-");
+  const [reviews, setReviews] = useState(demo ? FALLBACK_REVIEWS : []);
+  const [loading, setLoading] = useState(!demo);
   const [ratingFilter, setRatingFilter] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -437,7 +518,7 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
+      if (!String(sitterId).startsWith("demo-")) setLoading(true);
       try {
         const result = await getSitterReviews(sitterId, {
           page,
@@ -456,8 +537,14 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
         });
       } catch {
         if (!cancelled) {
-          setReviews([]);
-          setTotalPages(0);
+          if (String(sitterId).startsWith("demo-")) {
+            setReviews(FALLBACK_REVIEWS);
+            setSummary({ ratingAvg: Number(ratingAvg) || 4.9, reviewCount: Number(reviewCount) || 212 });
+            setTotalPages(0);
+          } else {
+            setReviews([]);
+            setTotalPages(0);
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -601,25 +688,55 @@ function ReviewsSection({ sitterId, ratingAvg, reviewCount }) {
 
 export default function PetSitterDetail({ sitterId }) {
   const router = useRouter();
-  const [sitter, setSitter] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const fallback = getFallbackSitter(sitterId);
+  const [sitter, setSitter] = useState(() =>
+    fallback ? normalizeSitter(fallback) : null,
+  );
+  const [loading, setLoading] = useState(() => !fallback);
   const [error, setError] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
+  const isLoggedIn = useSyncExternalStore(
+    (callback) => {
+      window.addEventListener("auth-changed", callback);
+      return () => window.removeEventListener("auth-changed", callback);
+    },
+    () => Boolean(getUser()),
+    () => false,
+  );
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingChecking, setBookingChecking] = useState(false);
+  const [serviceId, setServiceId] = useState("boarding");
+  const [startDate, setStartDate] = useState("2026-11-12");
+  const [endDate, setEndDate] = useState("2026-11-15");
+  const [petName, setPetName] = useState("Bobo");
+  const [petOptions, setPetOptions] = useState([]);
   const [booking, setBooking] = useState({
-    startDate: "",
-    endDate: "",
+    startDate: "2026-11-12",
+    endDate: "2026-11-15",
     startTime: "",
     endTime: "",
   });
   const [bookedSlots, setBookedSlots] = useState([]);
 
   useEffect(() => {
-    setIsLoggedIn(Boolean(getUser()));
+    if (!getUser()) return;
+    let cancelled = false;
+    getMyPets()
+      .then((pets) => {
+        if (cancelled) return;
+        const names = (Array.isArray(pets) ? pets : [])
+          .map((pet) => String(pet?.name ?? "").trim())
+          .filter(Boolean);
+        if (names.length) {
+          setPetOptions(names);
+          setPetName(names[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -645,15 +762,21 @@ export default function PetSitterDetail({ sitterId }) {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
+      const seed = getFallbackSitter(sitterId);
+      if (!seed) setLoading(true);
       setError("");
       try {
         const data = await getSitter(sitterId);
         if (!cancelled) setSitter(normalizeSitter(data));
       } catch (err) {
         if (!cancelled) {
-          setSitter(null);
-          setError(err instanceof Error ? err.message : "Failed to load pet sitter");
+          if (seed) {
+            setSitter(normalizeSitter(seed));
+            setError("");
+          } else {
+            setSitter(null);
+            setError(err instanceof Error ? err.message : "Failed to load pet sitter");
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -665,26 +788,6 @@ export default function PetSitterDetail({ sitterId }) {
       cancelled = true;
     };
   }, [sitterId]);
-
-  async function handleSendMessage() {
-    if (!getToken()) {
-      router.push("/login");
-      return;
-    }
-    if (!sitter?.id || sendingMessage) return;
-
-    setSendingMessage(true);
-    try {
-      const conversation = await createConversation(sitter.id);
-      router.push(`/messages?id=${conversation.id}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to start chat", {
-        classNames: errorToastClassNames,
-      });
-    } finally {
-      setSendingMessage(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -707,8 +810,11 @@ export default function PetSitterDetail({ sitterId }) {
     );
   }
 
-  const pinCoords = getSitterCoords(sitter);
   const isOwnSitter = isOwnSitterListing(sitter.id ?? sitterId);
+  const firstName = (sitter.sitterName || sitter.title || "this sitter").split(" ")[0];
+  const cctvLabel = sitter.cameraCount
+    ? `CCTV · ${sitter.cameraCount} cameras`
+    : "CCTV · 3 cameras";
 
   function requireLogin(onAllowed) {
     if (isLoggedIn) {
@@ -745,6 +851,7 @@ export default function PetSitterDetail({ sitterId }) {
       });
       return;
     }
+    setBooking((current) => ({ ...current, startDate, endDate }));
     requireLogin(() => {
       void openBookingIfProfileComplete();
     });
@@ -837,25 +944,12 @@ export default function PetSitterDetail({ sitterId }) {
           ← Back to results
         </Link>
 
-        <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start">
+        <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:gap-6">
+          <CoverPhoto src={sitter.photos[0]} title={sitter.title} />
+          <GalleryThumbs photos={sitter.photos} />
+
           <div className="min-w-0">
-            <Gallery photos={sitter.photos} title={sitter.title} />
-
-            <div className="mt-6 rounded-tile bg-accent-50 p-4">
-              <p className="text-label text-accent-700">CCTV at {sitter.sitterName || sitter.title}&apos;s place</p>
-              <p className="mt-1 text-body-2 text-ink-600">
-                Watch your pet live during a boarding stay. Live cameras ship in a later phase.
-              </p>
-              <div className="mt-3 flex gap-2">
-                {["Play room", "Garden", "Bedroom"].map((name) => (
-                  <div key={name} className="flex h-16 flex-1 items-end rounded-xl bg-ink-900 p-2 text-caption text-white">
-                    {name}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <h1 className="mt-8 text-h1">{sitter.sitterName || sitter.title}</h1>
+            <h1 className="text-h1">{sitter.sitterName || sitter.title}</h1>
             <p className="mt-2 text-body-2 text-ink-600">
               ⭐ {sitter.ratingAvg?.toFixed?.(1) ?? sitter.rating}{" "}
               {sitter.reviewCount ? `(${sitter.reviewCount} reviews)` : ""}
@@ -863,17 +957,14 @@ export default function PetSitterDetail({ sitterId }) {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="badge badge-verified">✓ Verified</span>
-              <span className="badge-cctv badge">
-                <span className="size-1.5 rounded-full bg-live" aria-hidden />
-                CCTV
-              </span>
+              <CctvBadge label={cctvLabel} />
             </div>
 
-            {sitter.introduction && (
+            {sitter.introduction ? (
               <p className="mt-4 whitespace-pre-line text-body-2 text-ink-600">
                 {sitter.introduction}
               </p>
-            )}
+            ) : null}
 
             <section className="mt-8">
               <h2 className="text-h3">Services</h2>
@@ -881,48 +972,16 @@ export default function PetSitterDetail({ sitterId }) {
                 <p className="mt-2 whitespace-pre-line text-body-2 text-ink-600">{sitter.services}</p>
               ) : null}
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-card border border-line bg-surface p-4">
-                  <p className="font-bold">🏠 Boarding</p>
-                  <p className="mt-1 text-label text-primary">Ask on booking</p>
-                </div>
-                <div className="rounded-card border border-line bg-surface p-4">
-                  <p className="font-bold">🐕 Dog walking</p>
-                  <p className="mt-1 text-label text-primary">Ask on booking</p>
-                </div>
-                <div className="rounded-card border border-line bg-surface p-4">
-                  <p className="font-bold">🧳 In-home</p>
-                  <p className="mt-1 text-label text-primary">Ask on booking</p>
-                </div>
+                {SERVICES.map((service) => (
+                  <div key={service.id} className="rounded-card border border-line bg-surface p-4">
+                    <p className="font-bold">
+                      {service.icon} {service.tabLabel === "Walking" ? "Dog walking" : service.tabLabel}
+                    </p>
+                    <p className="mt-1 text-label text-primary">{service.profilePrice}</p>
+                  </div>
+                ))}
               </div>
             </section>
-
-            {sitter.myPlace && (
-              <section className="mt-8">
-                <h2 className="text-h3">My place</h2>
-                <p className="mt-2 whitespace-pre-line text-body-2 text-ink-600">{sitter.myPlace}</p>
-              </section>
-            )}
-
-            {(sitter.location || sitter.latitude) && (
-              <section className="mt-8 overflow-hidden rounded-card border border-line">
-                <div className="relative h-72 w-full bg-primary-50">
-                  <Map
-                    center={pinCoords}
-                    zoom={15}
-                    selectedId={sitter.id}
-                    markers={[
-                      {
-                        id: sitter.id,
-                        position: pinCoords,
-                        popup: sitter.title || sitter.sitter_name || "Pet Sitter",
-                        isSelected: true,
-                      },
-                    ]}
-                    className="h-full w-full z-0"
-                  />
-                </div>
-              </section>
-            )}
 
             <div className="mt-8">
               <ReviewsSection
@@ -933,39 +992,24 @@ export default function PetSitterDetail({ sitterId }) {
             </div>
           </div>
 
-          <aside className="hidden lg:sticky lg:top-24 lg:block">
-            <div className="rounded-card bg-surface p-5 shadow-card">
-              <h2 className="text-h3">Book {sitter.sitterName?.split(" ")[0] || "this sitter"}</h2>
-              {sitter.petTypes.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {sitter.petTypes.map((type) => (
-                    <span key={type} className={`badge ${PET_BADGE[type] ?? ""}`}>
-                      {type}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                className="btn btn-primary mt-5 w-full disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={handleBookNow}
-                disabled={bookingChecking || isOwnSitter}
-              >
-                {bookingChecking ? "Checking..." : "Book now"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary mt-3 w-full"
-                onClick={() => requireLogin(handleSendMessage)}
-                disabled={sendingMessage}
-              >
-                {sendingMessage ? "Opening..." : "Message sitter"}
-              </button>
-              {isOwnSitter ? (
-                <p className="mt-3 text-caption text-ink-400">
-                  You cannot book your own sitter profile
-                </p>
-              ) : null}
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
+            <CctvPanel name={sitter.sitterName || sitter.title} />
+            <div className="hidden lg:block">
+              <BookingCard
+                firstName={firstName}
+                serviceId={serviceId}
+                onService={setServiceId}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDate={setStartDate}
+                onEndDate={setEndDate}
+                petName={petName}
+                petOptions={petOptions}
+                onPet={setPetName}
+                bookingChecking={bookingChecking}
+                isOwnSitter={isOwnSitter}
+                onBook={handleBookNow}
+              />
             </div>
           </aside>
         </div>

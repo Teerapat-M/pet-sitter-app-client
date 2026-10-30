@@ -12,6 +12,12 @@ import { getSitters } from "@/lib/api";
 import { getSitterCoords } from "@/lib/sitterLocation";
 import { SERVICES } from "@/lib/services";
 import { cn } from "@/lib/utils";
+import {
+    FALLBACK_PET_TYPES,
+    countsFromSearchParams,
+    formatPetsSummary,
+    parsePetCounts,
+} from "@/lib/petSearch";
 
 const Map = dynamic(() => import("@/components/Map"), {
     ssr: false,
@@ -38,6 +44,15 @@ function parsePetTypes(value) {
         .split(",")
         .map((item) => item.trim().toLowerCase())
         .filter((item) => PET_OPTIONS.some((pet) => pet.id === item));
+}
+
+function countsForSelectedPets(petTypes, petCountsValue) {
+    const existing = parsePetCounts(petCountsValue);
+    const counts = {};
+    petTypes.forEach((id) => {
+        counts[id] = Math.max(1, Number(existing[id]) || 1);
+    });
+    return counts;
 }
 
 function parseRatings(value) {
@@ -159,9 +174,19 @@ export default function PetSitterList() {
         if (next.experience) params.set("experience", experienceToQuery(next.experience));
         if (next.service) params.set("service", next.service);
         const date = searchParams.get("date");
-        const pets = searchParams.get("pets");
         if (date) params.set("date", date);
-        if (pets) params.set("pets", pets);
+        const petCounts = countsForSelectedPets(
+            next.petTypes,
+            searchParams.get("petCounts"),
+        );
+        const petsSummary = formatPetsSummary(petCounts, FALLBACK_PET_TYPES);
+        if (petsSummary) params.set("pets", petsSummary);
+        if (next.petTypes.length) {
+            params.set(
+                "petCounts",
+                next.petTypes.map((id) => `${id}:${petCounts[id]}`).join(","),
+            );
+        }
         if (next.page > 1) params.set("page", String(next.page));
 
         const queryString = params.toString();
@@ -216,7 +241,15 @@ export default function PetSitterList() {
 
     const locationLabel = searchParams.get("q") || "Ari, Bangkok";
     const dateLabel = searchParams.get("date") || "Any dates";
-    const petsLabel = searchParams.get("pets") || "Any pets";
+    const petsLabel =
+        searchParams.get("pets") ||
+        formatPetsSummary(
+            countsFromSearchParams({
+                petCounts: searchParams.get("petCounts"),
+                pets: searchParams.get("pets"),
+            }),
+        ) ||
+        "Any pets";
     const serviceLabel = SERVICES.find((item) => item.id === service)?.label || "sitters";
 
     return (
@@ -224,11 +257,12 @@ export default function PetSitterList() {
             <div className="psp-container py-6 md:py-10">
                 <h1 className="text-h1">Find a sitter</h1>
 
-                <div className="mt-4 hidden md:block">
+                <div className="mt-4">
                     <SearchBar
                         defaultLocation={searchParams.get("q") ?? ""}
                         defaultDate={searchParams.get("date") ?? ""}
-                        defaultPets={searchParams.get("pets") ?? "1 dog"}
+                        defaultPets={searchParams.get("pets") ?? ""}
+                        defaultPetCounts={searchParams.get("petCounts") ?? ""}
                         actionLabel="Update"
                     />
                 </div>

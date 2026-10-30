@@ -1,26 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, MapPin, PawPrint } from "lucide-react";
+import { CalendarDays, MapPin } from "lucide-react";
+import { getPetTypes } from "@/lib/api";
+import {
+  FALLBACK_PET_TYPES,
+  countsFromSearchParams,
+  serializePetSearchQuery,
+} from "@/lib/petSearch";
+import PetsPicker from "./PetsPicker";
+
+const PRESERVED_SEARCH_KEYS = ["rating", "experience", "service"];
 
 export default function SearchBar({
   defaultLocation = "Ari, Bangkok",
   defaultDate = "2026-11-14",
-  defaultPets = "1 dog",
+  defaultPets = "",
+  defaultPetCounts = "",
   actionLabel = "Search",
 }) {
   const router = useRouter();
   const [location, setLocation] = useState(defaultLocation);
   const [date, setDate] = useState(defaultDate);
-  const [pets, setPets] = useState(defaultPets);
+  const [types, setTypes] = useState(FALLBACK_PET_TYPES);
+  const [counts, setCounts] = useState(() =>
+    countsFromSearchParams({
+      petCounts: defaultPetCounts,
+      pets: defaultPets,
+    }),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    getPetTypes()
+      .then((list) => {
+        if (!cancelled && list.length) setTypes(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleSearch(event) {
     event.preventDefault();
-    const params = new URLSearchParams();
-    if (location.trim()) params.set("q", location.trim());
-    if (date) params.set("date", date);
-    if (pets.trim()) params.set("pets", pets.trim());
+    const params = serializePetSearchQuery({
+      q: location,
+      date,
+      counts,
+      types,
+    });
+
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/find-sitter")) {
+      const current = new URLSearchParams(window.location.search);
+      for (const key of PRESERVED_SEARCH_KEYS) {
+        const value = current.get(key);
+        if (value) params.set(key, value);
+      }
+    }
+
     const query = params.toString();
     router.push(query ? `/find-sitter?${query}` : "/find-sitter");
   }
@@ -28,7 +67,7 @@ export default function SearchBar({
   return (
     <form
       onSubmit={handleSearch}
-      className="flex w-full flex-col gap-2 rounded-full bg-surface p-2 shadow-card lg:flex-row lg:items-center"
+      className="relative z-20 flex w-full flex-col gap-2 rounded-full bg-surface p-2 shadow-card lg:flex-row lg:items-center"
     >
       <label className="flex min-h-12 flex-1 items-center gap-2 rounded-full px-4">
         <MapPin className="size-4 shrink-0 text-primary" aria-hidden />
@@ -52,16 +91,7 @@ export default function SearchBar({
         />
       </label>
       <span className="hidden h-8 w-px bg-line lg:block" aria-hidden />
-      <label className="flex min-h-12 flex-1 items-center gap-2 rounded-full px-4">
-        <PawPrint className="size-4 shrink-0 text-primary" aria-hidden />
-        <span className="sr-only">Pets</span>
-        <input
-          value={pets}
-          onChange={(event) => setPets(event.target.value)}
-          placeholder="1 dog"
-          className="w-full bg-transparent text-body-2 text-ink-900 outline-none placeholder:text-ink-400"
-        />
-      </label>
+      <PetsPicker types={types} counts={counts} onChange={setCounts} />
       <button type="submit" className="btn btn-primary min-w-32">
         {actionLabel}
       </button>

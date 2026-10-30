@@ -2,6 +2,11 @@
 // เรียก API ตาม NEXT_PUBLIC_API_URL จาก .env.example (local:4000 | prod: Render)
 import { clearAuth, getToken } from "@/lib/auth";
 import { onboardingSeenBody } from "@/lib/onboarding";
+import {
+  FALLBACK_PET_TYPES,
+  PET_TYPES_ENDPOINT,
+  normalizePetTypeList,
+} from "@/lib/petSearch";
 import { formatDate } from "@/utils/formatDateTime";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -83,6 +88,17 @@ export async function checkHealth() {
 export async function getUsers() {
   const json = await apiFetch("/api/users");
   return json.data ?? [];
+}
+
+export async function getPetTypes() {
+  try {
+    const json = await apiFetch(PET_TYPES_ENDPOINT);
+    const types = normalizePetTypeList(json);
+    if (types.length) return types;
+  } catch {
+    // Server has a pet_types table but no public catalog route yet.
+  }
+  return FALLBACK_PET_TYPES;
 }
 
 export async function getSitters({

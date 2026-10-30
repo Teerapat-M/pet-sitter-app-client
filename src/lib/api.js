@@ -9,6 +9,7 @@ import {
 } from "@/lib/petSearch";
 import { formatDate } from "@/utils/formatDateTime";
 import { toDateOnly } from "@/lib/booking";
+import { hasIceContext, icePath, iceServersFromResponse } from "@/lib/cctv";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -465,6 +466,101 @@ export async function getWalkPoints(bookingId, { afterId, limit = 2000 } = {}) {
 
 export function walkEventsPath(bookingId) {
   return `/api/bookings/${encodeURIComponent(bookingId)}/walk/events`;
+}
+
+export async function listSitterCameras() {
+  const json = await apiFetch("/api/sitters/cameras");
+  return Array.isArray(json.data) ? json.data : [];
+}
+
+export async function createSitterCamera(body) {
+  const json = await apiFetch("/api/sitters/cameras", { method: "POST", body });
+  return json.data;
+}
+
+export async function getSitterCamera(id) {
+  const json = await apiFetch(`/api/sitters/cameras/${encodeURIComponent(id)}`);
+  return json.data ?? null;
+}
+
+export async function patchSitterCamera(id, body) {
+  const json = await apiFetch(`/api/sitters/cameras/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body,
+  });
+  return json.data;
+}
+
+export async function deleteSitterCamera(id) {
+  const json = await apiFetch(`/api/sitters/cameras/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  return json.data;
+}
+
+export async function postSitterCameraHeartbeat(id) {
+  const json = await apiFetch(
+    `/api/sitters/cameras/${encodeURIComponent(id)}/heartbeat`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function postSitterCameraSignal(id, body) {
+  const json = await apiFetch(`/api/sitters/cameras/${encodeURIComponent(id)}/signal`, {
+    method: "POST",
+    body,
+  });
+  return json.data;
+}
+
+export function sitterCameraEventsPath() {
+  return "/api/sitters/cameras/events";
+}
+
+export async function getBookingCameras(bookingId) {
+  const json = await apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}/cameras`);
+  const data = json.data ?? { bookingId, access: { canView: false }, cameras: [] };
+  return {
+    ...data,
+    cameras: Array.isArray(data.cameras) ? data.cameras : [],
+  };
+}
+
+export async function postBookingCameraSignal(bookingId, cameraId, body) {
+  const json = await apiFetch(
+    `/api/bookings/${encodeURIComponent(bookingId)}/cameras/${encodeURIComponent(cameraId)}/signal`,
+    { method: "POST", body },
+  );
+  return json.data;
+}
+
+export function bookingCameraEventsPath(bookingId) {
+  return `/api/bookings/${encodeURIComponent(bookingId)}/cameras/events`;
+}
+
+export async function getIceServers({ cameraId, bookingId } = {}) {
+  if (!hasIceContext({ cameraId, bookingId })) {
+    const error = new Error("cameraId or bookingId is required");
+    error.status = 400;
+    throw error;
+  }
+  const json = await apiFetch(icePath({ cameraId, bookingId }));
+  return iceServersFromResponse(json);
+}
+
+export async function getSitterMe() {
+  const json = await apiFetch("/api/sitters/me");
+  return json.data ?? null;
+}
+
+export async function getSitterBookings({ status = "all", search = "", page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (search) params.set("search", search);
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+  return apiFetch(`/api/sitters/bookings?${params.toString()}`);
 }
 
 // บันทึกโปรไฟล์

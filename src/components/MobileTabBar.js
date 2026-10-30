@@ -45,6 +45,8 @@ const HIDDEN = [
   "/admin",
   "/sitter",
   "/owner/walks",
+  "/owner/cctv",
+  "/cctv-frames",
   "/privacy-policy",
   "/terms-of-service",
   "/data-deletion",

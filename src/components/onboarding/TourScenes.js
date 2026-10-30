@@ -39,7 +39,7 @@ export function TourCctvScene() {
           <p className="mt-1 text-caption text-white/70">
             Access until Sun 15 Nov, 12:00 · only you can watch
           </p>
-          <span className="mt-4 inline-flex h-10 items-center rounded-full bg-secondary px-4 text-caption font-bold text-white">
+          <span className="mt-4 inline-flex h-10 items-center rounded-full bg-secondary px-5 text-caption font-bold text-white">
             Watch CCTV
           </span>
         </div>

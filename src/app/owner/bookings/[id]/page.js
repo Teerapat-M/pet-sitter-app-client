@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import OwnerBoardingBookingDetail from "@/components/cctv/OwnerBoardingBookingDetail";
 import OwnerWalkBookingDetail from "@/components/walk/OwnerWalkBookingDetail";
 import { getOwnerBooking } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { isBoardingBooking } from "@/lib/cctv";
 import { isDogWalkingBooking } from "@/lib/walkTracking";
 
 export default function OwnerBookingDetailPage() {
@@ -52,6 +54,10 @@ export default function OwnerBookingDetailPage() {
         </Link>
       </div>
     );
+  }
+
+  if (isBoardingBooking(booking)) {
+    return <OwnerBoardingBookingDetail booking={booking} />;
   }
 
   if (!isDogWalkingBooking(booking)) {

@@ -11,7 +11,9 @@ import {
 
 export const SERVICE_TYPES = ["boarding", "dog_walking", "in_home"];
 export const WALK_DURATIONS = [30, 60];
+export const WALK_DURATION_MINUTES = [30, 45, 60];
 export const IN_HOME_MODES = ["visit", "overnight"];
+export const WALK_MODES = ["per_walk", "duration"];
 export const PAYMENT_METHODS = ["cash", "stripe"];
 
 export const BOOKING_STATUSES = [
@@ -37,6 +39,9 @@ export const BOOKING_STATUS_TONES = {
   completed: { text: "text-green", dot: "bg-green", color: "#1CCD83" },
   cancelled: { text: "text-red", dot: "bg-red", color: "#EA1010" },
 };
+
+export const IN_HOME_ADDRESS_REQUIRED_MESSAGE =
+  "Owner address is required for in-home care.";
 
 export const SERVICE_TYPE_LABELS = {
   boarding: "Boarding",
@@ -130,9 +135,12 @@ export function validateBookingForm(draft = {}) {
     if (!TIME_RE.test(trim(draft.startTime))) {
       errors.startTime = "Start time is required.";
     }
-    const minutes = Number(draft.durationMinutes);
-    if (!WALK_DURATIONS.includes(minutes)) {
-      errors.durationMinutes = "Choose a 30 or 60 minute walk.";
+    const walkMode = trim(draft.mode) === "per_walk" ? "per_walk" : "duration";
+    if (walkMode === "duration") {
+      const minutes = Number(draft.durationMinutes);
+      if (!WALK_DURATION_MINUTES.includes(minutes)) {
+        errors.durationMinutes = "Choose a walk duration this sitter offers.";
+      }
     }
     if (Array.isArray(draft.pets) && draft.pets.length) {
       const selected = draft.pets.filter((pet) => petIds.includes(String(pet.id)));
@@ -167,7 +175,7 @@ export function validateBookingForm(draft = {}) {
       }
     }
     if (draft.requireAddress && !trim(draft.ownerAddress)) {
-      errors.ownerAddress = "Owner address is required for in-home care.";
+      errors.ownerAddress = IN_HOME_ADDRESS_REQUIRED_MESSAGE;
     }
   }
 
@@ -194,10 +202,18 @@ export function shapeQuoteRequest(draft = {}) {
   }
 
   if (serviceType === "dog_walking") {
-    body.mode = "duration";
+    const walkMode = trim(draft.mode) === "per_walk" ? "per_walk" : "duration";
+    body.mode = walkMode;
     body.date = toDateOnly(draft.date);
     body.startTime = trim(draft.startTime);
-    body.durationMinutes = Number(draft.durationMinutes);
+    if (walkMode === "duration") {
+      body.durationMinutes = Number(draft.durationMinutes);
+    } else {
+      const minutes = Number(draft.durationMinutes);
+      if (WALK_DURATION_MINUTES.includes(minutes)) {
+        body.durationMinutes = minutes;
+      }
+    }
     return body;
   }
 
@@ -307,7 +323,7 @@ export function toBookingSearchParams(draft = {}) {
   return params;
 }
 
-export function draftForServiceType(draft = {}, serviceType) {
+export function draftForServiceType(draft = {}, serviceType, offerings) {
   const next = {
     sitterId: draft.sitterId,
     petIds: Array.isArray(draft.petIds) ? draft.petIds : toIdList(draft.petIds),
@@ -330,16 +346,36 @@ export function draftForServiceType(draft = {}, serviceType) {
   }
 
   if (serviceType === "dog_walking") {
-    next.mode = "duration";
+    const walkModes = offeredWalkModes(offerings);
+    const durations = offeredWalkDurations(offerings);
+    const requestedMode = trim(draft.mode);
+    const hasKnownWalks = Array.isArray(offerings) && offerings.length > 0;
+    const allowPerWalk = !hasKnownWalks || walkModes.includes("per_walk");
+    const allowDuration = !hasKnownWalks || walkModes.includes("duration");
+    const preferPerWalk =
+      requestedMode === "per_walk" || (!allowDuration && allowPerWalk);
+
     next.date = toDateOnly(draft.date) || toDateOnly(draft.checkIn);
     next.startTime = TIME_RE.test(trim(draft.startTime)) ? trim(draft.startTime) : "09:00";
-    next.durationMinutes = WALK_DURATIONS.includes(Number(draft.durationMinutes))
+
+    if (preferPerWalk && allowPerWalk) {
+      next.mode = "per_walk";
+      next.durationMinutes = "";
+      return next;
+    }
+
+    next.mode = "duration";
+    const allowedDurations = durations.length ? durations : WALK_DURATIONS;
+    next.durationMinutes = allowedDurations.includes(Number(draft.durationMinutes))
       ? Number(draft.durationMinutes)
-      : 30;
+      : allowedDurations[0];
     return next;
   }
 
-  const mode = trim(draft.mode) === "overnight" ? "overnight" : "visit";
+  const homeModes = offeredInHomeModes(offerings);
+  const requested = trim(draft.mode) === "overnight" ? "overnight" : "visit";
+  const mode =
+    homeModes.length && !homeModes.includes(requested) ? homeModes[0] : requested;
   next.mode = mode;
   if (mode === "overnight") {
     next.checkIn = toDateOnly(draft.checkIn);
@@ -402,6 +438,164 @@ export function bookingChatHref(booking) {
 function offeringAmount(item) {
   const amount = Number(item?.priceAmount ?? item?.price_amount ?? item?.price);
   return Number.isFinite(amount) ? amount : null;
+}
+
+function offeringType(item) {
+  return trim(item?.type ?? item?.serviceType ?? item?.service_type);
+}
+
+function offeringMode(item) {
+  return trim(item?.mode);
+}
+
+function offeringDuration(item) {
+  const minutes = Number(item?.durationMinutes ?? item?.duration_minutes);
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : null;
+}
+
+export function normalizeOfferings(offerings) {
+  return (Array.isArray(offerings) ? offerings : [])
+    .map((item) => {
+      const type = offeringType(item);
+      if (!SERVICE_TYPES.includes(type)) return null;
+      return {
+        type,
+        mode: offeringMode(item),
+        durationMinutes: offeringDuration(item),
+      };
+    })
+    .filter(Boolean);
+}
+
+export function hasOffering(offerings, serviceType, { mode = "", durationMinutes } = {}) {
+  const list = normalizeOfferings(offerings).filter((item) => item.type === serviceType);
+  if (!list.length) return false;
+
+  if (serviceType === "boarding") return true;
+
+  if (serviceType === "dog_walking") {
+    const walkMode = trim(mode) === "per_walk" ? "per_walk" : "duration";
+    if (walkMode === "per_walk") {
+      return list.some((item) => item.mode === "per_walk");
+    }
+    const minutes = Number(durationMinutes);
+    return list.some(
+      (item) =>
+        item.mode === "duration" &&
+        (durationMinutes == null || durationMinutes === ""
+          ? true
+          : item.durationMinutes === minutes),
+    );
+  }
+
+  if (serviceType === "in_home") {
+    const homeMode = trim(mode);
+    if (!homeMode) return false;
+    return list.some((item) => item.mode === homeMode);
+  }
+
+  return false;
+}
+
+export function offeredServiceTypes(offerings) {
+  const types = new Set(normalizeOfferings(offerings).map((item) => item.type));
+  return SERVICE_TYPES.filter((type) => types.has(type));
+}
+
+export function offeredWalkModes(offerings) {
+  const list = normalizeOfferings(offerings).filter((item) => item.type === "dog_walking");
+  return WALK_MODES.filter((mode) => list.some((item) => item.mode === mode));
+}
+
+export function offeredWalkDurations(offerings) {
+  const durations = normalizeOfferings(offerings)
+    .filter((item) => item.type === "dog_walking" && item.mode === "duration" && item.durationMinutes != null)
+    .map((item) => item.durationMinutes);
+  return [...new Set(durations)].sort((a, b) => a - b);
+}
+
+export function offeredInHomeModes(offerings) {
+  const list = normalizeOfferings(offerings).filter((item) => item.type === "in_home");
+  return IN_HOME_MODES.filter((mode) => list.some((item) => item.mode === mode));
+}
+
+export function firstOfferedService(offerings) {
+  const list = Array.isArray(offerings) ? offerings : [];
+  for (const item of list) {
+    const type = offeringType(item);
+    if (!SERVICE_TYPES.includes(type)) continue;
+    return {
+      type,
+      mode: offeringMode(item),
+      durationMinutes: offeringDuration(item),
+    };
+  }
+  return null;
+}
+
+export function canQuoteOffering(offerings, draft = {}) {
+  if (offerings == null) return true;
+  if (!Array.isArray(offerings) || offerings.length === 0) return false;
+  const serviceType = trim(draft.serviceType);
+  if (serviceType === "dog_walking") {
+    return hasOffering(offerings, "dog_walking", {
+      mode: trim(draft.mode) === "per_walk" ? "per_walk" : "duration",
+      durationMinutes: draft.durationMinutes,
+    });
+  }
+  if (serviceType === "in_home") {
+    return hasOffering(offerings, "in_home", { mode: draft.mode });
+  }
+  return hasOffering(offerings, serviceType);
+}
+
+export function defaultDraftFromOfferings(offerings, base = {}) {
+  const first = firstOfferedService(offerings);
+  if (!first) {
+    const serviceType = SERVICE_TYPES.includes(trim(base.serviceType))
+      ? base.serviceType
+      : "boarding";
+    return draftForServiceType(base, serviceType, offerings);
+  }
+  return draftForServiceType(
+    {
+      ...base,
+      serviceType: first.type,
+      mode: first.mode,
+      durationMinutes: first.durationMinutes ?? base.durationMinutes,
+    },
+    first.type,
+    offerings,
+  );
+}
+
+export function alignDraftToOfferings(draft = {}, offerings, { preferFirst = false } = {}) {
+  const list = Array.isArray(offerings) ? offerings : [];
+  if (!list.length) return draft;
+  if (!preferFirst && canQuoteOffering(list, draft)) return draft;
+
+  const types = offeredServiceTypes(list);
+  const currentType = trim(draft.serviceType);
+  if (!preferFirst && types.includes(currentType)) {
+    return {
+      ...draft,
+      ...draftForServiceType(draft, currentType, list),
+      petIds: draft.petIds,
+      ownerAddress: draft.ownerAddress,
+    };
+  }
+
+  const next = defaultDraftFromOfferings(list, draft);
+  return {
+    ...draft,
+    ...next,
+    petIds: draft.petIds,
+    ownerAddress: draft.ownerAddress,
+  };
+}
+
+export function inHomeAddressMissing(draft = {}) {
+  return trim(draft.serviceType) === "in_home" && !trim(draft.ownerAddress);
 }
 
 export function pickOffering(offerings, serviceType, { mode = "", durationMinutes } = {}) {
@@ -487,8 +681,9 @@ export function formatServiceDateTimeLabel(draft = {}, quote = null) {
 export function liveQuoteKey(sitterId, draft, enabled) {
   if (!enabled || !sitterId || !draft) return "";
   const next = { ...draft, sitterId };
-  const { ok } = validateBookingForm(next);
+  const { ok } = validateBookingForm({ ...next, requireAddress: false });
   if (!ok) return "";
+  if (!canQuoteOffering(next.serviceOfferings, next)) return "";
   return JSON.stringify(shapeQuoteRequest(next));
 }
 

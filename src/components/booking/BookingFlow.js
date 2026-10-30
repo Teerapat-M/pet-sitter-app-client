@@ -94,14 +94,16 @@ export default function BookingFlow({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [profileIncomplete, setProfileIncomplete] = useState(false);
+  const [serviceOfferings, setServiceOfferings] = useState([]);
   const quoteDraft = useMemo(() => {
     if (!phase3) return null;
     return {
       ...phase3,
       sitterId,
       petIds: selectedPetIds.length ? selectedPetIds : phase3.petIds,
+      serviceOfferings,
     };
-  }, [phase3, sitterId, selectedPetIds]);
+  }, [phase3, sitterId, selectedPetIds, serviceOfferings]);
   const liveQuote = useLiveQuote(sitterId, quoteDraft, Boolean(quoteDraft));
 
   useEffect(() => {
@@ -165,6 +167,13 @@ export default function BookingFlow({
           .filter((pet) => pet?.id && !pet.isSuspended);
 
         setSitter(nextSitter);
+        setServiceOfferings(
+          Array.isArray(sitterRaw.serviceOfferings)
+            ? sitterRaw.serviceOfferings
+            : Array.isArray(sitterRaw.service_offerings)
+              ? sitterRaw.service_offerings
+              : [],
+        );
         setPets(nextPets);
         setGuest(normalizeBookingGuest(profileRaw));
         setProfileIncomplete(!isOwnerProfileComplete(profileRaw));
@@ -176,6 +185,7 @@ export default function BookingFlow({
       } catch (err) {
         if (!cancelled) {
           setSitter(null);
+          setServiceOfferings([]);
           setPets([]);
           setGuest(EMPTY_GUEST);
           setProfileIncomplete(false);

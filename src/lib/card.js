@@ -1,15 +1,13 @@
 import { cn } from "./utils.js";
 
 /**
- * Shared card hover-lift. Tailwind 4 already gates `hover:` with
- * `@media (hover: hover)`, so touch devices do not get a sticky lift.
- * Translate and transition are `motion-safe:` so reduced-motion users
- * get no hover translate (Tailwind 4 `translate` is not reset by
- * `transform-none`).
+ * Shared card hover-lift. Visuals live in `globals.css` (`.card-lift`) so
+ * hover, :focus-visible, :focus-within, and reduced-motion stay in one place.
+ * `overflow-visible` wins over per-card `overflow-hidden` so the shadow is
+ * never clipped on the lifting root.
  */
-export const CARD_LIFT_CLASS =
-  "hover:shadow-lg motion-safe:transition-all motion-safe:duration-200 motion-safe:hover:-translate-y-1";
+export const CARD_LIFT_CLASS = "card-lift";
 
 export function cardClassName({ interactive = false, className } = {}) {
-  return cn(className, CARD_LIFT_CLASS, interactive && "cursor-pointer");
+  return cn(className, CARD_LIFT_CLASS, "overflow-visible", interactive && "cursor-pointer");
 }

@@ -8,6 +8,7 @@ import {
   formatWalkStatDistance,
   formatWalkSummary,
 } from "@/lib/walkTracking";
+import { Card } from "@/components/ui/card";
 import { WalkStatChips } from "@/components/walk/WalkUi";
 
 export default function WalkSummaryCard({
@@ -30,14 +31,14 @@ export default function WalkSummaryCard({
 
   if (compact) {
     return (
-      <div className="rounded-[1.25rem] border border-line bg-surface p-4">
+      <Card className="rounded-[1.25rem] border border-line bg-surface p-4">
         <p className="text-caption font-bold text-ink-400">{title}</p>
         <p className="mt-1 text-body-2 font-semibold text-ink-900">{line}</p>
         <p className="mt-1 text-caption text-ink-400">
           {formatWalkStatDistance(distance)} · {formatWalkDuration(duration)}
           {formatWalkPace(distance, duration) !== "—" ? ` · ${formatWalkPace(distance, duration)}` : ""}
         </p>
-      </div>
+      </Card>
     );
   }
 

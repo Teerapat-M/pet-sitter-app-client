@@ -89,11 +89,11 @@ export default function OwnerPetsPage() {
               <Card
                 as="article"
                 key={pet.id}
-                className={`overflow-hidden rounded-card bg-surface shadow-card ${
+                className={`rounded-card bg-surface shadow-card ${
                   pet.isSuspended ? "opacity-70" : ""
                 }`}
               >
-                <div className={`flex h-40 items-center justify-center ${TINTS[index % TINTS.length]}`}>
+                <div className={`flex h-40 items-center justify-center overflow-hidden rounded-t-card ${TINTS[index % TINTS.length]}`}>
                   {pet.image ? (
                     <img src={pet.image} alt="" className="size-full object-cover" />
                   ) : pet.type?.toLowerCase() === "dog" ? (

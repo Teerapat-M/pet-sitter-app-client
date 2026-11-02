@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getBookingCameras } from "@/lib/api";
+import { Card } from "@/components/ui/card";
 import {
   countLiveCameras,
   formatAvailableUntil,
@@ -51,9 +52,9 @@ export default function OwnerCctvBanner({ booking, preview }) {
   const fallbackThumbs = ["Play room", "Garden", "Bedroom"];
 
   return (
-    <div
+    <Card
       data-tour="cctv"
-      className="overflow-hidden rounded-[1.4rem] bg-[#2b2622] p-5 text-white shadow-card"
+      className="rounded-[1.4rem] bg-[#2b2622] p-5 text-white shadow-card"
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
@@ -85,6 +86,6 @@ export default function OwnerCctvBanner({ booking, preview }) {
           })}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

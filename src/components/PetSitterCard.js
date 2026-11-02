@@ -22,9 +22,9 @@ export default function PetSitterCard({ sitter, index = 0 }) {
       as={Link}
       interactive
       href={`/find-sitter/${card.id}`}
-      className="block overflow-hidden rounded-card bg-surface shadow-card"
+      className="block rounded-card bg-surface shadow-card"
     >
-      <div className="relative aspect-[16/11] overflow-hidden" style={{ backgroundColor: card.photoTint }}>
+      <div className="relative aspect-[16/11] overflow-hidden rounded-t-card" style={{ backgroundColor: card.photoTint }}>
         {card.photo ? (
           <img src={card.photo} alt="" className="size-full object-cover" />
         ) : (

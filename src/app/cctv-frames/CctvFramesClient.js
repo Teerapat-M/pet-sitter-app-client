@@ -23,6 +23,18 @@ function withOwnerChrome(node) {
 }
 
 export default function CctvFramesClient({ frame = "08" }) {
+  if (frame === "08-one") {
+    return withOwnerChrome(
+      <OwnerCctvView
+        booking={PREVIEW_BOARDING}
+        bookingId={PREVIEW_BOARDING.id}
+        preview={{
+          cameras: PREVIEW_LIVE_CAMERAS.slice(0, 1),
+          access: PREVIEW_ACCESS,
+        }}
+      />,
+    );
+  }
   if (frame === "09") {
     return withOwnerChrome(
       <OwnerCctvView

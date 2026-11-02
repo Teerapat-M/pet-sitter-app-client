@@ -15,6 +15,9 @@ import {
   isYoutubeCamera,
   normalizeAccess,
   normalizeCamera,
+  ownerAfterCamerasRowClass,
+  ownerCctvCameraGridClass,
+  ownerFeaturedPlacement,
   shouldStartWebrtc,
 } from "@/lib/cctv";
 import { useCameraEvents } from "@/lib/useCameraEvents";
@@ -24,29 +27,6 @@ import { walkBookingCode, walkFirstName, walkSitterName } from "@/lib/walkTracki
 function venueName(booking) {
   const sitter = walkFirstName(walkSitterName(booking));
   return sitter ? `${sitter}'s place` : "Live cameras";
-}
-
-function featuredPlacement(camera, selectedId, cameras) {
-  const others = cameras.filter((item) => item.id !== selectedId);
-  if (camera.id === selectedId) {
-    if (others.length >= 3) return "lg:col-start-1 lg:row-start-1 lg:row-span-3";
-    if (others.length === 2) return "lg:col-start-1 lg:row-start-1 lg:row-span-2";
-    if (others.length === 0) return "lg:col-span-2 lg:row-start-1";
-    return "lg:col-start-1 lg:row-start-1";
-  }
-  const index = others.findIndex((item) => item.id === camera.id);
-  if (index === 0) return "lg:col-start-2 lg:row-start-1";
-  if (index === 1) return "lg:col-start-2 lg:row-start-2";
-  if (index === 2) return "lg:col-start-2 lg:row-start-3";
-  return "lg:col-start-2";
-}
-
-function afterCamerasRowClass(selectedId, cameras) {
-  const others = cameras.filter((item) => item.id !== selectedId);
-  const row = Math.max(others.length, 1) + 1;
-  if (row === 4) return "lg:row-start-4";
-  if (row === 3) return "lg:row-start-3";
-  return "lg:row-start-2";
 }
 
 const SNAPSHOT_PLACEHOLDERS = ["#6b5e54", "#5c6560", "#6a5c50"];
@@ -140,6 +120,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
   }, []);
 
   function renderFeed(camera, { featured = false, className } = {}) {
+    const solo = cameras.length <= 1;
     const tile = (viewer = {}) => (
       <CameraTile
         camera={camera}
@@ -149,6 +130,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
         canView={canView}
         preview={Boolean(preview)}
         featured={featured}
+        solo={solo}
         muted={muted}
         className={className}
         onSelect={(item) => setSelectedId(item.id)}
@@ -203,19 +185,19 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
         <div
           className={cn(
             "mt-5 grid grid-cols-1 gap-3",
-            layout === "featured"
-              ? "lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-stretch lg:gap-x-4"
-              : "md:grid-cols-2",
+            ownerCctvCameraGridClass(layout),
           )}
         >
           {cameras.map((camera) => {
             const featured = layout === "featured" && camera.id === selected?.id;
+            const fillGrid = featured && cameras.length > 1;
             return (
               <div
                 key={camera.id}
                 className={cn(
                   "flex min-w-0 flex-col",
-                  layout === "featured" && featuredPlacement(camera, selected?.id, cameras),
+                  fillGrid && "h-full min-h-0",
+                  layout === "featured" && ownerFeaturedPlacement(camera, selected?.id, cameras),
                 )}
               >
                 {renderFeed(camera, { featured })}
@@ -225,7 +207,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
           <div
             className={cn(
               "space-y-3",
-              layout === "featured" && cn("lg:col-start-1", afterCamerasRowClass(selected?.id, cameras)),
+              layout === "featured" && cn("lg:col-start-1", ownerAfterCamerasRowClass(selected?.id, cameras)),
               layout === "grid" && "md:col-span-2",
             )}
           >
@@ -246,7 +228,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
           <div
             className={cn(
               "space-y-3",
-              layout === "featured" && cn("lg:col-start-2", afterCamerasRowClass(selected?.id, cameras)),
+              layout === "featured" && cn("lg:col-start-2", ownerAfterCamerasRowClass(selected?.id, cameras)),
               layout === "grid" && "md:col-span-2",
             )}
           >

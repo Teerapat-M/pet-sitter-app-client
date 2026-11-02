@@ -9,8 +9,12 @@ import {
   LEGAL_DOCUMENTS,
   LEGAL_EFFECTIVE_DATE,
   LEGAL_SUPPORT_EMAIL,
+  isBodyScrollLocked,
   legalPlainText,
+  lockBodyScroll,
+  resetBodyScrollLock,
   shouldOpenLegalModal,
+  unlockBodyScroll,
 } from "./legal.js";
 
 await register(new URL("../../scripts/jsx-loader.mjs", import.meta.url));
@@ -106,6 +110,32 @@ test("legal documents used by standalone pages keep terms and privacy copy", () 
   assert.match(privacy, new RegExp(LEGAL_SUPPORT_EMAIL));
 });
 
+test("body scroll lock sets overflow hidden and restores it on unlock", () => {
+  resetBodyScrollLock();
+  document.body.style.overflow = "auto";
+  document.documentElement.style.overflow = "scroll";
+
+  const unlock = lockBodyScroll();
+  assert.equal(document.body.style.overflow, "hidden");
+  assert.equal(document.documentElement.style.overflow, "hidden");
+  assert.equal(isBodyScrollLocked(), true);
+  assert.equal(document.body.getAttribute("data-psp-scroll-lock"), "true");
+
+  const nested = lockBodyScroll();
+  assert.equal(document.body.style.overflow, "hidden");
+  nested();
+  assert.equal(document.body.style.overflow, "hidden");
+
+  unlock();
+  assert.equal(document.body.style.overflow, "auto");
+  assert.equal(document.documentElement.style.overflow, "scroll");
+  assert.equal(isBodyScrollLocked(), false);
+  assert.equal(document.body.hasAttribute("data-psp-scroll-lock"), false);
+  resetBodyScrollLock();
+  document.body.style.removeProperty("overflow");
+  document.documentElement.style.removeProperty("overflow");
+});
+
 test("primary clicks open the modal; modified clicks do not", () => {
   assert.equal(shouldOpenLegalModal({ button: 0 }), true);
   assert.equal(shouldOpenLegalModal({ button: 1 }), false);
@@ -130,6 +160,7 @@ test("standalone terms-of-service and privacy-policy pages still render", async 
 });
 
 test("register form values and focus persist after Terms modal X, Esc, and backdrop close", async () => {
+  resetBodyScrollLock();
   const { default: RegisterForm } = await import("../components/RegisterForm.js");
   const filled = {
     name: "Ada Lovelace",
@@ -205,6 +236,12 @@ test("register form values and focus persist after Terms modal X, Esc, and backd
   assert.equal(privacyView.container.querySelector('input[name="name"]').value, filled.name);
   assert.equal(document.activeElement, privacyLink);
   privacyView.unmount();
+});
+
+test("LoginForm renders LegalAuthNotice under the auth form", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("../components/LoginForm.js", import.meta.url), "utf8");
+  assert.match(source, /LegalAuthNotice/);
 });
 
 test("LegalAuthNotice Terms link opens a dialog instead of navigating", async () => {

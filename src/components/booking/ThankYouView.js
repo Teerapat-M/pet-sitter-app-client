@@ -132,8 +132,9 @@ export default function ThankYouView({
       />
 
       <div className="relative z-10 mx-auto max-w-160">
-        <Card className="overflow-hidden rounded-2xl bg-white shadow-(--shadow-card)">
-          <div className="bg-black px-5 py-10 text-center text-white sm:px-12 sm:py-14">
+        <Card className="rounded-2xl bg-white shadow-(--shadow-card)">
+          <div className="overflow-hidden rounded-2xl">
+            <div className="rounded-t-2xl bg-black px-5 py-10 text-center text-white sm:px-12 sm:py-14">
             <h1 className="text-h3 font-bold tracking-tight wrap-break-word text-white sm:text-h2 sm:text-[2rem] sm:leading-10">
               Thank You For Booking
             </h1>
@@ -142,41 +143,42 @@ export default function ThankYouView({
             </p>
           </div>
 
-          <div className="px-5 py-6 sm:px-10 sm:py-10">
-            <div className="space-y-1 text-body-3 font-medium wrap-break-word text-gray-400">
-              <p>Transaction Date: {formatTransactionDate()}</p>
-              <p>Transaction No. : {transactionNo || "-"}</p>
-            </div>
-
-            <dl className="mt-8 space-y-7">
-              <div className="flex items-start justify-between gap-3">
-                <DetailBlock label="Pet Sitter">
-                  {sitter.displayName} By {sitter.sitterName}
-                </DetailBlock>
-                <button
-                  type="button"
-                  className="mt-6 inline-flex min-h-11 shrink-0 items-center gap-1.5 text-body-2 font-bold text-orange-500 hover:text-orange-400"
-                >
-                  <Icon src="/icon/map-pin.svg" className="size-4" />
-                  View Map
-                </button>
+            <div className="px-5 py-6 sm:px-10 sm:py-10">
+              <div className="space-y-1 text-body-3 font-medium wrap-break-word text-gray-400">
+                <p>Transaction Date: {formatTransactionDate()}</p>
+                <p>Transaction No. : {transactionNo || "-"}</p>
               </div>
 
-              <div className="grid grid-cols-1 gap-7 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-                <DetailBlock label="Date & Time">{dateTimeLabel}</DetailBlock>
-                <DetailBlock label="Duration">{durationLabel}</DetailBlock>
+              <dl className="mt-8 space-y-7">
+                <div className="flex items-start justify-between gap-3">
+                  <DetailBlock label="Pet Sitter">
+                    {sitter.displayName} By {sitter.sitterName}
+                  </DetailBlock>
+                  <button
+                    type="button"
+                    className="mt-6 inline-flex min-h-11 shrink-0 items-center gap-1.5 text-body-2 font-bold text-orange-500 hover:text-orange-400"
+                  >
+                    <Icon src="/icon/map-pin.svg" className="size-4" />
+                    View Map
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-7 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+                  <DetailBlock label="Date & Time">{dateTimeLabel}</DetailBlock>
+                  <DetailBlock label="Duration">{durationLabel}</DetailBlock>
+                </div>
+
+                <DetailBlock label="Pet">{petNames}</DetailBlock>
+              </dl>
+
+              <div className="mt-8 flex items-center justify-between gap-3 border-t border-gray-100 pt-6">
+                <span className="shrink-0 text-body-1 font-bold text-gray-900">
+                  Total
+                </span>
+                <span className="min-w-0 text-right text-h4 font-bold wrap-break-word text-gray-900">
+                  {formatCurrency(total)} THB
+                </span>
               </div>
-
-              <DetailBlock label="Pet">{petNames}</DetailBlock>
-            </dl>
-
-            <div className="mt-8 flex items-center justify-between gap-3 border-t border-gray-100 pt-6">
-              <span className="shrink-0 text-body-1 font-bold text-gray-900">
-                Total
-              </span>
-              <span className="min-w-0 text-right text-h4 font-bold wrap-break-word text-gray-900">
-                {formatCurrency(total)} THB
-              </span>
             </div>
           </div>
         </Card>

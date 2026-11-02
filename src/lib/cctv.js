@@ -412,6 +412,74 @@ export function syncVideoSrcObject(node, stream) {
   return node.srcObject;
 }
 
+/** CSS aspect-ratio before video metadata (16 / 9). */
+export const DEFAULT_CAMERA_ASPECT = 16 / 9;
+export const CAMERA_TILE_MAX_HEIGHT_VH = 75;
+
+export function videoAspectRatio(video, fallback = DEFAULT_CAMERA_ASPECT) {
+  const width = Number(video?.videoWidth);
+  const height = Number(video?.videoHeight);
+  if (!(width > 0) || !(height > 0)) return fallback;
+  return width / height;
+}
+
+export function cameraTileBoxStyle({
+  aspect = DEFAULT_CAMERA_ASPECT,
+  solo = false,
+  maxHeightVh = CAMERA_TILE_MAX_HEIGHT_VH,
+} = {}) {
+  const ratio = Number(aspect);
+  const ar = Number.isFinite(ratio) && ratio > 0 ? ratio : DEFAULT_CAMERA_ASPECT;
+  const style = { "--camera-tile-ar": String(ar) };
+  if (solo) {
+    style.width = `min(100%, calc(${maxHeightVh}vh * ${ar}))`;
+    style.maxHeight = `${maxHeightVh}vh`;
+  }
+  return style;
+}
+
+export function bindVideoAspect(video, onAspect) {
+  if (!video || typeof onAspect !== "function") return () => {};
+  const emit = () => onAspect(videoAspectRatio(video));
+  emit();
+  video.addEventListener("loadedmetadata", emit);
+  video.addEventListener("resize", emit);
+  return () => {
+    video.removeEventListener("loadedmetadata", emit);
+    video.removeEventListener("resize", emit);
+  };
+}
+
+/** Frame 08: one large featured tile + up to three small tiles in the side column. */
+export function ownerFeaturedPlacement(camera, selectedId, cameras = []) {
+  const others = cameras.filter((item) => item.id !== selectedId);
+  if (camera?.id === selectedId) {
+    if (others.length >= 3) return "lg:col-start-1 lg:row-start-1 lg:row-span-3";
+    if (others.length === 2) return "lg:col-start-1 lg:row-start-1 lg:row-span-2";
+    if (others.length === 0) return "lg:col-span-2 lg:row-start-1";
+    return "lg:col-start-1 lg:row-start-1";
+  }
+  const index = others.findIndex((item) => item.id === camera?.id);
+  if (index === 0) return "lg:col-start-2 lg:row-start-1";
+  if (index === 1) return "lg:col-start-2 lg:row-start-2";
+  if (index === 2) return "lg:col-start-2 lg:row-start-3";
+  return "lg:col-start-2";
+}
+
+export function ownerAfterCamerasRowClass(selectedId, cameras = []) {
+  const others = cameras.filter((item) => item.id !== selectedId);
+  const row = Math.max(others.length, 1) + 1;
+  if (row === 4) return "lg:row-start-4";
+  if (row === 3) return "lg:row-start-3";
+  return "lg:row-start-2";
+}
+
+export function ownerCctvCameraGridClass(layout = "featured") {
+  return layout === "featured"
+    ? "lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-stretch lg:gap-x-4"
+    : "md:grid-cols-2";
+}
+
 /**
  * Buffer local ICE until the offer/answer POST that creates the signalling
  * session has resolved, then flush in enqueue order.
@@ -485,6 +553,127 @@ export function mediaPermissionMessage(error) {
     return "This camera is already in use.";
   }
   return error instanceof Error ? error.message : "Could not open the camera.";
+}
+
+export const CAMERA_PRIVACY_NOTE =
+  "Private: only owners with an active booking can watch";
+
+export function cameraPausedForGuests(camera) {
+  return camera?.isEnabled === false;
+}
+
+export function cameraPauseToggleLabel(paused) {
+  return paused ? "Resume camera" : "Pause camera for guests";
+}
+
+export function cameraGuestStateLabel(paused, status) {
+  if (paused) return "Paused for guests";
+  if (status === "online") return "Live for guests";
+  if (status === "reconnecting") return "Reconnecting…";
+  return "On · waiting to go live";
+}
+
+export const CAMERA_DEVICE_STORAGE_KEY = "psp_camera_device_id";
+
+export function persistCameraDeviceId(deviceId, storage) {
+  const store = storage ?? (typeof localStorage === "undefined" ? null : localStorage);
+  if (!store) return;
+  const value = String(deviceId ?? "").trim();
+  try {
+    if (value) store.setItem(CAMERA_DEVICE_STORAGE_KEY, value);
+    else store.removeItem(CAMERA_DEVICE_STORAGE_KEY);
+  } catch {
+    // ignore quota / private-mode
+  }
+}
+
+export function readPersistedCameraDeviceId(storage) {
+  const store = storage ?? (typeof localStorage === "undefined" ? null : localStorage);
+  if (!store?.getItem) return "";
+  try {
+    return String(store.getItem(CAMERA_DEVICE_STORAGE_KEY) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function usableCameraDeviceId(deviceId, devices = []) {
+  const id = String(deviceId ?? "").trim();
+  if (!id) return "";
+  if (!devices.length) return id;
+  return devices.some((device) => device.deviceId === id) ? id : "";
+}
+
+export function switchCameraErrorMessage(error) {
+  const name = String(error?.name ?? "");
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    return "Camera permission was denied. The previous camera is still in use.";
+  }
+  if (name === "NotReadableError") {
+    return "That camera is already in use. The previous camera is still in use.";
+  }
+  if (name === "OverconstrainedError") {
+    return "That camera is not available. The previous camera is still in use.";
+  }
+  return mediaPermissionMessage(error);
+}
+
+export function videoSendersFromPeers(peers) {
+  const senders = [];
+  if (!peers) return senders;
+  const entries = typeof peers.values === "function" ? peers.values() : Object.values(peers);
+  for (const entry of entries) {
+    const pc = entry?.pc ?? entry;
+    for (const sender of pc?.getSenders?.() ?? []) {
+      if (sender?.track?.kind === "video") senders.push(sender);
+    }
+  }
+  return senders;
+}
+
+export async function switchPublisherVideo({
+  deviceId,
+  currentStream,
+  peers,
+  getUserMedia,
+  MediaStreamCtor = globalThis.MediaStream,
+} = {}) {
+  const id = String(deviceId ?? "").trim();
+  if (!id) throw new TypeError("deviceId is required");
+  const acquire =
+    getUserMedia ??
+    navigator?.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+  if (typeof acquire !== "function") {
+    throw new Error("Camera switching is not supported in this browser.");
+  }
+
+  const media = await acquire({ video: { deviceId: { exact: id } } });
+  const newVideo = media.getVideoTracks?.()[0];
+  if (!newVideo) {
+    media.getTracks?.().forEach((track) => track.stop?.());
+    const error = new Error("No video track");
+    error.name = "NotFoundError";
+    throw error;
+  }
+
+  const oldVideos = currentStream?.getVideoTracks?.() ?? [];
+  await Promise.all(
+    videoSendersFromPeers(peers).map((sender) => sender.replaceTrack(newVideo)),
+  );
+
+  const Stream = MediaStreamCtor;
+  const next = Stream ? new Stream() : media;
+  if (Stream) {
+    next.addTrack(newVideo);
+    for (const track of currentStream?.getAudioTracks?.() ?? []) next.addTrack(track);
+  }
+  for (const track of media.getTracks?.() ?? []) {
+    if (track !== newVideo) track.stop?.();
+  }
+  for (const track of oldVideos) track.stop?.();
+
+  const used = newVideo.getSettings?.().deviceId || id;
+  return { stream: next, deviceId: used, track: newVideo };
 }
 
 export function defaultStunServers() {

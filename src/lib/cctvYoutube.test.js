@@ -118,6 +118,38 @@ test("owner youtube tile uses nocookie embed src at 16/9 and skips WebRTC video"
   assert.ok(iframe.hasAttribute("allowfullscreen"));
   assert.equal(view.container.querySelectorAll("iframe").length, 1);
   assert.equal(view.container.querySelectorAll("video").length, 0);
+  const tile = iframe.closest("[style]");
+  assert.ok(tile);
+  assert.equal(tile.style.getPropertyValue("--camera-tile-ar"), String(16 / 9));
+  assert.match(tile.className, /aspect-ratio:var\(--camera-tile-ar/);
+  view.unmount();
+});
+
+test("solo youtube CameraTile uses the full-frame 16/9 cap", async () => {
+  const { default: CameraTile } = await import("../components/cctv/CameraTile.js");
+  const view = mount(
+    createElement(CameraTile, {
+      camera: {
+        id: "cam-yt",
+        name: "Garden",
+        source: "youtube",
+        youtubeVideoId: YT_ID,
+        isEnabled: true,
+        status: "online",
+      },
+      canView: true,
+      featured: true,
+      solo: true,
+    }),
+  );
+  const tile = view.container.querySelector("[role='group']");
+  const iframe = view.container.querySelector("iframe");
+  assert.ok(tile);
+  assert.ok(iframe);
+  assert.equal(tile.style.getPropertyValue("--camera-tile-ar"), String(16 / 9));
+  assert.match(tile.style.width, /min\(100%,/);
+  assert.equal(tile.style.maxHeight, "75vh");
+  assert.match(tile.className, /mx-auto/);
   view.unmount();
 });
 

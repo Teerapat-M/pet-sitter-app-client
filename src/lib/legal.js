@@ -363,3 +363,54 @@ export function shouldOpenLegalModal(event) {
     !event.altKey
   );
 }
+
+const SCROLL_LOCK_ATTR = "data-psp-scroll-lock";
+let scrollLockCount = 0;
+let savedOverflow = null;
+
+/** Test hook so each case starts from an unlocked body. */
+export function resetBodyScrollLock() {
+  scrollLockCount = 0;
+  savedOverflow = null;
+}
+
+export function isBodyScrollLocked(doc = globalThis.document) {
+  return (
+    scrollLockCount > 0 &&
+    doc?.body?.style?.overflow === "hidden" &&
+    doc.body.getAttribute(SCROLL_LOCK_ATTR) === "true"
+  );
+}
+
+/** Lock html+body overflow. Nested calls share one lock; unlock restores the last saved value. */
+export function lockBodyScroll(doc = globalThis.document) {
+  if (!doc?.body || !doc.documentElement) return () => {};
+  const body = doc.body;
+  const html = doc.documentElement;
+  if (scrollLockCount === 0) {
+    savedOverflow = {
+      body: body.style.getPropertyValue("overflow"),
+      html: html.style.getPropertyValue("overflow"),
+    };
+    body.style.setProperty("overflow", "hidden");
+    html.style.setProperty("overflow", "hidden");
+    body.setAttribute(SCROLL_LOCK_ATTR, "true");
+  }
+  scrollLockCount += 1;
+  return () => unlockBodyScroll(doc);
+}
+
+export function unlockBodyScroll(doc = globalThis.document) {
+  if (!doc?.body || !doc.documentElement) return;
+  scrollLockCount = Math.max(0, scrollLockCount - 1);
+  if (scrollLockCount > 0) return;
+  const body = doc.body;
+  const html = doc.documentElement;
+  const prev = savedOverflow ?? { body: "", html: "" };
+  if (prev.body) body.style.setProperty("overflow", prev.body);
+  else body.style.removeProperty("overflow");
+  if (prev.html) html.style.setProperty("overflow", prev.html);
+  else html.style.removeProperty("overflow");
+  body.removeAttribute(SCROLL_LOCK_ATTR);
+  savedOverflow = null;
+}

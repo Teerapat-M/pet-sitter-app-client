@@ -313,6 +313,74 @@ export function syncVideoSrcObject(node, stream) {
   return node.srcObject;
 }
 
+/** CSS aspect-ratio before video metadata (16 / 9). */
+export const DEFAULT_CAMERA_ASPECT = 16 / 9;
+export const CAMERA_TILE_MAX_HEIGHT_VH = 75;
+
+export function videoAspectRatio(video, fallback = DEFAULT_CAMERA_ASPECT) {
+  const width = Number(video?.videoWidth);
+  const height = Number(video?.videoHeight);
+  if (!(width > 0) || !(height > 0)) return fallback;
+  return width / height;
+}
+
+export function cameraTileBoxStyle({
+  aspect = DEFAULT_CAMERA_ASPECT,
+  solo = false,
+  maxHeightVh = CAMERA_TILE_MAX_HEIGHT_VH,
+} = {}) {
+  const ratio = Number(aspect);
+  const ar = Number.isFinite(ratio) && ratio > 0 ? ratio : DEFAULT_CAMERA_ASPECT;
+  const style = { "--camera-tile-ar": String(ar) };
+  if (solo) {
+    style.width = `min(100%, calc(${maxHeightVh}vh * ${ar}))`;
+    style.maxHeight = `${maxHeightVh}vh`;
+  }
+  return style;
+}
+
+export function bindVideoAspect(video, onAspect) {
+  if (!video || typeof onAspect !== "function") return () => {};
+  const emit = () => onAspect(videoAspectRatio(video));
+  emit();
+  video.addEventListener("loadedmetadata", emit);
+  video.addEventListener("resize", emit);
+  return () => {
+    video.removeEventListener("loadedmetadata", emit);
+    video.removeEventListener("resize", emit);
+  };
+}
+
+/** Frame 08: one large featured tile + up to three small tiles in the side column. */
+export function ownerFeaturedPlacement(camera, selectedId, cameras = []) {
+  const others = cameras.filter((item) => item.id !== selectedId);
+  if (camera?.id === selectedId) {
+    if (others.length >= 3) return "lg:col-start-1 lg:row-start-1 lg:row-span-3";
+    if (others.length === 2) return "lg:col-start-1 lg:row-start-1 lg:row-span-2";
+    if (others.length === 0) return "lg:col-span-2 lg:row-start-1";
+    return "lg:col-start-1 lg:row-start-1";
+  }
+  const index = others.findIndex((item) => item.id === camera?.id);
+  if (index === 0) return "lg:col-start-2 lg:row-start-1";
+  if (index === 1) return "lg:col-start-2 lg:row-start-2";
+  if (index === 2) return "lg:col-start-2 lg:row-start-3";
+  return "lg:col-start-2";
+}
+
+export function ownerAfterCamerasRowClass(selectedId, cameras = []) {
+  const others = cameras.filter((item) => item.id !== selectedId);
+  const row = Math.max(others.length, 1) + 1;
+  if (row === 4) return "lg:row-start-4";
+  if (row === 3) return "lg:row-start-3";
+  return "lg:row-start-2";
+}
+
+export function ownerCctvCameraGridClass(layout = "featured") {
+  return layout === "featured"
+    ? "lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-stretch lg:gap-x-4"
+    : "md:grid-cols-2";
+}
+
 /**
  * Buffer local ICE until the offer/answer POST that creates the signalling
  * session has resolved, then flush in enqueue order.

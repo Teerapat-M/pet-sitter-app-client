@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   MAX_OWNER_SESSIONS_PER_CAMERA,
   MAX_SIGNAL_BYTES,
@@ -21,10 +24,17 @@ import {
   isBoardingBooking,
   CAMERA_DEVICE_STORAGE_KEY,
   CAMERA_PRIVACY_NOTE,
+  CAMERA_TILE_MAX_HEIGHT_VH,
+  DEFAULT_CAMERA_ASPECT,
+  bindVideoAspect,
   cameraGuestStateLabel,
   cameraPausedForGuests,
   cameraPauseToggleLabel,
+  cameraTileBoxStyle,
+  ownerAfterCamerasRowClass,
+  ownerCctvCameraGridClass,
   ownerCctvHref,
+  ownerFeaturedPlacement,
   persistCameraDeviceId,
   readPersistedCameraDeviceId,
   switchCameraErrorMessage,
@@ -33,6 +43,7 @@ import {
   signalBodyBytes,
   signallingErrorMessage,
   syncVideoSrcObject,
+  videoAspectRatio,
 } from "./cctv.js";
 
 test("isBoardingBooking reads service_type", () => {
@@ -358,6 +369,90 @@ test("persisted device id restores only when still present", () => {
     usableCameraDeviceId("cam-gone", [{ deviceId: "cam-1", kind: "videoinput" }]),
     "",
   );
+});
+
+test("video aspect ratio defaults to 16/9 until metadata arrives", () => {
+  assert.equal(DEFAULT_CAMERA_ASPECT, 16 / 9);
+  assert.equal(videoAspectRatio(null), 16 / 9);
+  assert.equal(videoAspectRatio({ videoWidth: 0, videoHeight: 0 }), 16 / 9);
+  assert.equal(videoAspectRatio({ videoWidth: 1280, videoHeight: 720 }), 16 / 9);
+  assert.equal(videoAspectRatio({ videoWidth: 640, videoHeight: 480 }), 4 / 3);
+});
+
+test("solo camera tile shrinks width to keep aspect under max-height", () => {
+  const style = cameraTileBoxStyle({ aspect: 16 / 9, solo: true });
+  assert.equal(style["--camera-tile-ar"], String(16 / 9));
+  assert.equal(style.maxHeight, `${CAMERA_TILE_MAX_HEIGHT_VH}vh`);
+  assert.equal(style.width, `min(100%, calc(${CAMERA_TILE_MAX_HEIGHT_VH}vh * ${16 / 9}))`);
+
+  const stacked = cameraTileBoxStyle({ aspect: 4 / 3 });
+  assert.equal(stacked["--camera-tile-ar"], String(4 / 3));
+  assert.equal(stacked.width, undefined);
+  assert.equal(stacked.maxHeight, undefined);
+});
+
+test("bindVideoAspect updates on loadedmetadata and resize then unbinds", () => {
+  const video = {
+    videoWidth: 0,
+    videoHeight: 0,
+    listeners: {},
+    addEventListener(type, fn) {
+      this.listeners[type] = fn;
+    },
+    removeEventListener(type, fn) {
+      if (this.listeners[type] === fn) delete this.listeners[type];
+    },
+  };
+  const seen = [];
+  const stop = bindVideoAspect(video, (ratio) => seen.push(ratio));
+  assert.equal(seen[0], 16 / 9);
+
+  video.videoWidth = 1280;
+  video.videoHeight = 720;
+  video.listeners.loadedmetadata();
+  assert.equal(seen[1], 16 / 9);
+
+  video.videoWidth = 640;
+  video.videoHeight = 480;
+  video.listeners.resize();
+  assert.equal(seen[2], 4 / 3);
+
+  stop();
+  assert.equal("loadedmetadata" in video.listeners, false);
+  assert.equal("resize" in video.listeners, false);
+});
+
+test("frame 08 featured placement is 1 large + 2 small", () => {
+  const cameras = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  assert.equal(
+    ownerFeaturedPlacement(cameras[0], "a", cameras),
+    "lg:col-start-1 lg:row-start-1 lg:row-span-2",
+  );
+  assert.equal(ownerFeaturedPlacement(cameras[1], "a", cameras), "lg:col-start-2 lg:row-start-1");
+  assert.equal(ownerFeaturedPlacement(cameras[2], "a", cameras), "lg:col-start-2 lg:row-start-2");
+  assert.equal(ownerAfterCamerasRowClass("a", cameras), "lg:row-start-3");
+  assert.match(ownerCctvCameraGridClass("featured"), /18rem/);
+
+  assert.equal(
+    ownerFeaturedPlacement({ id: "only" }, "only", [{ id: "only" }]),
+    "lg:col-span-2 lg:row-start-1",
+  );
+});
+
+test("CameraTile uses object-contain and video aspect-ratio, not a fixed strip", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const tile = readFileSync(join(root, "components/cctv/CameraTile.js"), "utf8");
+  const view = readFileSync(join(root, "components/cctv/OwnerCctvView.js"), "utf8");
+  assert.match(tile, /object-contain/);
+  assert.equal(tile.includes("object-cover"), false);
+  assert.equal(tile.includes("h-44"), false);
+  assert.match(tile, /bindVideoAspect/);
+  assert.match(tile, /solo/);
+  assert.match(view, /solo=\{solo\}/);
+  assert.match(view, /cameras\.length <= 1/);
+  assert.match(view, /ownerFeaturedPlacement/);
+  const lib = readFileSync(join(root, "lib/cctv.js"), "utf8");
+  assert.match(lib, /loadedmetadata/);
 });
 
 test("Available until uses Asia/Bangkok", () => {

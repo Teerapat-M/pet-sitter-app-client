@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { lockBodyScroll } from "@/lib/legal";
 
 function useFocusTrap(active, rootRef) {
   useEffect(() => {
@@ -61,12 +62,14 @@ export default function LegalModal({ open, title, onClose, returnFocusRef, child
     }
 
     document.addEventListener("keydown", onKey);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const unlock = lockBodyScroll();
     return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previousOverflow;
+      unlock();
       returnFocusRef?.current?.focus?.();
     };
   }, [open, returnFocusRef]);

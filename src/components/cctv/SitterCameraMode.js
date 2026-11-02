@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSitterCamera, listSitterCameras, patchSitterCamera } from "@/lib/api";
-import { normalizeCamera, sitterCamerasHref } from "@/lib/cctv";
+import {
+  CAMERA_PRIVACY_NOTE,
+  cameraGuestStateLabel,
+  cameraPausedForGuests,
+  cameraPauseToggleLabel,
+  normalizeCamera,
+  sitterCamerasHref,
+} from "@/lib/cctv";
 import { useCameraPublisher } from "@/lib/useCameraPublisher";
 
 export default function SitterCameraMode({ cameraId, preview }) {
@@ -49,12 +56,15 @@ export default function SitterCameraMode({ cameraId, preview }) {
         </Link>
         <h1 className="mt-3 text-h2">{camera?.name || "Camera mode"}</h1>
         <p className="mt-1 text-caption text-ink-400">
-          Publish this camera from your phone or laptop. Owners can watch during an in-service boarding stay.
+          Publish this camera from your phone or laptop. {CAMERA_PRIVACY_NOTE}.
+        </p>
+        <p className="mt-2 inline-flex rounded-full bg-accent-50 px-2.5 py-1 text-[11px] font-bold text-accent-700">
+          {cameraGuestStateLabel(cameraPausedForGuests(camera), live ? "online" : camera?.status)}
         </p>
 
         <div className="relative mt-5 overflow-hidden rounded-[1.4rem] bg-[#2b2622]">
           <video ref={videoRef} className="aspect-[16/10] w-full object-cover" autoPlay playsInline muted />
-          {!live ? (
+          {!live && !publisher.stream ? (
             <div className="absolute inset-0 flex items-center justify-center text-caption font-semibold text-white/80">
               {denied ? publisher.error : "Camera is idle"}
             </div>
@@ -91,7 +101,7 @@ export default function SitterCameraMode({ cameraId, preview }) {
             <select
               className="input mt-1 w-full"
               value={publisher.deviceId}
-              onChange={(event) => publisher.setDeviceId(event.target.value)}
+              onChange={(event) => void publisher.switchDevice(event.target.value)}
             >
               {publisher.devices.map((device) => (
                 <option key={device.deviceId} value={device.deviceId}>
@@ -115,14 +125,16 @@ export default function SitterCameraMode({ cameraId, preview }) {
           <button
             type="button"
             className="btn btn-outline min-h-11 px-5"
+            aria-pressed={cameraPausedForGuests(camera)}
             onClick={() => {
               if (!cameraId || preview) return;
-              void patchSitterCamera(cameraId, { isEnabled: !(camera?.isEnabled !== false) }).then((updated) => {
+              const paused = cameraPausedForGuests(camera);
+              void patchSitterCamera(cameraId, { isEnabled: paused }).then((updated) => {
                 setCamera(normalizeCamera(updated));
               });
             }}
           >
-            {camera?.isEnabled === false ? "Enable for guests" : "Hide from guests"}
+            {cameraPauseToggleLabel(cameraPausedForGuests(camera))}
           </button>
         </div>
       </div>

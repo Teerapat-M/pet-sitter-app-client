@@ -388,6 +388,127 @@ export function mediaPermissionMessage(error) {
   return error instanceof Error ? error.message : "Could not open the camera.";
 }
 
+export const CAMERA_PRIVACY_NOTE =
+  "Private: only owners with an active booking can watch";
+
+export function cameraPausedForGuests(camera) {
+  return camera?.isEnabled === false;
+}
+
+export function cameraPauseToggleLabel(paused) {
+  return paused ? "Resume camera" : "Pause camera for guests";
+}
+
+export function cameraGuestStateLabel(paused, status) {
+  if (paused) return "Paused for guests";
+  if (status === "online") return "Live for guests";
+  if (status === "reconnecting") return "Reconnecting…";
+  return "On · waiting to go live";
+}
+
+export const CAMERA_DEVICE_STORAGE_KEY = "psp_camera_device_id";
+
+export function persistCameraDeviceId(deviceId, storage) {
+  const store = storage ?? (typeof localStorage === "undefined" ? null : localStorage);
+  if (!store) return;
+  const value = String(deviceId ?? "").trim();
+  try {
+    if (value) store.setItem(CAMERA_DEVICE_STORAGE_KEY, value);
+    else store.removeItem(CAMERA_DEVICE_STORAGE_KEY);
+  } catch {
+    // ignore quota / private-mode
+  }
+}
+
+export function readPersistedCameraDeviceId(storage) {
+  const store = storage ?? (typeof localStorage === "undefined" ? null : localStorage);
+  if (!store?.getItem) return "";
+  try {
+    return String(store.getItem(CAMERA_DEVICE_STORAGE_KEY) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function usableCameraDeviceId(deviceId, devices = []) {
+  const id = String(deviceId ?? "").trim();
+  if (!id) return "";
+  if (!devices.length) return id;
+  return devices.some((device) => device.deviceId === id) ? id : "";
+}
+
+export function switchCameraErrorMessage(error) {
+  const name = String(error?.name ?? "");
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    return "Camera permission was denied. The previous camera is still in use.";
+  }
+  if (name === "NotReadableError") {
+    return "That camera is already in use. The previous camera is still in use.";
+  }
+  if (name === "OverconstrainedError") {
+    return "That camera is not available. The previous camera is still in use.";
+  }
+  return mediaPermissionMessage(error);
+}
+
+export function videoSendersFromPeers(peers) {
+  const senders = [];
+  if (!peers) return senders;
+  const entries = typeof peers.values === "function" ? peers.values() : Object.values(peers);
+  for (const entry of entries) {
+    const pc = entry?.pc ?? entry;
+    for (const sender of pc?.getSenders?.() ?? []) {
+      if (sender?.track?.kind === "video") senders.push(sender);
+    }
+  }
+  return senders;
+}
+
+export async function switchPublisherVideo({
+  deviceId,
+  currentStream,
+  peers,
+  getUserMedia,
+  MediaStreamCtor = globalThis.MediaStream,
+} = {}) {
+  const id = String(deviceId ?? "").trim();
+  if (!id) throw new TypeError("deviceId is required");
+  const acquire =
+    getUserMedia ??
+    navigator?.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+  if (typeof acquire !== "function") {
+    throw new Error("Camera switching is not supported in this browser.");
+  }
+
+  const media = await acquire({ video: { deviceId: { exact: id } } });
+  const newVideo = media.getVideoTracks?.()[0];
+  if (!newVideo) {
+    media.getTracks?.().forEach((track) => track.stop?.());
+    const error = new Error("No video track");
+    error.name = "NotFoundError";
+    throw error;
+  }
+
+  const oldVideos = currentStream?.getVideoTracks?.() ?? [];
+  await Promise.all(
+    videoSendersFromPeers(peers).map((sender) => sender.replaceTrack(newVideo)),
+  );
+
+  const Stream = MediaStreamCtor;
+  const next = Stream ? new Stream() : media;
+  if (Stream) {
+    next.addTrack(newVideo);
+    for (const track of currentStream?.getAudioTracks?.() ?? []) next.addTrack(track);
+  }
+  for (const track of media.getTracks?.() ?? []) {
+    if (track !== newVideo) track.stop?.();
+  }
+  for (const track of oldVideos) track.stop?.();
+
+  const used = newVideo.getSettings?.().deviceId || id;
+  return { stream: next, deviceId: used, track: newVideo };
+}
+
 export function defaultStunServers() {
   return [{ urls: ["stun:stun.l.google.com:19302"] }];
 }

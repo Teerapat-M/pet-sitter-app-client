@@ -14,6 +14,10 @@ import {
   sitterCameraEventsPath,
 } from "@/lib/api";
 import {
+  CAMERA_PRIVACY_NOTE,
+  cameraGuestStateLabel,
+  cameraPausedForGuests,
+  cameraPauseToggleLabel,
   countEnabledCameras,
   isBoardingBooking,
   normalizeCamera,
@@ -155,14 +159,9 @@ export default function SitterCameraDashboard({ preview }) {
                 <li key={camera.id} className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-line px-3 py-3">
                   <div className="min-w-0">
                     <p className="text-body-2 font-bold text-ink-900">{camera.name}</p>
+                    <p className="mt-0.5 text-[11px] font-bold text-accent-700">{CAMERA_PRIVACY_NOTE}</p>
                     <p className="text-caption text-ink-400">
-                      {camera.isEnabled
-                        ? camera.status === "online"
-                          ? "Live · visible to guests"
-                          : camera.status === "reconnecting"
-                            ? "Reconnecting…"
-                            : "On · waiting to go live"
-                        : "Off · guests see offline"}
+                      {cameraGuestStateLabel(cameraPausedForGuests(camera), camera.status)}
                     </p>
                     <Link href={sitterCameraModeHref(camera.id)} className="text-caption font-bold text-primary">
                       Camera mode →
@@ -172,7 +171,7 @@ export default function SitterCameraDashboard({ preview }) {
                     <CameraSwitch
                       checked={camera.isEnabled}
                       disabled={Boolean(busy)}
-                      label={`Toggle ${camera.name}`}
+                      label={cameraPauseToggleLabel(cameraPausedForGuests(camera))}
                       onChange={(value) => toggle(camera, value)}
                     />
                     <button
@@ -198,7 +197,9 @@ export default function SitterCameraDashboard({ preview }) {
                 Add
               </button>
             </form>
-            <p className="mt-3 text-caption text-ink-400">Guests can only watch while a boarding stay is in service.</p>
+            <p className="mt-3 text-caption text-ink-400">
+              {CAMERA_PRIVACY_NOTE}. Pause a camera to stop the live feed for those owners without removing it.
+            </p>
           </section>
         </div>
       </div>

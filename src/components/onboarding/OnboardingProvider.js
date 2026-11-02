@@ -8,6 +8,7 @@ import {
   TOUR_STEPS,
   TOUR_STORAGE_KEY,
   isLastStep,
+  isLegalPath,
   readOnboardingSeenAt,
   readTourFlag,
   shouldShowTour,
@@ -82,7 +83,7 @@ export default function OnboardingProvider({ children }) {
       const step = TOUR_STEPS[fromIndex] ?? TOUR_STEPS[0];
       setStepIndex(fromIndex);
       setOpen(true);
-      if (step.path && pathname !== step.path) {
+      if (step.path && pathname !== step.path && !isLegalPath(pathname)) {
         router.push(step.path);
       }
     },
@@ -102,7 +103,7 @@ export default function OnboardingProvider({ children }) {
     const nextIndex = stepIndex + 1;
     const step = TOUR_STEPS[nextIndex];
     setStepIndex(nextIndex);
-    if (step?.path && pathname !== step.path) {
+    if (step?.path && pathname !== step.path && !isLegalPath(pathname)) {
       router.push(step.path);
     }
   }, [closeTour, pathname, router, stepIndex]);
@@ -154,6 +155,7 @@ export default function OnboardingProvider({ children }) {
   useEffect(() => {
     if (!ready || !pendingAuto.current || open) return;
     if (isAuthPath(pathname || "/")) return;
+    if (isLegalPath(pathname || "/")) return;
     pendingAuto.current = false;
     const timer = window.setTimeout(() => startTour(0), 0);
     return () => window.clearTimeout(timer);

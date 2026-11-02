@@ -9,6 +9,7 @@ import { saveAuth } from "@/lib/auth";
 import { errorToastClassNames } from "@/lib/toastStyles";
 import SocialAuthButtons from "@/components/SocialAuthButtons";
 import PasswordInput from "@/components/PasswordInput";
+import LegalAuthNotice from "@/components/legal/LegalAuthNotice";
 
 function getLoginToastMessage(message) {
   const lower = String(message).toLowerCase();
@@ -128,6 +129,8 @@ export default function LoginForm({
       </button>
 
       {showSocial ? <SocialAuthButtons remember={showRemember ? remember : true} /> : null}
+
+      <LegalAuthNotice />
 
       <p className="text-center text-body-2 text-ink-600">
         {registerPrompt}{" "}

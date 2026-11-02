@@ -260,18 +260,20 @@ function GalleryThumbs({ photos }) {
       {items.map((item) => (
         <Card
           key={`${item.tint}-${item.label}`}
-          className={`relative flex items-end overflow-hidden rounded-2xl p-3 text-caption font-semibold text-primary-600 ${item.className}`}
+          className={`relative flex items-end rounded-2xl p-3 text-caption font-semibold text-primary-600 ${item.className}`}
           style={{ backgroundColor: item.tint }}
         >
           {item.src ? (
-            <Image
-              src={item.src}
-              alt={item.label || "Sitter photo"}
-              fill
-              sizes="160px"
-              className="object-cover"
-              unoptimized={isRemoteSrc(item.src)}
-            />
+            <div className="absolute inset-0 overflow-hidden rounded-2xl">
+              <Image
+                src={item.src}
+                alt={item.label || "Sitter photo"}
+                fill
+                sizes="160px"
+                className="object-cover"
+                unoptimized={isRemoteSrc(item.src)}
+              />
+            </div>
           ) : null}
           {item.label.startsWith("+") ? (
             <span className="relative z-10 ml-auto rounded-full bg-ink-900 px-2.5 py-1 text-[11px] font-bold text-white">

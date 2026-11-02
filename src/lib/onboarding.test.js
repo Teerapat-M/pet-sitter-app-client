@@ -4,6 +4,7 @@ import {
   TOUR_STEPS,
   hasServerSeen,
   isLastStep,
+  isLegalPath,
   isTourDone,
   nextStepIndex,
   onboardingSeenBody,
@@ -62,6 +63,16 @@ test("reads onboarding_seen_at from user payloads", () => {
   assert.equal(readOnboardingSeenAt({ onboarding_seen_at: "ts" }), "ts");
   assert.equal(readOnboardingSeenAt({ onboardingSeenAt: "ts2" }), "ts2");
   assert.equal(readOnboardingSeenAt(null), null);
+});
+
+test("legal pages are exempt from the first-visit tour redirect", () => {
+  assert.equal(isLegalPath("/terms-of-service"), true);
+  assert.equal(isLegalPath("/privacy-policy"), true);
+  assert.equal(isLegalPath("/data-deletion"), true);
+  assert.equal(isLegalPath("/privacy-policy/extra"), true);
+  assert.equal(isLegalPath("/"), false);
+  assert.equal(isLegalPath("/find-sitter"), false);
+  assert.equal(isLegalPath("/login"), false);
 });
 
 test("PATCH body is { seen: boolean }", () => {

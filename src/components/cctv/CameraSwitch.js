@@ -8,6 +8,7 @@ export default function CameraSwitch({ checked, onChange, disabled, label }) {
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-pressed={!checked}
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange?.(!checked)}

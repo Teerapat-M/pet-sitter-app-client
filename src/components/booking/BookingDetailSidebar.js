@@ -70,46 +70,48 @@ export default function BookingDetailSidebar({
     : formatBookingDuration(hours, "hours");
 
   return (
-    <Card as="aside" className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-(--shadow-card) md:h-full md:w-82 md:shrink-0">
-      <div className="flex flex-1 flex-col px-4 pt-5 pb-5 sm:px-8 sm:pt-6 sm:pb-6">
-        <h2 className="text-h4 font-bold text-gray-900">Booking Detail</h2>
-        <div className="mt-4 h-px w-full bg-gray-100" aria-hidden />
+    <Card as="aside" className="flex w-full min-w-0 flex-col rounded-2xl bg-white shadow-(--shadow-card) md:h-full md:w-82 md:shrink-0">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
+        <div className="flex flex-1 flex-col px-4 pt-5 pb-5 sm:px-8 sm:pt-6 sm:pb-6">
+          <h2 className="text-h4 font-bold text-gray-900">Booking Detail</h2>
+          <div className="mt-4 h-px w-full bg-gray-100" aria-hidden />
 
-        <dl className="mt-5 flex flex-col gap-5 sm:mt-6 sm:gap-6">
-          <DetailBlock label="Pet Sitter">
-            {sitter.displayName} By {sitter.sitterName}
-          </DetailBlock>
+          <dl className="mt-5 flex flex-col gap-5 sm:mt-6 sm:gap-6">
+            <DetailBlock label="Pet Sitter">
+              {sitter.displayName} By {sitter.sitterName}
+            </DetailBlock>
 
-          <DetailBlock label="Date & Time">{dateTimeLabel}</DetailBlock>
+            <DetailBlock label="Date & Time">{dateTimeLabel}</DetailBlock>
 
-          {serviceLabel ? (
-            <DetailBlock label="Service">{serviceLabel}</DetailBlock>
-          ) : null}
+            {serviceLabel ? (
+              <DetailBlock label="Service">{serviceLabel}</DetailBlock>
+            ) : null}
 
-          <DetailBlock label="Duration">
-            {formatQuoteLine(quote) || durationLabel}
-          </DetailBlock>
+            <DetailBlock label="Duration">
+              {formatQuoteLine(quote) || durationLabel}
+            </DetailBlock>
 
-          <DetailBlock label="Pet">
-            {petCount === 0
-              ? "-"
-              : selectedPets.map((pet) => pet.name).join(", ")}
-          </DetailBlock>
+            <DetailBlock label="Pet">
+              {petCount === 0
+                ? "-"
+                : selectedPets.map((pet) => pet.name).join(", ")}
+            </DetailBlock>
 
-          {String(serviceLabel).toLowerCase().includes("walk") ? (
-            <DetailBlock label="GPS tracking">Included</DetailBlock>
-          ) : null}
-        </dl>
-      </div>
-
-      {!hideTotal ? (
-        <div className="mt-auto flex items-center justify-between gap-3 bg-black px-4 py-4 text-white sm:px-8 sm:py-5">
-          <span className="shrink-0 text-body-2 font-medium">Total</span>
-          <span className="min-w-0 text-right text-h4 font-bold wrap-break-word">
-            {quotedTotal ? `${totalLabel} THB` : `${formatCurrency(previewTotal)} THB`}
-          </span>
+            {String(serviceLabel).toLowerCase().includes("walk") ? (
+              <DetailBlock label="GPS tracking">Included</DetailBlock>
+            ) : null}
+          </dl>
         </div>
-      ) : null}
+
+        {!hideTotal ? (
+          <div className="mt-auto flex items-center justify-between gap-3 bg-black px-4 py-4 text-white sm:px-8 sm:py-5">
+            <span className="shrink-0 text-body-2 font-medium">Total</span>
+            <span className="min-w-0 text-right text-h4 font-bold wrap-break-word">
+              {quotedTotal ? `${totalLabel} THB` : `${formatCurrency(previewTotal)} THB`}
+            </span>
+          </div>
+        ) : null}
+      </div>
     </Card>
   );
 }

@@ -14,7 +14,12 @@ import {
   defaultStunServers,
   iceCandidatePayload,
   mediaPermissionMessage,
+  persistCameraDeviceId,
+  readPersistedCameraDeviceId,
   signallingErrorMessage,
+  switchCameraErrorMessage,
+  switchPublisherVideo,
+  usableCameraDeviceId,
 } from "@/lib/cctv";
 import { useCameraEvents } from "@/lib/useCameraEvents";
 
@@ -186,10 +191,56 @@ export function useCameraPublisher(cameraId, { enabled = true } = {}) {
   });
 
   const refreshDevices = useCallback(async () => {
-    if (!navigator?.mediaDevices?.enumerateDevices) return;
+    if (!navigator?.mediaDevices?.enumerateDevices) return [];
     const list = await navigator.mediaDevices.enumerateDevices();
-    setDevices(list.filter((item) => item.kind === "videoinput"));
+    const cameras = list.filter((item) => item.kind === "videoinput");
+    setDevices(cameras);
+    return cameras;
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function restoreDevice() {
+      const cameras = (await refreshDevices()) ?? [];
+      if (cancelled) return;
+      const stored = usableCameraDeviceId(readPersistedCameraDeviceId(), cameras);
+      if (stored) setDeviceId(stored);
+    }
+    void restoreDevice();
+
+    const media = navigator?.mediaDevices;
+    function onDeviceChange() {
+      void refreshDevices();
+    }
+    media?.addEventListener?.("devicechange", onDeviceChange);
+    return () => {
+      cancelled = true;
+      media?.removeEventListener?.("devicechange", onDeviceChange);
+    };
+  }, [refreshDevices]);
+
+  const switchDevice = useCallback(
+    async (nextDeviceId) => {
+      const id = String(nextDeviceId ?? "").trim();
+      if (!id) return;
+      try {
+        const result = await switchPublisherVideo({
+          deviceId: id,
+          currentStream: streamRef.current,
+          peers: peersRef.current,
+        });
+        streamRef.current = result.stream;
+        setStream(result.stream);
+        setDeviceId(result.deviceId);
+        persistCameraDeviceId(result.deviceId);
+        setError("");
+        await refreshDevices();
+      } catch (err) {
+        setError(switchCameraErrorMessage(err));
+      }
+    },
+    [refreshDevices],
+  );
 
   const start = useCallback(
     async (nextDeviceId = deviceId) => {
@@ -213,7 +264,10 @@ export function useCameraPublisher(cameraId, { enabled = true } = {}) {
         streamRef.current = media;
         setStream(media);
         const used = media.getVideoTracks()[0]?.getSettings?.().deviceId;
-        if (used) setDeviceId(used);
+        if (used) {
+          setDeviceId(used);
+          persistCameraDeviceId(used);
+        }
         await refreshDevices();
         await postSitterCameraHeartbeat(cameraId);
         wakeLockRef.current = await requestWakeLock();
@@ -277,7 +331,8 @@ export function useCameraPublisher(cameraId, { enabled = true } = {}) {
     error,
     devices,
     deviceId,
-    setDeviceId,
+    setDeviceId: switchDevice,
+    switchDevice,
     start,
     stop,
     events,

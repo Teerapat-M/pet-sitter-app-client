@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   MAX_OWNER_SESSIONS_PER_CAMERA,
   MAX_SIGNAL_BYTES,
@@ -19,10 +22,28 @@ import {
   iceQuery,
   iceServersFromResponse,
   isBoardingBooking,
+  CAMERA_DEVICE_STORAGE_KEY,
+  CAMERA_PRIVACY_NOTE,
+  CAMERA_TILE_MAX_HEIGHT_VH,
+  DEFAULT_CAMERA_ASPECT,
+  bindVideoAspect,
+  cameraGuestStateLabel,
+  cameraPausedForGuests,
+  cameraPauseToggleLabel,
+  cameraTileBoxStyle,
+  ownerAfterCamerasRowClass,
+  ownerCctvCameraGridClass,
   ownerCctvHref,
+  ownerFeaturedPlacement,
+  persistCameraDeviceId,
+  readPersistedCameraDeviceId,
+  switchCameraErrorMessage,
+  switchPublisherVideo,
+  usableCameraDeviceId,
   signalBodyBytes,
   signallingErrorMessage,
   syncVideoSrcObject,
+  videoAspectRatio,
 } from "./cctv.js";
 
 test("isBoardingBooking reads service_type", () => {
@@ -198,6 +219,240 @@ test("ICE candidates wait until the offer POST resolves, then flush in order", a
   queue.reset();
   queue.enqueue({ type: "ice", sessionId: "s1", candidate: { candidate: "cand-4", sdpMid: "0" } });
   assert.deepEqual(sent, ["offer", "ice:cand-1", "ice:cand-2", "ice:cand-3"]);
+});
+
+test("privacy copy and pause toggle labels", () => {
+  assert.match(CAMERA_PRIVACY_NOTE, /only owners with an active booking/i);
+  assert.equal(cameraPausedForGuests({ isEnabled: false }), true);
+  assert.equal(cameraPausedForGuests({ isEnabled: true }), false);
+  assert.equal(cameraPauseToggleLabel(false), "Pause camera for guests");
+  assert.equal(cameraPauseToggleLabel(true), "Resume camera");
+  assert.equal(cameraGuestStateLabel(true), "Paused for guests");
+  assert.equal(cameraGuestStateLabel(false, "online"), "Live for guests");
+});
+
+function fakeTrack(kind, deviceId) {
+  const track = {
+    kind,
+    id: `${kind}-${deviceId}`,
+    stopped: false,
+    getSettings: () => ({ deviceId }),
+    stop() {
+      track.stopped = true;
+    },
+  };
+  return track;
+}
+
+class FakeStream {
+  constructor(tracks = []) {
+    this.tracks = [...tracks];
+  }
+  getTracks() {
+    return this.tracks;
+  }
+  getVideoTracks() {
+    return this.tracks.filter((track) => track.kind === "video");
+  }
+  getAudioTracks() {
+    return this.tracks.filter((track) => track.kind === "audio");
+  }
+  addTrack(track) {
+    this.tracks.push(track);
+  }
+}
+
+test("switchPublisherVideo replaces the video sender and stops the old track", async () => {
+  const oldVideo = fakeTrack("video", "cam-old");
+  const oldAudio = fakeTrack("audio", "mic");
+  const currentStream = new FakeStream([oldVideo, oldAudio]);
+  const replaced = [];
+  const peers = new Map([
+    [
+      "viewer-1",
+      {
+        pc: {
+          getSenders: () => [
+            {
+              track: { kind: "video" },
+              replaceTrack: async (track) => {
+                replaced.push(track.id);
+              },
+            },
+          ],
+        },
+      },
+    ],
+  ]);
+
+  const result = await switchPublisherVideo({
+    deviceId: "cam-new",
+    currentStream,
+    peers,
+    MediaStreamCtor: FakeStream,
+    getUserMedia: async (constraints) => {
+      assert.deepEqual(constraints, { video: { deviceId: { exact: "cam-new" } } });
+      return new FakeStream([fakeTrack("video", "cam-new")]);
+    },
+  });
+
+  assert.equal(result.deviceId, "cam-new");
+  assert.equal(result.stream.getVideoTracks()[0].id, "video-cam-new");
+  assert.equal(result.stream.getAudioTracks()[0], oldAudio);
+  assert.deepEqual(replaced, ["video-cam-new"]);
+  assert.equal(oldVideo.stopped, true);
+  assert.equal(oldAudio.stopped, false);
+});
+
+test("switchPublisherVideo keeps the old stream on camera errors", async () => {
+  const oldVideo = fakeTrack("video", "cam-old");
+  const currentStream = new FakeStream([oldVideo]);
+  const replaced = [];
+  const peers = new Map([
+    [
+      "viewer-1",
+      {
+        pc: {
+          getSenders: () => [
+            {
+              track: { kind: "video" },
+              replaceTrack: async (track) => replaced.push(track.id),
+            },
+          ],
+        },
+      },
+    ],
+  ]);
+
+  for (const name of ["NotAllowedError", "NotReadableError", "OverconstrainedError"]) {
+    const err = new Error(name);
+    err.name = name;
+    await assert.rejects(
+      () =>
+        switchPublisherVideo({
+          deviceId: "cam-new",
+          currentStream,
+          peers,
+          MediaStreamCtor: FakeStream,
+          getUserMedia: async () => {
+            throw err;
+          },
+        }),
+      (caught) => caught.name === name,
+    );
+    assert.match(switchCameraErrorMessage(err), /previous camera is still in use/i);
+  }
+
+  assert.equal(oldVideo.stopped, false);
+  assert.deepEqual(replaced, []);
+  assert.equal(currentStream.getVideoTracks()[0], oldVideo);
+});
+
+test("persisted device id restores only when still present", () => {
+  const memory = new Map();
+  const storage = {
+    getItem: (key) => (memory.has(key) ? memory.get(key) : null),
+    setItem: (key, value) => memory.set(key, String(value)),
+    removeItem: (key) => memory.delete(key),
+  };
+  persistCameraDeviceId("cam-2", storage);
+  assert.equal(readPersistedCameraDeviceId(storage), "cam-2");
+  assert.equal(memory.get(CAMERA_DEVICE_STORAGE_KEY), "cam-2");
+  assert.equal(
+    usableCameraDeviceId("cam-2", [
+      { deviceId: "cam-1", kind: "videoinput" },
+      { deviceId: "cam-2", kind: "videoinput" },
+    ]),
+    "cam-2",
+  );
+  assert.equal(
+    usableCameraDeviceId("cam-gone", [{ deviceId: "cam-1", kind: "videoinput" }]),
+    "",
+  );
+});
+
+test("video aspect ratio defaults to 16/9 until metadata arrives", () => {
+  assert.equal(DEFAULT_CAMERA_ASPECT, 16 / 9);
+  assert.equal(videoAspectRatio(null), 16 / 9);
+  assert.equal(videoAspectRatio({ videoWidth: 0, videoHeight: 0 }), 16 / 9);
+  assert.equal(videoAspectRatio({ videoWidth: 1280, videoHeight: 720 }), 16 / 9);
+  assert.equal(videoAspectRatio({ videoWidth: 640, videoHeight: 480 }), 4 / 3);
+});
+
+test("solo camera tile shrinks width to keep aspect under max-height", () => {
+  const style = cameraTileBoxStyle({ aspect: 16 / 9, solo: true });
+  assert.equal(style["--camera-tile-ar"], String(16 / 9));
+  assert.equal(style.maxHeight, `${CAMERA_TILE_MAX_HEIGHT_VH}vh`);
+  assert.equal(style.width, `min(100%, calc(${CAMERA_TILE_MAX_HEIGHT_VH}vh * ${16 / 9}))`);
+
+  const stacked = cameraTileBoxStyle({ aspect: 4 / 3 });
+  assert.equal(stacked["--camera-tile-ar"], String(4 / 3));
+  assert.equal(stacked.width, undefined);
+  assert.equal(stacked.maxHeight, undefined);
+});
+
+test("bindVideoAspect updates on loadedmetadata and resize then unbinds", () => {
+  const video = {
+    videoWidth: 0,
+    videoHeight: 0,
+    listeners: {},
+    addEventListener(type, fn) {
+      this.listeners[type] = fn;
+    },
+    removeEventListener(type, fn) {
+      if (this.listeners[type] === fn) delete this.listeners[type];
+    },
+  };
+  const seen = [];
+  const stop = bindVideoAspect(video, (ratio) => seen.push(ratio));
+  assert.equal(seen[0], 16 / 9);
+
+  video.videoWidth = 1280;
+  video.videoHeight = 720;
+  video.listeners.loadedmetadata();
+  assert.equal(seen[1], 16 / 9);
+
+  video.videoWidth = 640;
+  video.videoHeight = 480;
+  video.listeners.resize();
+  assert.equal(seen[2], 4 / 3);
+
+  stop();
+  assert.equal("loadedmetadata" in video.listeners, false);
+  assert.equal("resize" in video.listeners, false);
+});
+
+test("frame 08 featured placement is 1 large + 2 small", () => {
+  const cameras = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  assert.equal(
+    ownerFeaturedPlacement(cameras[0], "a", cameras),
+    "lg:col-start-1 lg:row-start-1 lg:row-span-2",
+  );
+  assert.equal(ownerFeaturedPlacement(cameras[1], "a", cameras), "lg:col-start-2 lg:row-start-1");
+  assert.equal(ownerFeaturedPlacement(cameras[2], "a", cameras), "lg:col-start-2 lg:row-start-2");
+  assert.equal(ownerAfterCamerasRowClass("a", cameras), "lg:row-start-3");
+  assert.match(ownerCctvCameraGridClass("featured"), /18rem/);
+
+  assert.equal(
+    ownerFeaturedPlacement({ id: "only" }, "only", [{ id: "only" }]),
+    "lg:col-span-2 lg:row-start-1",
+  );
+});
+
+test("CameraTile uses object-contain and video aspect-ratio, not a fixed strip", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const tile = readFileSync(join(root, "components/cctv/CameraTile.js"), "utf8");
+  const view = readFileSync(join(root, "components/cctv/OwnerCctvView.js"), "utf8");
+  assert.match(tile, /object-contain/);
+  assert.equal(tile.includes("object-cover"), false);
+  assert.equal(tile.includes("h-44"), false);
+  assert.match(tile, /bindVideoAspect/);
+  assert.match(tile, /solo/);
+  assert.match(view, /solo=\{solo\}/);
+  assert.match(view, /cameras\.length <= 1/);
+  assert.match(view, /ownerFeaturedPlacement/);
+  const lib = readFileSync(join(root, "lib/cctv.js"), "utf8");
+  assert.match(lib, /loadedmetadata/);
 });
 
 test("Available until uses Asia/Bangkok", () => {

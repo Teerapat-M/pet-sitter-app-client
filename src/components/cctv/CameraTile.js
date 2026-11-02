@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { cameraOfflineCopy, cameraStatusLabel, cameraViewerKind, syncVideoSrcObject } from "@/lib/cctv";
+import {
+  DEFAULT_CAMERA_ASPECT,
+  bindVideoAspect,
+  cameraOfflineCopy,
+  cameraStatusLabel,
+  cameraTileBoxStyle,
+  cameraViewerKind,
+  syncVideoSrcObject,
+} from "@/lib/cctv";
 
 function LiveBadge({ kind }) {
   const live = kind === "live";
@@ -28,6 +36,7 @@ export default function CameraTile({
   canView = true,
   preview = false,
   featured = false,
+  solo = false,
   muted = true,
   className,
   onSelect,
@@ -36,13 +45,21 @@ export default function CameraTile({
   videoRef,
 }) {
   const innerRef = useRef(null);
+  const [aspect, setAspect] = useState(DEFAULT_CAMERA_ASPECT);
   const kind = cameraViewerKind(camera, { status, stream, error }, { canView, preview });
   const live = kind === "live";
   const hasStream = Boolean(stream);
   const copy = cameraOfflineCopy(kind, error);
+  const fillGrid = featured && !solo;
 
   useEffect(() => {
-    syncVideoSrcObject(innerRef.current, stream);
+    const node = innerRef.current;
+    syncVideoSrcObject(node, stream);
+    if (!node) {
+      setAspect(DEFAULT_CAMERA_ASPECT);
+      return undefined;
+    }
+    return bindVideoAspect(node, setAspect);
   }, [stream, live]);
 
   function setVideoNode(node) {
@@ -55,27 +72,28 @@ export default function CameraTile({
     <button
       type="button"
       onClick={() => onSelect?.(camera)}
+      style={cameraTileBoxStyle({ aspect, solo })}
       className={cn(
-        "relative flex w-full overflow-hidden rounded-[1.35rem] bg-ink-900 text-left text-white",
-        featured ? "h-44 lg:h-full lg:min-h-0 lg:flex-1" : "h-44 min-h-44",
+        "relative min-w-0 w-full overflow-hidden rounded-[1.35rem] bg-ink-900 text-left text-white",
+        solo
+          ? "mx-auto [aspect-ratio:var(--camera-tile-ar,1.7777777777777777)]"
+          : fillGrid
+            ? "max-lg:[aspect-ratio:var(--camera-tile-ar,1.7777777777777777)] lg:h-full lg:min-h-0 lg:flex-1"
+            : "[aspect-ratio:var(--camera-tile-ar,1.7777777777777777)]",
         className,
       )}
     >
-      <span
-        className={cn("block w-full shrink-0", featured ? "h-44 lg:h-full" : "h-44")}
-        aria-hidden
-      />
       <LiveBadge kind={kind} />
       {live && hasStream ? (
         <video
           ref={setVideoNode}
-          className="absolute inset-0 size-full object-cover"
+          className="absolute inset-0 size-full bg-ink-900 object-contain"
           autoPlay
           playsInline
           muted={muted}
         />
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-900 px-4 text-center">
           {live ? (
             <span className="text-4xl" aria-hidden>
               {placeholder}

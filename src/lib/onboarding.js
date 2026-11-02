@@ -1,5 +1,12 @@
 export const TOUR_STORAGE_KEY = "psp_tour_done";
 
+export const LEGAL_PATHS = ["/terms-of-service", "/privacy-policy", "/data-deletion"];
+
+export function isLegalPath(pathname = "") {
+  const path = String(pathname || "");
+  return LEGAL_PATHS.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+}
+
 export const TOUR_STEPS = [
   {
     id: "welcome",

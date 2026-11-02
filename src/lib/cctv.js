@@ -19,7 +19,13 @@ export const SESSION_ENDED_STOP_REASONS = new Set([
   "camera_removed",
   "window_ended",
   "booking_ended",
+  "source_changed",
 ]);
+/** Same pattern as cameras_youtube_video_id_format_check (server PR #16). */
+export const YOUTUBE_VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+export const YOUTUBE_INVALID_MESSAGE = "Invalid YouTube video URL or id";
+export const YOUTUBE_LIVE_NOTE =
+  "Unlisted YouTube links are viewable by anyone with the link. Typical delay is 5–30 seconds.";
 
 export function isBoardingBooking(booking) {
   const type = String(
@@ -47,10 +53,90 @@ export function newSessionId() {
   return `sess-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+export function cameraSource(row) {
+  return String(row?.source ?? "webrtc") === "youtube" ? "youtube" : "webrtc";
+}
+
+export function isYoutubeCamera(row) {
+  return cameraSource(row) === "youtube";
+}
+
+export function youtubeVideoIdOf(row) {
+  if (!isYoutubeCamera(row)) return null;
+  const id = row?.youtubeVideoId ?? row?.youtube_video_id ?? null;
+  return typeof id === "string" && YOUTUBE_VIDEO_ID_RE.test(id) ? id : null;
+}
+
+export function youtubeEmbedSrc(id) {
+  const videoId = asYoutubeVideoId(id);
+  if (!videoId) return "";
+  return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1`;
+}
+
+function youtubeHostKind(hostname) {
+  const host = String(hostname ?? "").toLowerCase();
+  if (host === "youtu.be" || host === "www.youtu.be") return "youtu.be";
+  if (host === "youtube.com" || host === "www.youtube.com" || host === "m.youtube.com") {
+    return "youtube.com";
+  }
+  return null;
+}
+
+function youtubePathParts(pathname) {
+  return String(pathname ?? "")
+    .split("/")
+    .filter((part) => part.length > 0);
+}
+
+function asYoutubeVideoId(value) {
+  const id = String(value ?? "").trim();
+  return YOUTUBE_VIDEO_ID_RE.test(id) ? id : null;
+}
+
+function idFromYoutubeUrl(raw) {
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  let url;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    return null;
+  }
+  if (url.username || url.password) return null;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+
+  const kind = youtubeHostKind(url.hostname);
+  if (!kind) return null;
+  const parts = youtubePathParts(url.pathname);
+
+  if (kind === "youtu.be") {
+    if (parts.length !== 1) return null;
+    return asYoutubeVideoId(parts[0]);
+  }
+  if (parts.length === 1 && parts[0] === "watch") {
+    return asYoutubeVideoId(url.searchParams.get("v"));
+  }
+  if (parts.length === 2 && parts[0] === "live") {
+    return asYoutubeVideoId(parts[1]);
+  }
+  return null;
+}
+
+/**
+ * Accept watch / youtu.be / live URLs (www/m) or a bare 11-char id.
+ * Stream keys, RTMP, embed, and shorts return null.
+ */
+export function parseYoutubeVideoId(input) {
+  if (typeof input !== "string") return null;
+  const raw = input.trim();
+  if (!raw) return null;
+  return asYoutubeVideoId(raw) || idFromYoutubeUrl(raw);
+}
+
 export function normalizeCamera(row) {
   if (!row || typeof row !== "object") return null;
   const id = String(row.id ?? "").trim();
   if (!id) return null;
+  const source = cameraSource(row);
   return {
     id,
     sitterId: row.sitterId ?? row.sitter_id ?? null,
@@ -61,6 +147,8 @@ export function normalizeCamera(row) {
     lastSeenAt: row.lastSeenAt ?? row.last_seen_at ?? null,
     validFrom: row.validFrom ?? row.valid_from ?? null,
     validTo: row.validTo ?? row.valid_to ?? null,
+    source,
+    youtubeVideoId: source === "youtube" ? youtubeVideoIdOf({ ...row, source }) : null,
   };
 }
 
@@ -131,6 +219,7 @@ export function cameraTileKind(camera, { canView = true } = {}) {
   if (!canView) return "window";
   if (!camera) return "offline";
   if (camera.isEnabled === false) return "disabled";
+  if (isYoutubeCamera(camera)) return youtubeVideoIdOf(camera) ? "live" : "unavailable";
   const status = String(camera.status ?? "").toLowerCase();
   if (status === "reconnecting") return "reconnecting";
   if (status === "online") return "live";
@@ -150,6 +239,7 @@ export function cameraViewerKind(
   if (!canView) return "window";
   if (!camera) return "offline";
   if (camera.isEnabled === false) return "disabled";
+  if (isYoutubeCamera(camera)) return youtubeVideoIdOf(camera) ? "live" : "unavailable";
 
   const viewerStatus = String(viewer.status ?? "").toLowerCase();
   const hasTrack = Boolean(viewer.stream);
@@ -179,9 +269,18 @@ export function cameraOfflineCopy(kind, error = "") {
     return { title: "Camera offline", body: error || "Live signalling failed." };
   }
   if (kind === "disabled") return { title: "Camera offline", body: "Sitter turned this camera off" };
+  if (kind === "unavailable") {
+    return { title: "Camera offline", body: "This camera is not available right now." };
+  }
   if (kind === "reconnecting") return { title: "Camera offline", body: "Reconnecting…" };
   if (kind === "window") return { title: "Live view not open yet", body: "" };
   return { title: "Camera offline", body: "Waiting for the sitter to go live" };
+}
+
+/** YouTube cameras skip ICE/signalling (server 400). Preview never starts WebRTC. */
+export function shouldStartWebrtc(camera, { canView = true, preview = false } = {}) {
+  if (preview || !canView || isYoutubeCamera(camera)) return false;
+  return cameraTileKind(camera, { canView }) === "live";
 }
 
 export function countLiveCameras(cameras = [], access) {

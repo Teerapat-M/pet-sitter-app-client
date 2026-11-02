@@ -9,12 +9,13 @@ import CameraTile from "@/components/cctv/CameraTile";
 import { bookingCameraEventsPath, getBookingCameras } from "@/lib/api";
 import {
   MAX_OWNER_SESSIONS_PER_CAMERA,
-  cameraTileKind,
   countLiveCameras,
   formatAvailableUntil,
   formatOutsideWindowCopy,
+  isYoutubeCamera,
   normalizeAccess,
   normalizeCamera,
+  shouldStartWebrtc,
 } from "@/lib/cctv";
 import { useCameraEvents } from "@/lib/useCameraEvents";
 import { cn } from "@/lib/utils";
@@ -139,8 +140,27 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
   }, []);
 
   function renderFeed(camera, { featured = false, className } = {}) {
-    const kind = cameraTileKind(camera, { canView });
-    const enabled = Boolean(canView && kind === "live" && !preview);
+    const tile = (viewer = {}) => (
+      <CameraTile
+        camera={camera}
+        stream={viewer.stream}
+        status={viewer.status}
+        error={viewer.error}
+        canView={canView}
+        preview={Boolean(preview)}
+        featured={featured}
+        muted={muted}
+        className={className}
+        onSelect={(item) => setSelectedId(item.id)}
+        onFullscreen={requestFullscreen}
+        videoRef={(node) => {
+          if (node) videoRefs.current.set(camera.id, node);
+          else videoRefs.current.delete(camera.id);
+        }}
+      />
+    );
+    if (isYoutubeCamera(camera)) return tile();
+    const enabled = shouldStartWebrtc(camera, { canView, preview: Boolean(preview) });
     return (
       <CameraFeed
         bookingId={preview ? "" : bookingId}
@@ -155,25 +175,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
           else endedHandlersRef.current.delete(camera.id);
         }}
       >
-        {(viewer) => (
-          <CameraTile
-            camera={camera}
-            stream={viewer.stream}
-            status={viewer.status}
-            error={viewer.error}
-            canView={canView}
-            preview={Boolean(preview)}
-            featured={featured}
-            muted={muted}
-            className={className}
-            onSelect={(item) => setSelectedId(item.id)}
-            onFullscreen={requestFullscreen}
-            videoRef={(node) => {
-              if (node) videoRefs.current.set(camera.id, node);
-              else videoRefs.current.delete(camera.id);
-            }}
-          />
-        )}
+        {(viewer) => tile(viewer)}
       </CameraFeed>
     );
   }

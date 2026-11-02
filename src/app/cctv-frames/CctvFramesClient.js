@@ -57,6 +57,36 @@ export default function CctvFramesClient({ frame = "08" }) {
       />
     );
   }
+  if (frame === "yt") {
+    return withOwnerChrome(
+      <OwnerCctvView
+        booking={PREVIEW_BOARDING}
+        bookingId={PREVIEW_BOARDING.id}
+        preview={{
+          cameras: [
+            {
+              id: "cam-yt",
+              name: "Cam 1 · Garden",
+              status: "offline",
+              isEnabled: true,
+              source: "youtube",
+              youtubeVideoId: "dQw4w9WgXcQ",
+            },
+            {
+              id: "cam-empty",
+              name: "Cam 2 · Hall",
+              status: "online",
+              isEnabled: true,
+              source: "youtube",
+              youtubeVideoId: null,
+            },
+            { id: "cam-3", name: "Cam 3 · Play room", status: "online", isEnabled: true },
+          ],
+          access: PREVIEW_ACCESS,
+        }}
+      />,
+    );
+  }
   if (frame === "18d") {
     return withOwnerChrome(
       <OwnerBoardingBookingDetail

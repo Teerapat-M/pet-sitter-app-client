@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSitterCamera, listSitterCameras, patchSitterCamera } from "@/lib/api";
-import { normalizeCamera, sitterCamerasHref } from "@/lib/cctv";
+import {
+  YOUTUBE_LIVE_NOTE,
+  isYoutubeCamera,
+  normalizeCamera,
+  sitterCamerasHref,
+} from "@/lib/cctv";
 import { useCameraPublisher } from "@/lib/useCameraPublisher";
 
 export default function SitterCameraMode({ cameraId, preview }) {
@@ -12,7 +17,11 @@ export default function SitterCameraMode({ cameraId, preview }) {
   const videoRef = useRef(null);
   const [camera, setCamera] = useState(preview?.camera ?? null);
   const [list, setList] = useState(preview?.cameras ?? []);
-  const publisher = useCameraPublisher(preview ? "" : cameraId, { enabled: Boolean(cameraId) && !preview });
+  const youtube = isYoutubeCamera(camera);
+  const sourceKnown = Boolean(preview || camera);
+  const publisher = useCameraPublisher(preview ? "" : cameraId, {
+    enabled: Boolean(cameraId) && !preview && sourceKnown && !youtube,
+  });
 
   useEffect(() => {
     if (preview) return undefined;
@@ -49,22 +58,28 @@ export default function SitterCameraMode({ cameraId, preview }) {
         </Link>
         <h1 className="mt-3 text-h2">{camera?.name || "Camera mode"}</h1>
         <p className="mt-1 text-caption text-ink-400">
-          Publish this camera from your phone or laptop. Owners can watch during an in-service boarding stay.
+          {youtube
+            ? "This camera uses YouTube Live. Switch the source on the cameras page to publish from this device."
+            : "Publish this camera from your phone or laptop. Owners can watch during an in-service boarding stay."}
         </p>
 
-        <div className="relative mt-5 overflow-hidden rounded-[1.4rem] bg-[#2b2622]">
-          <video ref={videoRef} className="aspect-[16/10] w-full object-cover" autoPlay playsInline muted />
-          {!live ? (
-            <div className="absolute inset-0 flex items-center justify-center text-caption font-semibold text-white/80">
-              {denied ? publisher.error : "Camera is idle"}
-            </div>
-          ) : null}
-        </div>
+        {youtube ? (
+          <p className="mt-5 rounded-[1.1rem] bg-primary-50 px-4 py-3 text-caption text-ink-600">{YOUTUBE_LIVE_NOTE}</p>
+        ) : (
+          <div className="relative mt-5 overflow-hidden rounded-[1.4rem] bg-[#2b2622]">
+            <video ref={videoRef} className="aspect-[16/10] w-full object-cover" autoPlay playsInline muted />
+            {!live ? (
+              <div className="absolute inset-0 flex items-center justify-center text-caption font-semibold text-white/80">
+                {denied ? publisher.error : "Camera is idle"}
+              </div>
+            ) : null}
+          </div>
+        )}
 
-        {denied ? (
+        {denied && !youtube ? (
           <p className="mt-3 rounded-[1.1rem] bg-primary-50 px-4 py-3 text-caption text-primary">{publisher.error}</p>
         ) : null}
-        {publisher.error && !denied ? (
+        {publisher.error && !denied && !youtube ? (
           <p className="mt-3 text-caption text-danger">{publisher.error}</p>
         ) : null}
 
@@ -85,7 +100,7 @@ export default function SitterCameraMode({ cameraId, preview }) {
           </select>
         </label>
 
-        {publisher.devices.length > 1 ? (
+        {!youtube && publisher.devices.length > 1 ? (
           <label className="mt-3 block text-caption font-semibold text-ink-600">
             This device
             <select
@@ -103,7 +118,7 @@ export default function SitterCameraMode({ cameraId, preview }) {
         ) : null}
 
         <div className="mt-5 flex flex-wrap gap-3">
-          {live ? (
+          {youtube ? null : live ? (
             <button type="button" className="btn btn-danger min-h-11 px-5" onClick={() => publisher.stop()}>
               Stop
             </button>

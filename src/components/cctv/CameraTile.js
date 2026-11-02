@@ -3,7 +3,15 @@
 import { useEffect, useRef } from "react";
 import { Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { cameraOfflineCopy, cameraStatusLabel, cameraViewerKind, syncVideoSrcObject } from "@/lib/cctv";
+import {
+  cameraOfflineCopy,
+  cameraStatusLabel,
+  cameraViewerKind,
+  isYoutubeCamera,
+  syncVideoSrcObject,
+  youtubeEmbedSrc,
+  youtubeVideoIdOf,
+} from "@/lib/cctv";
 
 function LiveBadge({ kind }) {
   const live = kind === "live";
@@ -39,7 +47,10 @@ export default function CameraTile({
   const kind = cameraViewerKind(camera, { status, stream, error }, { canView, preview });
   const live = kind === "live";
   const hasStream = Boolean(stream);
+  const youtubeId = youtubeVideoIdOf(camera);
+  const youtubeLive = isYoutubeCamera(camera) && Boolean(youtubeId) && live;
   const copy = cameraOfflineCopy(kind, error);
+  const Tag = youtubeLive ? "div" : "button";
 
   useEffect(() => {
     syncVideoSrcObject(innerRef.current, stream);
@@ -52,21 +63,34 @@ export default function CameraTile({
   }
 
   return (
-    <button
-      type="button"
+    <Tag
+      {...(youtubeLive ? { role: "group" } : { type: "button" })}
       onClick={() => onSelect?.(camera)}
       className={cn(
         "relative flex w-full overflow-hidden rounded-[1.35rem] bg-ink-900 text-left text-white",
-        featured ? "h-44 lg:h-full lg:min-h-0 lg:flex-1" : "h-44 min-h-44",
+        featured ? "h-44 lg:h-full lg:min-h-0 lg:flex-1" : youtubeLive ? "aspect-video w-full" : "h-44 min-h-44",
         className,
       )}
     >
       <span
-        className={cn("block w-full shrink-0", featured ? "h-44 lg:h-full" : "h-44")}
+        className={cn(
+          "block w-full shrink-0",
+          featured ? "h-44 lg:h-full" : youtubeLive ? "aspect-video" : "h-44",
+        )}
         aria-hidden
       />
       <LiveBadge kind={kind} />
-      {live && hasStream ? (
+      {youtubeLive ? (
+        <div className="absolute inset-0 bg-black">
+          <iframe
+            className="absolute inset-0 size-full"
+            src={youtubeEmbedSrc(youtubeId)}
+            title={camera?.name || "YouTube Live"}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      ) : live && hasStream ? (
         <video
           ref={setVideoNode}
           className="absolute inset-0 size-full object-cover"
@@ -108,6 +132,6 @@ export default function CameraTile({
           </span>
         ) : null}
       </div>
-    </button>
+    </Tag>
   );
 }

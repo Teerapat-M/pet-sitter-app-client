@@ -14,9 +14,14 @@ import {
   sitterCameraEventsPath,
 } from "@/lib/api";
 import {
+  YOUTUBE_INVALID_MESSAGE,
+  YOUTUBE_LIVE_NOTE,
+  cameraSource,
   countEnabledCameras,
   isBoardingBooking,
+  isYoutubeCamera,
   normalizeCamera,
+  parseYoutubeVideoId,
   sitterCameraModeHref,
 } from "@/lib/cctv";
 import { useCameraEvents } from "@/lib/useCameraEvents";
@@ -27,6 +32,7 @@ export default function SitterCameraDashboard({ preview }) {
   const [cameras, setCameras] = useState((preview?.cameras ?? []).map(normalizeCamera).filter(Boolean));
   const [name, setName] = useState("");
   const [busy, setBusy] = useState("");
+  const [drafts, setDrafts] = useState({});
   const [sitter, setSitter] = useState(preview?.sitter ?? null);
   const [bookings, setBookings] = useState(preview?.bookings ?? []);
   const live = useCameraEvents(preview ? "" : sitterCameraEventsPath(), { enabled: !preview });
@@ -103,6 +109,61 @@ export default function SitterCameraDashboard({ preview }) {
     }
   }
 
+  function setDraft(cameraId, patch) {
+    setDrafts((current) => ({
+      ...current,
+      [cameraId]: { ...(current[cameraId] ?? {}), ...patch },
+    }));
+  }
+
+  async function saveSource(camera, source, youtubeUrl) {
+    if (source === "webrtc") {
+      setDraft(camera.id, { source: "webrtc", error: "" });
+      if (preview) {
+        setCameras((current) =>
+          current.map((row) => (row.id === camera.id ? { ...row, source: "webrtc", youtubeVideoId: null } : row)),
+        );
+        return;
+      }
+      setBusy(camera.id);
+      try {
+        const updated = await patchSitterCamera(camera.id, { source: "webrtc" });
+        setCameras((current) =>
+          current.map((row) => (row.id === camera.id ? normalizeCamera(updated) || { ...row, source: "webrtc", youtubeVideoId: null } : row)),
+        );
+      } catch (err) {
+        setDraft(camera.id, { error: err instanceof Error ? err.message : "Could not update camera" });
+      } finally {
+        setBusy("");
+      }
+      return;
+    }
+
+    const parsed = parseYoutubeVideoId(youtubeUrl);
+    if (!parsed) {
+      setDraft(camera.id, { source: "youtube", youtubeUrl, error: YOUTUBE_INVALID_MESSAGE });
+      return;
+    }
+    setDraft(camera.id, { source: "youtube", youtubeUrl, error: "" });
+    if (preview) {
+      setCameras((current) =>
+        current.map((row) => (row.id === camera.id ? { ...row, source: "youtube", youtubeVideoId: parsed } : row)),
+      );
+      return;
+    }
+    setBusy(camera.id);
+    try {
+      const updated = await patchSitterCamera(camera.id, { source: "youtube", youtubeUrl: String(youtubeUrl).trim() });
+      setCameras((current) =>
+        current.map((row) => (row.id === camera.id ? normalizeCamera(updated) || { ...row, source: "youtube", youtubeVideoId: parsed } : row)),
+      );
+    } catch (err) {
+      setDraft(camera.id, { error: err instanceof Error ? err.message : YOUTUBE_INVALID_MESSAGE });
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function removeCamera(camera) {
     if (preview) {
       setCameras((current) => current.filter((row) => row.id !== camera.id));
@@ -152,38 +213,20 @@ export default function SitterCameraDashboard({ preview }) {
             </div>
             <ul className="mt-4 space-y-3">
               {displayedCameras.map((camera) => (
-                <li key={camera.id} className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-line px-3 py-3">
-                  <div className="min-w-0">
-                    <p className="text-body-2 font-bold text-ink-900">{camera.name}</p>
-                    <p className="text-caption text-ink-400">
-                      {camera.isEnabled
-                        ? camera.status === "online"
-                          ? "Live · visible to guests"
-                          : camera.status === "reconnecting"
-                            ? "Reconnecting…"
-                            : "On · waiting to go live"
-                        : "Off · guests see offline"}
-                    </p>
-                    <Link href={sitterCameraModeHref(camera.id)} className="text-caption font-bold text-primary">
-                      Camera mode →
-                    </Link>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CameraSwitch
-                      checked={camera.isEnabled}
-                      disabled={Boolean(busy)}
-                      label={`Toggle ${camera.name}`}
-                      onChange={(value) => toggle(camera, value)}
-                    />
-                    <button
-                      type="button"
-                      className="text-caption text-ink-400"
-                      onClick={() => removeCamera(camera)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
+                <CameraRow
+                  key={camera.id}
+                  camera={camera}
+                  busy={Boolean(busy)}
+                  draft={drafts[camera.id]}
+                  onToggle={(value) => toggle(camera, value)}
+                  onRemove={() => removeCamera(camera)}
+                  onSourceChange={(source, youtubeUrl) => {
+                    setDraft(camera.id, { source, youtubeUrl, error: "" });
+                    if (source === "webrtc") void saveSource(camera, "webrtc");
+                  }}
+                  onYoutubeUrlChange={(youtubeUrl) => setDraft(camera.id, { source: "youtube", youtubeUrl, error: "" })}
+                  onSaveYoutube={(youtubeUrl) => saveSource(camera, "youtube", youtubeUrl)}
+                />
               ))}
             </ul>
             <form className="mt-4 flex gap-2" onSubmit={addCamera}>
@@ -198,11 +241,105 @@ export default function SitterCameraDashboard({ preview }) {
                 Add
               </button>
             </form>
-            <p className="mt-3 text-caption text-ink-400">Guests can only watch while a boarding stay is in service.</p>
+            <p className="mt-3 text-caption text-ink-400">{YOUTUBE_LIVE_NOTE}</p>
+            <p className="mt-1 text-caption text-ink-400">Guests can only watch while a boarding stay is in service.</p>
           </section>
         </div>
       </div>
     </div>
+  );
+}
+
+function CameraRow({
+  camera,
+  busy,
+  draft,
+  onToggle,
+  onRemove,
+  onSourceChange,
+  onYoutubeUrlChange,
+  onSaveYoutube,
+}) {
+  const source = draft?.source ?? cameraSource(camera);
+  const youtubeUrl = draft?.youtubeUrl ?? camera.youtubeVideoId ?? "";
+  const error = draft?.error ?? "";
+  const youtube = source === "youtube";
+  return (
+    <li className="space-y-2 rounded-[1.1rem] border border-line px-3 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-body-2 font-bold text-ink-900">{camera.name}</p>
+          <p className="text-caption text-ink-400">
+            {camera.isEnabled
+              ? youtube
+                ? camera.youtubeVideoId
+                  ? "YouTube Live · visible to guests"
+                  : "YouTube Live · add a URL"
+                : camera.status === "online"
+                  ? "Live · visible to guests"
+                  : camera.status === "reconnecting"
+                    ? "Reconnecting…"
+                    : "On · waiting to go live"
+              : "Off · guests see offline"}
+          </p>
+          {isYoutubeCamera(camera) ? null : (
+            <Link href={sitterCameraModeHref(camera.id)} className="text-caption font-bold text-primary">
+              Camera mode →
+            </Link>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <CameraSwitch
+            checked={camera.isEnabled}
+            disabled={busy}
+            label={`Toggle ${camera.name}`}
+            onChange={onToggle}
+          />
+          <button type="button" className="text-caption text-ink-400" onClick={onRemove}>
+            Delete
+          </button>
+        </div>
+      </div>
+      <label className="block text-caption font-semibold text-ink-600">
+        Source
+        <select
+          className="input mt-1 w-full"
+          value={source}
+          disabled={busy}
+          aria-label={`Source for ${camera.name}`}
+          onChange={(event) => onSourceChange(event.target.value, youtubeUrl)}
+        >
+          <option value="webrtc">This device</option>
+          <option value="youtube">YouTube Live</option>
+        </select>
+      </label>
+      {youtube ? (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSaveYoutube(youtubeUrl);
+          }}
+        >
+          <label className="block text-caption font-semibold text-ink-600">
+            YouTube URL or video id
+            <input
+              className={`input mt-1 ${error ? "input-error" : ""}`}
+              value={youtubeUrl}
+              disabled={busy}
+              placeholder="youtube.com/watch?v=… or 11-character id"
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(event) => onYoutubeUrlChange(event.target.value)}
+            />
+          </label>
+          <button type="submit" className="btn btn-outline min-h-11 px-4" disabled={busy}>
+            Save YouTube link
+          </button>
+        </form>
+      ) : null}
+      {error ? <p className="text-caption text-danger">{error}</p> : null}
+    </li>
   );
 }
 

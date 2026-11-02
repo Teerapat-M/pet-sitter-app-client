@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { register } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 import PasswordInput from "@/components/PasswordInput";
+import TermsAndPrivacyLinks from "@/components/legal/TermsAndPrivacyLinks";
 import { Card } from "@/components/ui/card";
 import { validatePassword } from "@/utils/validatePassword";
 
@@ -231,8 +232,9 @@ export default function RegisterForm({
         {errors.password ? <p className="text-caption text-danger">{errors.password}</p> : null}
       </div>
 
-      <label className="flex items-start gap-3 text-body-2 text-ink-600">
+      <div className="flex items-start gap-3 text-body-2 text-ink-600">
         <input
+          id="register-agree"
           type="checkbox"
           checked={agreed}
           onChange={(event) => {
@@ -242,16 +244,10 @@ export default function RegisterForm({
           className="mt-1 size-4 accent-primary"
         />
         <span>
-          I agree to the{" "}
-          <Link href="/terms-of-service" className="font-bold text-primary">
-            Terms
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy-policy" className="font-bold text-primary">
-            Privacy Policy
-          </Link>
+          <label htmlFor="register-agree">I agree to the </label>
+          <TermsAndPrivacyLinks className="font-bold text-primary" />
         </span>
-      </label>
+      </div>
       {errors.agreed ? <p className="text-caption text-danger">{errors.agreed}</p> : null}
 
       {error && !errors.email && !errors.phone ? (

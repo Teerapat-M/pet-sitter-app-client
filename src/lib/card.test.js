@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { CARD_LIFT_CLASS, cardClassName } from "./card.js";
+import { CARD_LIFT_CLASS, CARD_LIFT_SHADOW_CLASS, cardClassName } from "./card.js";
 
 const SRC_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const GLOBALS_PATH = join(SRC_ROOT, "app/globals.css");
@@ -146,12 +146,33 @@ test("Card call sites keep overflow-hidden off the lifting root", () => {
   }
 });
 
+test("hover/focus shadow utilities win over rest-state shadow-card", () => {
+  assert.equal(
+    CARD_LIFT_SHADOW_CLASS,
+    "hover:shadow-card-hover focus-visible:shadow-card-hover focus-within:shadow-card-hover",
+  );
+  const merged = cardClassName({ className: "shadow-card" });
+  assert.ok(merged.split(/\s+/).includes("shadow-card"), "resting shadow-card stays");
+  for (const token of CARD_LIFT_SHADOW_CLASS.split(/\s+/)) {
+    assert.ok(merged.split(/\s+/).includes(token), `missing ${token} in ${merged}`);
+  }
+  assert.ok(cardClassName().includes("hover:shadow-card-hover"));
+
+  const petSitter = readFileSync(join(SRC_ROOT, "components/PetSitterCard.js"), "utf8");
+  const petsPage = readFileSync(join(SRC_ROOT, "app/owner/pets/page.js"), "utf8");
+  assert.match(petSitter, /\bshadow-card\b/);
+  assert.match(petSitter, /<Card[\s>]/);
+  assert.match(petsPage, /\bshadow-card\b/);
+  assert.match(petsPage, /<Card[\s>]/);
+});
+
 test("shared CSS lift matches spec (6px, warm shadow, 200ms ease-out, focus)", () => {
   const globals = readFileSync(GLOBALS_PATH, "utf8");
   assert.match(globals, /\.card-lift/);
   assert.match(globals, /:is\(\.card,\s*\.card-lift\)/);
   assert.match(globals, /translate:\s*0\s+-6px/);
-  assert.match(globals, /0\s+12px\s+24px\s+rgba\(\s*0,\s*0,\s*0,\s*0\.12\s*\)/);
+  assert.match(globals, /--shadow-card-hover:\s*0\s+12px\s+24px\s+rgb\(43 33 24 \/ 0\.12\)/);
+  assert.equal(globals.includes("rgba(0, 0, 0, 0.12)"), false);
   assert.match(globals, /200ms\s+ease-out/);
   assert.match(globals, /:hover/);
   assert.match(globals, /:focus-visible/);

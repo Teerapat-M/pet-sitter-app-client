@@ -1,5 +1,6 @@
 "use client";
 
+import { isYoutubeCamera } from "@/lib/cctv";
 import { useCameraViewer } from "@/lib/useCameraViewer";
 
 export default function CameraFeed({
@@ -11,7 +12,7 @@ export default function CameraFeed({
   children,
 }) {
   const viewer = useCameraViewer(bookingId, camera, {
-    enabled,
+    enabled: Boolean(enabled) && !isYoutubeCamera(camera),
     onSignal,
     onSessionEnded,
   });

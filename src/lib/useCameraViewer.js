@@ -8,6 +8,7 @@ import {
   createIceFlushQueue,
   defaultStunServers,
   iceCandidatePayload,
+  isYoutubeCamera,
   newSessionId,
   signallingErrorMessage,
 } from "@/lib/cctv";
@@ -39,6 +40,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
   const hasTrackRef = useRef(false);
   const iceQueueRef = useRef(null);
   const cameraId = camera?.id;
+  const youtube = isYoutubeCamera(camera);
 
   const ensureSessionId = useCallback(() => {
     if (!sessionRef.current) sessionRef.current = newSessionId();
@@ -46,7 +48,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
   }, []);
 
   const connect = useCallback(async () => {
-    if (!enabled || !bookingId || !cameraId || stoppedRef.current) return;
+    if (!enabled || youtube || !bookingId || !cameraId || stoppedRef.current) return;
     const sessionId = ensureSessionId();
     try {
       const servers = await getIceServers({ cameraId, bookingId }).catch(() => defaultStunServers());
@@ -126,7 +128,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
       setStatus(err?.status === 403 ? "forbidden" : "error");
       setError(signallingErrorMessage(err));
     }
-  }, [bookingId, cameraId, enabled, ensureSessionId]);
+  }, [bookingId, cameraId, enabled, ensureSessionId, youtube]);
 
   const handleSignal = useCallback(
     async (event) => {
@@ -178,7 +180,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
   }, [handleSessionEnded, onSessionEnded]);
 
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled || youtube) return undefined;
     stoppedRef.current = false;
     const timer = setTimeout(() => {
       void connect();
@@ -190,7 +192,7 @@ export function useCameraViewer(bookingId, camera, { enabled = true, onSignal, o
       closePeerConnection(pcRef.current);
       pcRef.current = null;
     };
-  }, [connect, enabled]);
+  }, [connect, enabled, youtube]);
 
   useEffect(() => {
     if (status !== "reconnecting" || !enabled) return undefined;

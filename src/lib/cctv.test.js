@@ -6,9 +6,14 @@ import { fileURLToPath } from "node:url";
 import {
   MAX_OWNER_SESSIONS_PER_CAMERA,
   MAX_SIGNAL_BYTES,
+  SESSION_ENDED_STOP_REASONS,
+  YOUTUBE_INVALID_MESSAGE,
+  YOUTUBE_LIVE_NOTE,
+  YOUTUBE_VIDEO_ID_RE,
   applyCameraEvent,
   canSendSignal,
   cameraOfflineCopy,
+  cameraSource,
   cameraTileKind,
   cameraViewerKind,
   createIceFlushQueue,
@@ -22,6 +27,12 @@ import {
   iceQuery,
   iceServersFromResponse,
   isBoardingBooking,
+  isYoutubeCamera,
+  normalizeCamera,
+  parseYoutubeVideoId,
+  shouldStartWebrtc,
+  youtubeEmbedSrc,
+  youtubeVideoIdOf,
   CAMERA_DEVICE_STORAGE_KEY,
   CAMERA_PRIVACY_NOTE,
   CAMERA_TILE_MAX_HEIGHT_VH,
@@ -463,4 +474,91 @@ test("Available until uses Asia/Bangkok", () => {
   assert.match(until, /Access until/);
   const outside = formatOutsideWindowCopy({ validFrom: "2026-11-12T03:00:00.000Z" });
   assert.match(outside, /Thu 12 Nov, 10:00/);
+});
+
+const YT_ID = "dQw4w9WgXcQ";
+
+test("parseYoutubeVideoId accepts watch, youtu.be, live, www/m, and a bare 11-char id", () => {
+  assert.equal(YOUTUBE_VIDEO_ID_RE.test(YT_ID), true);
+  assert.equal(parseYoutubeVideoId(YT_ID), YT_ID);
+  assert.equal(parseYoutubeVideoId(`https://www.youtube.com/watch?v=${YT_ID}`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`https://youtube.com/watch?v=${YT_ID}&t=12`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`https://m.youtube.com/watch?v=${YT_ID}`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`youtube.com/watch?v=${YT_ID}`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`https://youtu.be/${YT_ID}`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`https://youtu.be/${YT_ID}?si=abc`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`youtu.be/${YT_ID}`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`https://www.youtube.com/live/${YT_ID}`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`https://www.youtube.com/live/${YT_ID}/`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`https://youtube.com/live/${YT_ID}?feature=share`), YT_ID);
+  assert.equal(parseYoutubeVideoId(`  ${YT_ID}  `), YT_ID);
+});
+
+test("parseYoutubeVideoId rejects embed, shorts, stream keys, RTMP, and anything else", () => {
+  const reject = (value) => {
+    assert.equal(parseYoutubeVideoId(value), null, String(value));
+  };
+  reject("https://www.youtube.com/embed/" + YT_ID);
+  reject("https://www.youtube.com/shorts/" + YT_ID);
+  reject("https://www.youtube.com/watch?v=short");
+  reject("https://www.youtube.com/watch?v=" + YT_ID + "extra");
+  reject("https://youtu.be/" + YT_ID + "/extra");
+  reject("https://music.youtube.com/watch?v=" + YT_ID);
+  reject("https://youtube.com/live");
+  reject("https://www.youtube.com/live/my-custom-handle");
+  reject("xxxx-xxxx-xxxx-xxxx");
+  reject("live_1234-xxxx-xxxx-xxxx-xxxx");
+  reject("rtmp://a.rtmp.youtube.com/live2/xxxx-xxxx-xxxx-xxxx");
+  reject("https://a.rtmp.youtube.com/live2/xxxx-xxxx-xxxx-xxxx");
+  reject("https://studio.youtube.com/video/" + YT_ID + "/livestreaming");
+  reject("https://vimeo.com/" + YT_ID);
+  reject("");
+  reject("not a url");
+  reject(null);
+  reject(12);
+  assert.equal(YOUTUBE_INVALID_MESSAGE, "Invalid YouTube video URL or id");
+});
+
+test("youtube cameras embed nocookie src and skip WebRTC", () => {
+  const youtube = normalizeCamera({
+    id: "c-yt",
+    name: "Garden",
+    source: "youtube",
+    youtubeVideoId: YT_ID,
+    isEnabled: true,
+    status: "offline",
+  });
+  const webrtc = normalizeCamera({
+    id: "c-rtc",
+    name: "Play room",
+    isEnabled: true,
+    status: "online",
+  });
+  const missingId = normalizeCamera({
+    id: "c-empty",
+    name: "Hall",
+    source: "youtube",
+    youtubeVideoId: null,
+    isEnabled: true,
+    status: "online",
+  });
+
+  assert.equal(cameraSource(youtube), "youtube");
+  assert.equal(isYoutubeCamera(youtube), true);
+  assert.equal(isYoutubeCamera(webrtc), false);
+  assert.equal(youtubeVideoIdOf(youtube), YT_ID);
+  assert.equal(
+    youtubeEmbedSrc(YT_ID),
+    `https://www.youtube-nocookie.com/embed/${YT_ID}?autoplay=1&mute=1`,
+  );
+  assert.equal(cameraTileKind(youtube, { canView: true }), "live");
+  assert.equal(cameraViewerKind(youtube, { status: "idle" }, { canView: true }), "live");
+  assert.equal(shouldStartWebrtc(youtube, { canView: true }), false);
+  assert.equal(shouldStartWebrtc(webrtc, { canView: true }), true);
+  assert.equal(shouldStartWebrtc(webrtc, { canView: true, preview: true }), false);
+  assert.equal(cameraTileKind(missingId, { canView: true }), "unavailable");
+  assert.match(cameraOfflineCopy("unavailable").body, /not available/i);
+  assert.equal(SESSION_ENDED_STOP_REASONS.has("source_changed"), true);
+  assert.match(YOUTUBE_LIVE_NOTE, /anyone with the link/i);
+  assert.match(YOUTUBE_LIVE_NOTE, /5–30 seconds/);
 });

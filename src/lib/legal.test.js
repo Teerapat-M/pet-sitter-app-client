@@ -152,7 +152,7 @@ test("standalone terms-of-service and privacy-policy pages still render", async 
 
   assert.match(termsHtml, /Terms of Service/);
   assert.match(termsHtml, /1\. The Service/);
-  assert.match(termsHtml, /Pet Sitter Plus/);
+  assert.match(termsHtml, /Sitter\*/);
   assert.match(privacyHtml, /Privacy Policy/);
   assert.match(privacyHtml, /Information we collect/);
   assert.match(privacyHtml, /Data Deletion/);

@@ -1,5 +1,10 @@
-import OwnerLayoutChrome from "@/components/walk/OwnerLayoutChrome";
+import Navbar from "../../components/Navbar";
 
 export default function OwnerLayout({ children }) {
-  return <OwnerLayoutChrome>{children}</OwnerLayoutChrome>;
+  return (
+    <>
+      <Navbar />
+      {children}
+    </>
+  );
 }

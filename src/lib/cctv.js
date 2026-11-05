@@ -34,6 +34,14 @@ export function isBoardingBooking(booking) {
   return type === "boarding";
 }
 
+/** Boarding CCTV plus walk-along webcam when a GPS walk is in progress. */
+export function bookingAllowsOwnerCameras(booking) {
+  const type = String(
+    booking?.service_type ?? booking?.serviceType ?? booking?.service?.type ?? "",
+  ).trim();
+  return type === "boarding" || type === "dog_walking";
+}
+
 export function ownerCctvHref(bookingId) {
   return `/owner/cctv/${encodeURIComponent(String(bookingId))}`;
 }

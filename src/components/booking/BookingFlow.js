@@ -33,6 +33,7 @@ import {
   formatQuoteTotal,
   formatServiceDateTimeLabel,
   quoteUnavailable,
+  serviceTypeLabel,
   shapeCreateRequest,
   toBookingSearchParams,
 } from "@/lib/phase3Booking";
@@ -424,7 +425,7 @@ export default function BookingFlow({
     nights,
     selectedPets,
     quote: liveQuote.quote,
-    serviceLabel: phase3?.serviceType?.replaceAll("_", " "),
+    serviceLabel: phase3 ? serviceTypeLabel(phase3.serviceType) : "",
     dateTimeLabel: phase3
       ? formatServiceDateTimeLabel(quoteDraft, liveQuote.quote)
       : undefined,

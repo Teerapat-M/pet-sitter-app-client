@@ -16,6 +16,7 @@ import {
   walkSitterName,
 } from "@/lib/walkTracking";
 import { bookingChatHref } from "@/lib/phase3Booking";
+import { ownerCctvHref } from "@/lib/cctv";
 import WalkTrailMap from "@/components/walk/WalkTrailMap";
 import {
   WalkBadge,
@@ -186,6 +187,14 @@ export default function OwnerWalkView({
                 <div className="mt-4">
                   <WalkContactRow messageHref={messageHref} />
                 </div>
+                {bookingId ? (
+                  <Link
+                    href={ownerCctvHref(bookingId)}
+                    className="btn btn-secondary mt-3 w-full"
+                  >
+                    Watch webcam with GPS
+                  </Link>
+                ) : null}
               </>
             ) : null}
 

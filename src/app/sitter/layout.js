@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Calendar, List, UserRound, CreditCard, LogOut, MessagesSquare, ArrowLeftRight, Video } from "lucide-react";
+import Navbar from "@/components/Navbar";
 import axios from "axios";
 import { clearAuth, getUser } from "@/lib/auth";
 import jwtInterceptor from "@/utils/jwtInterceptor";
 import { useUnreadChatCount } from "@/lib/useUnreadChatCount";
 import NotificationBell from "@/components/NotificationBell";
-import Navbar from "@/components/Navbar";
 
 jwtInterceptor();
 
@@ -89,13 +89,11 @@ export default function SitterLayout({ children }) {
     return null;
   }
 
-  if (pathname.startsWith("/sitter/walks") || pathname.startsWith("/sitter/cameras")) {
+  if (pathname.startsWith("/sitter/walks")) {
     return (
       <>
-        <div className="hidden md:block">
-          <Navbar />
-        </div>
-        <div className="min-h-full bg-background">{children}</div>
+        <Navbar />
+        <div className="min-h-full bg-[#FAFAFB]">{children}</div>
       </>
     );
   }

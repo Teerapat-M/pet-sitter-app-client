@@ -17,7 +17,7 @@ export const SERVICES = [
   {
     id: "dog_walking",
     label: "Dog walking",
-    tabLabel: "Walking",
+    tabLabel: "Dog walking",
     mobileLabel: "Dog walking",
     icon: "🐕",
     blurb: "Per walk or by duration, with live GPS tracking.",
@@ -30,7 +30,7 @@ export const SERVICES = [
   {
     id: "in_home",
     label: "In-home sitter",
-    tabLabel: "In-home",
+    tabLabel: "House sitting",
     mobileLabel: "In-home",
     icon: "🧳",
     blurb: "Daytime visits or overnight stays at your home.",

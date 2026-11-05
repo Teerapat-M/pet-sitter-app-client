@@ -3,7 +3,7 @@ import { parseBookingSearchParams } from "@/lib/phase3Booking";
 import BookingFlow from "@/components/booking/BookingFlow";
 
 export const metadata = {
-  title: "Booking | Pet Sitter Plus",
+  title: "Booking | Pet Sitter App",
 };
 
 export default async function OwnerBookingPage({ searchParams }) {

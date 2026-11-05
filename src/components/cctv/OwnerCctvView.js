@@ -22,7 +22,13 @@ import {
 } from "@/lib/cctv";
 import { useCameraEvents } from "@/lib/useCameraEvents";
 import { cn } from "@/lib/utils";
-import { walkBookingCode, walkFirstName, walkSitterName } from "@/lib/walkTracking";
+import {
+  isDogWalkingBooking,
+  walkBookingCode,
+  walkFirstName,
+  walkOwnerHref,
+  walkSitterName,
+} from "@/lib/walkTracking";
 
 function venueName(booking) {
   const sitter = walkFirstName(walkSitterName(booking));
@@ -178,6 +184,14 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
         <p className="mt-1 text-caption text-ink-400">
           {until ? `${until} · only you can watch` : "only you can watch"}
         </p>
+        {isDogWalkingBooking(booking) && (bookingId || booking?.id) ? (
+          <Link
+            href={walkOwnerHref(bookingId || booking.id)}
+            className="btn btn-secondary mt-3 min-h-11 px-5"
+          >
+            Open walk-along GPS
+          </Link>
+        ) : null}
         {gate && gate !== "outside-window" ? (
           <p className="mt-2 text-caption text-danger">{gate}</p>
         ) : null}

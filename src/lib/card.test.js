@@ -13,16 +13,12 @@ const CARD_IMPORT_RE =
   /from\s+['"]@\/components\/ui\/card['"]|from\s+['"]\.\.?\/.*ui\/card['"]/;
 
 const KEY_CARD_FILES = [
-  "components/home/ServiceTiles.js",
-  "components/home/TopSitters.js",
-  "components/PetSitterCard.js",
-  "components/find-sitter/SitterCardOverlay.js",
   "app/owner/bookings/page.js",
-  "components/booking/BookingDetailSidebar.js",
-  "components/booking/YourPetStep.js",
+  "components/booking/ServiceBookingForm.js",
   "components/walk/WalkSummaryCard.js",
   "components/sitter/payout/BankAccountCard.js",
   "components/sitter/payout/TotalEarningCard.js",
+  "components/cctv/OwnerCctvBanner.js",
 ];
 
 function walkJsFiles(dir, files = []) {
@@ -33,29 +29,6 @@ function walkJsFiles(dir, files = []) {
     else if (/\.(js|jsx)$/.test(entry.name)) files.push(path);
   }
   return files;
-}
-
-function splitReducedMotion(css) {
-  const marker = "@media (prefers-reduced-motion: reduce)";
-  const idx = css.indexOf(marker);
-  assert.ok(idx !== -1, "globals.css must define reduced-motion card hover");
-  const brace = css.indexOf("{", idx);
-  let depth = 0;
-  let end = brace;
-  for (let i = brace; i < css.length; i += 1) {
-    if (css[i] === "{") depth += 1;
-    else if (css[i] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        end = i;
-        break;
-      }
-    }
-  }
-  return {
-    rest: `${css.slice(0, idx)}${css.slice(end + 1)}`,
-    reduced: css.slice(idx, end + 1),
-  };
 }
 
 function extractCardOpenClassNames(source) {
@@ -108,7 +81,7 @@ test("Card component applies cardClassName", () => {
   assert.match(source, /data-slot="card"/);
 });
 
-test("home, sitter, and booking cards use the Card component", () => {
+test("capability screens that still use Card import the shared component", () => {
   for (const rel of KEY_CARD_FILES) {
     const source = readFileSync(join(SRC_ROOT, rel), "utf8");
     assert.match(source, CARD_IMPORT_RE, `${rel} must import Card`);
@@ -158,36 +131,15 @@ test("hover/focus shadow utilities win over rest-state shadow-card", () => {
   }
   assert.ok(cardClassName().includes("hover:shadow-card-hover"));
 
-  const petSitter = readFileSync(join(SRC_ROOT, "components/PetSitterCard.js"), "utf8");
-  const petsPage = readFileSync(join(SRC_ROOT, "app/owner/pets/page.js"), "utf8");
-  assert.match(petSitter, /\bshadow-card\b/);
-  assert.match(petSitter, /<Card[\s>]/);
-  assert.match(petsPage, /\bshadow-card\b/);
-  assert.match(petsPage, /<Card[\s>]/);
+  const bookings = readFileSync(join(SRC_ROOT, "app/owner/bookings/page.js"), "utf8");
+  const walkCard = readFileSync(join(SRC_ROOT, "components/walk/WalkSummaryCard.js"), "utf8");
+  assert.match(bookings, /<Card[\s>]/);
+  assert.match(walkCard, /<Card[\s>]/);
 });
 
-test("shared CSS lift matches spec (6px, warm shadow, 200ms ease-out, focus)", () => {
+test("classic shell keeps card-lift as a no-op so Plus leftover Cards do not restyle the original UI", () => {
   const globals = readFileSync(GLOBALS_PATH, "utf8");
   assert.match(globals, /\.card-lift/);
-  assert.match(globals, /:is\(\.card,\s*\.card-lift\)/);
-  assert.match(globals, /translate:\s*0\s+-6px/);
-  assert.match(globals, /--shadow-card-hover:\s*0\s+12px\s+24px\s+rgb\(43 33 24 \/ 0\.12\)/);
-  assert.equal(globals.includes("rgba(0, 0, 0, 0.12)"), false);
-  assert.match(globals, /200ms\s+ease-out/);
-  assert.match(globals, /:hover/);
-  assert.match(globals, /:focus-visible/);
-  assert.match(globals, /:focus-within/);
-  assert.equal(globals.includes("motion-safe:hover:-translate-y-1"), false);
-  assert.equal(globals.includes("hover:shadow-lg"), false);
-
-  const { rest, reduced } = splitReducedMotion(globals);
-  assert.match(rest, /translate:\s*0\s+-6px/);
-  assert.match(reduced, /prefers-reduced-motion:\s*reduce/);
-  assert.match(reduced, /translate:\s*none/);
-  assert.equal(
-    /translate:\s*0\s+-6px/.test(reduced),
-    false,
-    "reduced-motion must not translate the card",
-  );
-  assert.match(reduced, /box-shadow/);
+  assert.equal(globals.includes("translate: 0 -6px"), false);
+  assert.equal(globals.includes(":is(.card, .card-lift)"), false);
 });

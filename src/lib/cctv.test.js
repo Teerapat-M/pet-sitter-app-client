@@ -26,6 +26,7 @@ import {
   icePath,
   iceQuery,
   iceServersFromResponse,
+  bookingAllowsOwnerCameras,
   isBoardingBooking,
   isYoutubeCamera,
   normalizeCamera,
@@ -61,6 +62,12 @@ test("isBoardingBooking reads service_type", () => {
   assert.equal(isBoardingBooking({ service_type: "boarding" }), true);
   assert.equal(isBoardingBooking({ serviceType: "dog_walking" }), false);
   assert.equal(isBoardingBooking({ service: { type: "boarding" } }), true);
+});
+
+test("owner cameras are allowed for boarding stays and GPS walks", () => {
+  assert.equal(bookingAllowsOwnerCameras({ service_type: "boarding" }), true);
+  assert.equal(bookingAllowsOwnerCameras({ serviceType: "dog_walking" }), true);
+  assert.equal(bookingAllowsOwnerCameras({ serviceType: "in_home" }), false);
 });
 
 test("owner CCTV href and ICE query require camera/booking context", () => {

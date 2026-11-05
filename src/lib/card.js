@@ -14,6 +14,7 @@ export const CARD_LIFT_SHADOW_CLASS =
 
 export function cardClassName({ interactive = false, className } = {}) {
   return cn(
+    "card",
     className,
     CARD_LIFT_CLASS,
     CARD_LIFT_SHADOW_CLASS,

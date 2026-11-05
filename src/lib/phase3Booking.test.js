@@ -130,7 +130,7 @@ test("status mapping treats legacy success as completed", () => {
   assert.equal(bookingStatusMeta("completed").label, "Completed");
   assert.equal(bookingStatusMeta("success").key, "completed");
   assert.equal(serviceTypeLabel("dog_walking"), "Dog walking");
-  assert.equal(serviceTypeLabel({ service_type: "in_home" }), "In-home sitter");
+  assert.equal(serviceTypeLabel({ service_type: "in_home" }), "House sitting");
 });
 
 test("quote line is display-only from server fields", () => {

@@ -31,7 +31,7 @@ import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
 import CctvBadge from "@/components/CctvBadge";
 import WalkBookingLink from "@/components/walk/WalkBookingLink";
 import { WalkTrailThumb } from "@/components/walk/WalkUi";
-import { isBoardingBooking, ownerCctvHref } from "@/lib/cctv";
+import { bookingAllowsOwnerCameras, isBoardingBooking, ownerCctvHref } from "@/lib/cctv";
 import { firstPetName, isDogWalkingBooking, walkFirstName, walkOwnerHref, walkSitterName } from "@/lib/walkTracking";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -829,13 +829,22 @@ export default function BookingHistoryPage() {
                           <p className="mt-1 text-h4">
                             {firstPetName(booking)} is out with {walkFirstName(walkSitterName(booking))}
                           </p>
-                          <Link
-                            href={walkOwnerHref(booking.id)}
-                            className="btn btn-accent mt-3 min-h-11"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            📍 Track walk live
-                          </Link>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Link
+                              href={walkOwnerHref(booking.id)}
+                              className="btn btn-accent min-h-11"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              📍 Track walk live
+                            </Link>
+                            <Link
+                              href={ownerCctvHref(booking.id)}
+                              className="btn btn-secondary min-h-11"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Watch webcam
+                            </Link>
+                          </div>
                         </div>
                         <div className="h-24 w-full overflow-hidden rounded-[1rem] sm:h-24 sm:w-40">
                           <WalkTrailThumb points={[]} className="h-full w-full" />
@@ -1051,9 +1060,9 @@ export default function BookingHistoryPage() {
               </div>
 
               {normalizeBookingStatus(selectedBooking.status) === "in_service" &&
-              isBoardingBooking(selectedBooking) ? (
+              bookingAllowsOwnerCameras(selectedBooking) ? (
                 <Link href={ownerCctvHref(selectedBooking.id)} className="btn btn-accent w-fit">
-                  Watch CCTV
+                  {isBoardingBooking(selectedBooking) ? "Watch CCTV" : "Watch webcam"}
                 </Link>
               ) : null}
               <WalkBookingLink

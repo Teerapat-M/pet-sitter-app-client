@@ -46,7 +46,7 @@ export const IN_HOME_ADDRESS_REQUIRED_MESSAGE =
 export const SERVICE_TYPE_LABELS = {
   boarding: "Boarding",
   dog_walking: "Dog walking",
-  in_home: "In-home sitter",
+  in_home: "House sitting",
 };
 
 export function serviceTypeLabel(bookingOrType) {

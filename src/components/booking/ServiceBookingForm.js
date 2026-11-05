@@ -277,7 +277,7 @@ export default function ServiceBookingForm({
                     active ? "bg-primary text-white" : "border border-line text-ink-600"
                   }`}
                 >
-                  {mode === "visit" ? "Daytime visit" : "Overnight"}
+                  {mode === "visit" ? "Drop-in visit" : "Overnight stay"}
                 </button>
               );
             })}

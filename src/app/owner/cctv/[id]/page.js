@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import OwnerCctvView from "@/components/cctv/OwnerCctvView";
 import { getOwnerBooking } from "@/lib/api";
 import { getToken } from "@/lib/auth";
-import { isBoardingBooking } from "@/lib/cctv";
+import { bookingAllowsOwnerCameras } from "@/lib/cctv";
 
 export default function OwnerCctvPage() {
   const { id } = useParams();
@@ -49,10 +49,10 @@ export default function OwnerCctvPage() {
       </div>
     );
   }
-  if (!isBoardingBooking(booking)) {
+  if (!bookingAllowsOwnerCameras(booking)) {
     return (
       <div className="px-5 py-10">
-        <p className="text-body-2">Live cameras are for boarding stays.</p>
+        <p className="text-body-2">Live cameras are for boarding stays and GPS walks.</p>
         <Link href={`/owner/bookings/${encodeURIComponent(String(id))}`} className="mt-4 inline-flex text-caption font-semibold text-primary">
           Back to booking
         </Link>

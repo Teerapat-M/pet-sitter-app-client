@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,8 +8,18 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Icon from "./Icon";
 import Pagination from "./Pagination";
-import { createConversation, getProfile, getSitter, getSitterAvailability, getSitterReviews } from "@/lib/api";
-import BookingDateTimeModal from "@/components/booking/BookingDateTimeModal";
+import { createConversation, getMyPets, getProfile, getSitter, getSitterReviews } from "@/lib/api";
+import CctvBadge from "@/components/CctvBadge";
+import ServiceBookingForm, { useLiveQuote } from "@/components/booking/ServiceBookingForm";
+import { SERVICES } from "@/lib/services";
+import { normalizeBookingPet } from "@/lib/booking";
+import {
+  defaultDraftFromOfferings,
+  offeredServiceTypes,
+  serviceOfferingPriceLabel,
+  toBookingSearchParams,
+  validateBookingForm,
+} from "@/lib/phase3Booking";
 
 const Map = dynamic(() => import("@/components/Map"), {
   ssr: false,
@@ -22,13 +32,6 @@ const Map = dynamic(() => import("@/components/Map"), {
 
 import { getToken, getUser } from "@/lib/auth";
 import { getSitterCoords } from "@/lib/sitterLocation";
-import {
-  bookingRangeOverlapsBooked,
-  combineBookingDateTime,
-  dateRangeOverlapsBooked,
-  isAtLeastThreeHoursAhead,
-  normalizeBookedSlots,
-} from "@/lib/booking";
 import { MONTHS } from "@/components/booking/BookingCalendarPicker";
 import { errorToastClassNames } from "@/lib/toastStyles";
 import { isOwnerProfileComplete } from "@/utils/validateProfile";
@@ -109,6 +112,9 @@ function normalizeSitter(raw) {
     services: firstString(raw.services),
     myPlace: firstString(raw.myPlace, raw.my_place),
     experience: formatExperience(raw.experience ?? raw.experience_years ?? raw.experienceYears),
+    cameraCount: Number(raw.camera_count ?? raw.cameraCount ?? raw.cameras?.length ?? 0) || 0,
+    hasCctv: Boolean(raw.hasCctv ?? raw.has_cctv ?? raw.camera_count),
+    serviceOfferings: raw.serviceOfferings ?? raw.service_offerings ?? [],
     latitude: raw.latitude,
     longitude: raw.longitude,
   };
@@ -124,21 +130,6 @@ function Stars({ count, iconClassName = "h-5 w-5" }) {
   );
 }
 
-function isSameDayBooking(startDate, endDate, isManyDays) {
-  if (isManyDays && !endDate) return false;
-  return Boolean(startDate) && (!endDate || startDate === endDate);
-}
-
-function isStartBeforeEnd(startDate, startTime, endDate, endTime, isManyDays) {
-  if (!startTime || !endTime) return true;
-  if (!isSameDayBooking(startDate, endDate, isManyDays)) {
-    if (!startDate || !endDate) return true;
-    const start = combineBookingDateTime(startDate, startTime);
-    const end = combineBookingDateTime(endDate, endTime);
-    return Boolean(start && end && start.getTime() < end.getTime());
-  }
-  return startTime < endTime;
-}
 
 function CompleteProfileModal({ onClose, onComplete }) {
   useEffect(() => {
@@ -620,36 +611,12 @@ export default function PetSitterDetail({ sitterId }) {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingChecking, setBookingChecking] = useState(false);
-  const [booking, setBooking] = useState({
-    startDate: "",
-    endDate: "",
-    startTime: "",
-    endTime: "",
-  });
-  const [bookedSlots, setBookedSlots] = useState([]);
+  const [pets, setPets] = useState([]);
+  const [draft, setDraft] = useState(() => defaultDraftFromOfferings([]));
 
   useEffect(() => {
     setIsLoggedIn(Boolean(getUser()));
   }, []);
-
-  useEffect(() => {
-    if (!bookingOpen || !sitterId) return;
-    let cancelled = false;
-
-    async function loadAvailability() {
-      try {
-        const data = await getSitterAvailability(sitterId);
-        if (!cancelled) setBookedSlots(normalizeBookedSlots(data));
-      } catch {
-        if (!cancelled) setBookedSlots([]);
-      }
-    }
-
-    loadAvailability();
-    return () => {
-      cancelled = true;
-    };
-  }, [bookingOpen, sitterId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -675,6 +642,54 @@ export default function PetSitterDetail({ sitterId }) {
       cancelled = true;
     };
   }, [sitterId]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setPets([]);
+      return;
+    }
+    let cancelled = false;
+    getMyPets()
+      .then((rows) => {
+        if (cancelled) return;
+        setPets(
+          (Array.isArray(rows) ? rows : [])
+            .map(normalizeBookingPet)
+            .filter((pet) => pet?.id && !pet.isSuspended),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!sitter) return;
+    setDraft((current) =>
+      defaultDraftFromOfferings(sitter.serviceOfferings, {
+        ...current,
+        sitterId: String(sitter.id ?? sitterId),
+      }),
+    );
+  }, [sitter, sitterId]);
+
+  const quoteDraft = useMemo(
+    () => ({
+      ...draft,
+      sitterId: String(sitter?.id ?? sitterId),
+      pets,
+      serviceOfferings: sitter?.serviceOfferings ?? [],
+    }),
+    [draft, pets, sitter, sitterId],
+  );
+  const { quote, quoteError, quoting } = useLiveQuote(
+    String(sitter?.id ?? sitterId),
+    quoteDraft,
+    Boolean(sitter) && (bookingOpen || Boolean(draft.serviceType)),
+  );
 
   async function handleSendMessage() {
     if (!getToken()) {
@@ -718,10 +733,11 @@ export default function PetSitterDetail({ sitterId }) {
   }
 
   const pinCoords = getSitterCoords(sitter);
-  const query = encodeURIComponent(`${pinCoords[0]},${pinCoords[1]}`);
-  const mapSrc = `https://maps.google.com/maps?q=${query}&z=15&output=embed`;
-  const mapHref = `https://www.google.com/maps/search/?api=1&query=${query}`;
   const isOwnSitter = isOwnSitterListing(sitter.id ?? sitterId);
+  const offeredTypes = offeredServiceTypes(sitter.serviceOfferings);
+  const visibleServices = offeredTypes.length
+    ? SERVICES.filter((service) => offeredTypes.includes(service.id))
+    : SERVICES;
 
   function requireLogin(onAllowed) {
     if (isLoggedIn) {
@@ -774,73 +790,31 @@ export default function PetSitterDetail({ sitterId }) {
     router.push(`/owner/profile?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
-  function handleBookingChange(patch) {
-    setBooking((current) => ({ ...current, ...patch }));
-  }
-
-  /** Continue → /owner/booking — many days ส่งแค่วัน · one day ส่งวัน+เวลา */
-  function handleBookingContinue(event) {
-    event.preventDefault();
-
-    if (isOwnSitter) {
-      toast.error("You cannot book yourself", {
-        classNames: errorToastClassNames,
-      });
-      return;
-    }
-
-    const { startDate, endDate: bookingEndDate, startTime, endTime } = booking;
-    const endDate = bookingEndDate || startDate;
-    const isManyDayRange = Boolean(startDate && endDate && endDate > startDate);
-
-    if (!startDate) return;
-
-    if (isManyDayRange) {
-      // Step 1a: many days — เช็คแค่วันที่ (ไม่ใช้ time)
-      if (!bookingEndDate || bookingEndDate <= startDate) return;
-
-      if (dateRangeOverlapsBooked(startDate, endDate, bookedSlots)) {
-        toast.error("This date and time is already booked. Please choose another slot.", {
-          classNames: errorToastClassNames,
-        });
-        return;
-      }
-
-      // Step 2a: query เฉพาะ sitterId + startDate + endDate
-      const params = new URLSearchParams({
-        sitterId: String(sitter.id ?? sitterId),
-        startDate,
-        endDate,
-      });
-      setBookingOpen(false);
-      router.push(`/owner/booking?${params.toString()}`);
-      return;
-    }
-
-    // Step 1b: one day — ต้องมีเวลา + กฎเดิม
-    if (!startTime || !endTime) return;
-    if (!isAtLeastThreeHoursAhead(startDate, startTime)) return;
-    if (!isStartBeforeEnd(startDate, startTime, endDate, endTime, false)) return;
-
-    if (
-      bookingRangeOverlapsBooked(startDate, endDate, startTime, endTime, bookedSlots)
-    ) {
-      toast.error("This date and time is already booked. Please choose another slot.", {
-        classNames: errorToastClassNames,
-      });
-      return;
-    }
-
-    // Step 2b: one day — startDate/endDate เท่ากัน + time (parseBookingParams รองรับ legacy ?date= ด้วย)
-    const params = new URLSearchParams({
+  function goToCheckout() {
+    const nextDraft = {
+      ...draft,
       sitterId: String(sitter.id ?? sitterId),
-      startDate,
-      endDate: startDate,
-      startTime,
-      endTime,
+      pets,
+      serviceOfferings: sitter.serviceOfferings,
+    };
+    const { ok, errors } = validateBookingForm({
+      ...nextDraft,
+      requireAddress: nextDraft.serviceType === "in_home",
     });
+    if (!ok) {
+      toast.error(Object.values(errors)[0] || "Please complete the booking form", {
+        classNames: errorToastClassNames,
+      });
+      return;
+    }
+    if (quote?.available === false) {
+      toast.error("This slot overlaps another booking. Please choose another date or time.", {
+        classNames: errorToastClassNames,
+      });
+      return;
+    }
     setBookingOpen(false);
-    router.push(`/owner/booking?${params.toString()}`);
+    router.push(`/owner/booking?${toBookingSearchParams(nextDraft).toString()}`);
   }
 
   return (
@@ -861,14 +835,36 @@ export default function PetSitterDetail({ sitterId }) {
             </section>
           )}
 
-          {sitter.services && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-h4 text-black">Services</h2>
+          <section className="flex flex-col gap-3">
+            <h2 className="text-h4 text-black">Services</h2>
+            {sitter.services ? (
               <p className="whitespace-pre-line text-body-2 text-gray-400">
                 {sitter.services}
               </p>
-            </section>
-          )}
+            ) : null}
+            <ul className="flex flex-col gap-2">
+              {visibleServices.map((service) => {
+                const priceLabel = serviceOfferingPriceLabel(
+                  sitter.serviceOfferings,
+                  service.id,
+                );
+                return (
+                  <li key={service.id} className="flex items-start gap-3">
+                    <span className="mt-0.5 text-lg" aria-hidden>
+                      {service.icon}
+                    </span>
+                    <div>
+                      <p className="text-body-2 font-bold text-gray-900">{service.label}</p>
+                      <p className="text-body-3 text-gray-400">
+                        {service.blurb}
+                        {priceLabel ? ` · ${priceLabel}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
 
           {sitter.myPlace && (
             <section className="flex flex-col gap-3">
@@ -960,6 +956,18 @@ export default function PetSitterDetail({ sitterId }) {
               </div>
             )}
 
+            {sitter.hasCctv || sitter.cameraCount ? (
+              <div className="mt-4">
+                <CctvBadge
+                  label={
+                    sitter.cameraCount
+                      ? `CCTV · ${sitter.cameraCount} cameras`
+                      : "CCTV available"
+                  }
+                />
+              </div>
+            ) : null}
+
             <div className="mt-6 flex w-full flex-col gap-3 border-t border-gray-200 pt-6">
               <div className="flex w-full gap-3">
                 <button
@@ -1013,16 +1021,46 @@ export default function PetSitterDetail({ sitterId }) {
       ) : null}
 
       {bookingOpen ? (
-        <BookingDateTimeModal
-          startDate={booking.startDate}
-          endDate={booking.endDate}
-          startTime={booking.startTime}
-          endTime={booking.endTime}
-          bookedSlots={bookedSlots}
-          onChange={handleBookingChange}
-          onClose={() => setBookingOpen(false)}
-          onContinue={handleBookingContinue}
-        />
+        <div
+          className="fixed inset-0 z-70 flex items-start justify-center overflow-y-auto bg-black/60 p-4 py-10"
+          onClick={() => setBookingOpen(false)}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="book-sitter-title"
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white p-2 shadow-(--shadow-card)"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 pt-3">
+              <h3 id="book-sitter-title" className="text-h4 text-gray-900">
+                Book this sitter
+              </h3>
+              <button
+                type="button"
+                className="text-body-3 font-bold text-gray-400 hover:text-gray-600"
+                onClick={() => setBookingOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <ServiceBookingForm
+              sitterId={String(sitter.id ?? sitterId)}
+              firstName={(sitter.sitterName || sitter.title || "this sitter").split(" ")[0]}
+              pets={pets}
+              draft={quoteDraft}
+              onChange={setDraft}
+              quote={quote}
+              quoteError={quoteError}
+              quoting={quoting}
+              bookingChecking={bookingChecking}
+              isOwnSitter={isOwnSitter}
+              onBook={goToCheckout}
+              serviceOfferings={sitter.serviceOfferings}
+            />
+          </div>
+        </div>
       ) : null}
     </div>
   );

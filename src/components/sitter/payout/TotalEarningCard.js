@@ -1,10 +1,11 @@
 import Icon from "@/components/Icon";
+import { Card } from "@/components/ui/card";
 import { formatPayoutCurrency } from "@/lib/payoutFormat";
 
 /** การ์ดยอดรวม — totalEarning จาก BE เท่านั้น (Figma: label ซ้าย · ตัวเลขขวา) */
 export default function TotalEarningCard({ totalEarning = 0 }) {
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-6 rounded-2xl bg-white px-8 py-6">
+    <Card className="flex min-w-0 flex-1 items-center gap-6 rounded-2xl bg-white px-8 py-6">
       <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-500">
         <Icon src="/icon/baht.svg" className="h-6 w-6" />
       </span>
@@ -16,6 +17,6 @@ export default function TotalEarningCard({ totalEarning = 0 }) {
           {formatPayoutCurrency(totalEarning)}
         </p>
       </div>
-    </div>
+    </Card>
   );
 }

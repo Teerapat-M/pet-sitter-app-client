@@ -1,7 +1,15 @@
 // src/lib — คุยกับ backend / เก็บ session
 // เรียก API ตาม NEXT_PUBLIC_API_URL จาก .env.example (local:4000 | prod: Render)
 import { clearAuth, getToken } from "@/lib/auth";
+import { onboardingSeenBody } from "@/lib/onboarding";
+import {
+  FALLBACK_PET_TYPES,
+  PET_TYPES_ENDPOINT,
+  normalizePetTypeList,
+} from "@/lib/petSearch";
 import { formatDate } from "@/utils/formatDateTime";
+import { toDateOnly } from "@/lib/booking";
+import { hasIceContext, icePath, iceServersFromResponse } from "@/lib/cctv";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -11,7 +19,7 @@ function assertApiUrl() {
   }
 }
 
-export async function apiFetch(path, { method = "GET", body } = {}) {
+export async function apiFetch(path, { method = "GET", body, signal } = {}) {
   assertApiUrl();
 
   const token = getToken();
@@ -25,6 +33,7 @@ export async function apiFetch(path, { method = "GET", body } = {}) {
     cache: "no-store",
     headers,
     body: isFormData ? body : body ? JSON.stringify(body) : undefined,
+    signal,
   });
 
   const json = await res.json().catch(() => ({}));
@@ -82,6 +91,17 @@ export async function checkHealth() {
 export async function getUsers() {
   const json = await apiFetch("/api/users");
   return json.data ?? [];
+}
+
+export async function getPetTypes() {
+  try {
+    const json = await apiFetch(PET_TYPES_ENDPOINT);
+    const types = normalizePetTypeList(json);
+    if (types.length) return types;
+  } catch {
+    // Keep seeded types if the catalog request fails.
+  }
+  return FALLBACK_PET_TYPES;
 }
 
 export async function getSitters({
@@ -295,6 +315,19 @@ export async function getProfile() {
 }
 
 /**
+ * Persist the first-visit tour flag on the user.
+ * PATCH /api/users/me/onboarding  body: { seen: true | false }
+ * sets users.onboarding_seen_at. Guests skip this and use localStorage only.
+ */
+export async function markOnboardingSeen(seen) {
+  const json = await apiFetch("/api/users/me/onboarding", {
+    method: "PATCH",
+    body: onboardingSeenBody(seen),
+  });
+  return json.data;
+}
+
+/**
  * สร้าง booking — cash | stripe
  * many days: startDate + endDate เท่านั้น · one day: + startTime/endTime
  */
@@ -316,8 +349,8 @@ export async function createBooking({
   // Step 1: ฟิลด์ร่วมทุกโหมด
   const body = {
     sitterId,
-    startDate: resolvedStart,
-    endDate: resolvedEnd,
+    startDate: toDateOnly(resolvedStart) || resolvedStart,
+    endDate: toDateOnly(resolvedEnd) || resolvedEnd,
     petIds,
     paymentMethod,
   };
@@ -338,6 +371,196 @@ export async function createBooking({
     body,
   });
   return json.data;
+}
+
+/** POST /api/bookings/quote — server recomputes price; client total is ignored. */
+export async function quotePhase3Booking(body, { signal } = {}) {
+  const json = await apiFetch("/api/bookings/quote", {
+    method: "POST",
+    body,
+    signal,
+  });
+  return json.data;
+}
+
+/** POST /api/bookings with serviceType — Stripe returns checkoutUrl. */
+export async function createPhase3Booking(body) {
+  const json = await apiFetch("/api/bookings", {
+    method: "POST",
+    body,
+  });
+  return json.data;
+}
+
+/** POST /api/bookings/:id/checkout — Stripe TEST Checkout Session for an unpaid booking. */
+export async function checkoutBooking(id) {
+  const json = await apiFetch(`/api/bookings/${encodeURIComponent(id)}/checkout`, {
+    method: "POST",
+  });
+  return json.data;
+}
+
+export async function acceptSitterBooking(id) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/accept`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function declineSitterBooking(id) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/decline`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function updateSitterBookingStatus(id, status) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(id)}/status`,
+    { method: "PATCH", body: { status } },
+  );
+  return json.data;
+}
+
+export async function startWalk(bookingId) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(bookingId)}/walk/start`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function postWalkPoints(bookingId, body) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(bookingId)}/walk/points`,
+    { method: "POST", body },
+  );
+  return json.data;
+}
+
+export async function endWalk(bookingId) {
+  const json = await apiFetch(
+    `/api/sitters/bookings/${encodeURIComponent(bookingId)}/walk/end`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function getWalk(bookingId) {
+  const json = await apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}/walk`);
+  return json.data ?? null;
+}
+
+export async function getWalkPoints(bookingId, { afterId, limit = 2000 } = {}) {
+  const params = new URLSearchParams();
+  if (afterId != null && afterId !== "") params.set("afterId", String(afterId));
+  if (limit) params.set("limit", String(limit));
+  const query = params.toString();
+  const json = await apiFetch(
+    `/api/bookings/${encodeURIComponent(bookingId)}/walk/points${query ? `?${query}` : ""}`,
+  );
+  return json.data;
+}
+
+export function walkEventsPath(bookingId) {
+  return `/api/bookings/${encodeURIComponent(bookingId)}/walk/events`;
+}
+
+export async function listSitterCameras() {
+  const json = await apiFetch("/api/sitters/cameras");
+  return Array.isArray(json.data) ? json.data : [];
+}
+
+export async function createSitterCamera(body) {
+  const json = await apiFetch("/api/sitters/cameras", { method: "POST", body });
+  return json.data;
+}
+
+export async function getSitterCamera(id) {
+  const json = await apiFetch(`/api/sitters/cameras/${encodeURIComponent(id)}`);
+  return json.data ?? null;
+}
+
+export async function patchSitterCamera(id, body) {
+  const json = await apiFetch(`/api/sitters/cameras/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body,
+  });
+  return json.data;
+}
+
+export async function deleteSitterCamera(id) {
+  const json = await apiFetch(`/api/sitters/cameras/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  return json.data;
+}
+
+export async function postSitterCameraHeartbeat(id) {
+  const json = await apiFetch(
+    `/api/sitters/cameras/${encodeURIComponent(id)}/heartbeat`,
+    { method: "POST" },
+  );
+  return json.data;
+}
+
+export async function postSitterCameraSignal(id, body) {
+  const json = await apiFetch(`/api/sitters/cameras/${encodeURIComponent(id)}/signal`, {
+    method: "POST",
+    body,
+  });
+  return json.data;
+}
+
+export function sitterCameraEventsPath() {
+  return "/api/sitters/cameras/events";
+}
+
+export async function getBookingCameras(bookingId) {
+  const json = await apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}/cameras`);
+  const data = json.data ?? { bookingId, access: { canView: false }, cameras: [] };
+  return {
+    ...data,
+    cameras: Array.isArray(data.cameras) ? data.cameras : [],
+  };
+}
+
+export async function postBookingCameraSignal(bookingId, cameraId, body) {
+  const json = await apiFetch(
+    `/api/bookings/${encodeURIComponent(bookingId)}/cameras/${encodeURIComponent(cameraId)}/signal`,
+    { method: "POST", body },
+  );
+  return json.data;
+}
+
+export function bookingCameraEventsPath(bookingId) {
+  return `/api/bookings/${encodeURIComponent(bookingId)}/cameras/events`;
+}
+
+export async function getIceServers({ cameraId, bookingId } = {}) {
+  if (!hasIceContext({ cameraId, bookingId })) {
+    const error = new Error("cameraId or bookingId is required");
+    error.status = 400;
+    throw error;
+  }
+  const json = await apiFetch(icePath({ cameraId, bookingId }));
+  return iceServersFromResponse(json);
+}
+
+export async function getSitterMe() {
+  const json = await apiFetch("/api/sitters/me");
+  return json.data ?? null;
+}
+
+export async function getSitterBookings({ status = "all", search = "", page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (search) params.set("search", search);
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+  return apiFetch(`/api/sitters/bookings?${params.toString()}`);
 }
 
 // บันทึกโปรไฟล์
@@ -422,6 +645,16 @@ export async function createConversation(otherUserId) {
 export async function getConversations() {
   const json = await apiFetch("/api/conversations");
   return json.data ?? [];
+}
+
+export async function getOwnerBooking(id) {
+  const json = await apiFetch(`/api/bookings/owner/${encodeURIComponent(id)}`);
+  return json.data;
+}
+
+export async function getSitterBooking(id) {
+  const json = await apiFetch(`/api/sitters/bookings/${encodeURIComponent(id)}`);
+  return json.data;
 }
 
 export async function getNotifications() {

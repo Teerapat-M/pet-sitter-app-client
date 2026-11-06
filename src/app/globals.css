@@ -73,12 +73,33 @@
   --color-foreground: var(--gray-900);
   --color-surface: var(--white);
   --color-primary: var(--orange-500);
+  --color-primary-50: var(--orange-100);
+  --color-primary-600: var(--orange-600);
   --color-primary-hover: var(--orange-400);
   --color-primary-active: var(--orange-600);
   --color-secondary: var(--orange-100);
   --color-border: var(--gray-200);
   --color-muted: var(--gray-400);
   --color-footer: var(--footer);
+
+  /* Plus leftover class names → classic tokens (do not restyle the shell) */
+  --color-ink-900: var(--gray-900);
+  --color-ink-600: var(--gray-500);
+  --color-ink-400: var(--gray-400);
+  --color-line: var(--gray-200);
+  --color-line-strong: var(--gray-300);
+  --color-danger: var(--red);
+  --color-success: var(--green);
+  --color-live: var(--red);
+  --color-info: var(--blue);
+  --color-accent-mint: var(--green);
+  --color-accent-700: var(--green);
+  --color-accent-50: var(--green-light);
+  --color-bg: var(--gray-100);
+  --radius-card: var(--radius-xl);
+  --radius-tile: var(--radius-xl);
+  --radius-pill: var(--radius-full);
+  --shadow-card-hover: 0 8px 24px rgb(0 0 0 / 0.12);
 
   /* Typography — Satoshi (design kit) */
   --font-sans: "Satoshi", system-ui, sans-serif;
@@ -122,6 +143,14 @@
   --text-body-3: 0.875rem;
   --text-body-3--line-height: 1.5rem;
   --text-body-3--font-weight: 500;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+  --text-caption--font-weight: 600;
+
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.25rem;
+  --text-label--font-weight: 700;
 
   /* Radius & shadow */
   --radius-sm: 0.375rem;
@@ -222,6 +251,31 @@
     font-weight: var(--text-body-3--font-weight);
   }
 
+  .text-caption {
+    font-size: var(--text-caption);
+    line-height: var(--text-caption--line-height);
+    font-weight: var(--text-caption--font-weight);
+  }
+
+  .text-label {
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
+    font-weight: var(--text-label--font-weight);
+  }
+
+  .psp-container {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .psp-container {
+      padding-inline: 2rem;
+    }
+  }
+
   /* Buttons — Primary / Secondary / Ghost / Social / Icon */
   .btn {
     display: inline-flex;
@@ -282,6 +336,25 @@
 
   .btn-ghost:active:not(:disabled) {
     color: var(--orange-600);
+  }
+
+  .btn-accent {
+    background-color: var(--green);
+    color: var(--white);
+  }
+
+  .btn-accent:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+
+  .btn-outline {
+    background-color: var(--white);
+    color: var(--gray-900);
+    border: 1.5px solid var(--gray-200);
+  }
+
+  .btn-outline:hover:not(:disabled) {
+    background-color: var(--gray-100);
   }
 
   .btn.btn-social {
@@ -378,6 +451,10 @@
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-card);
     border: 1px solid var(--gray-200);
+  }
+
+  .card-lift {
+    position: relative;
   }
 
   .avatar {
@@ -491,6 +568,13 @@
     background-color: var(--orange-100);
     border-color: var(--orange-400);
     color: var(--orange-400);
+  }
+
+  .badge-cctv {
+    gap: 0.375rem;
+    background-color: var(--blue-light);
+    border-color: var(--blue);
+    color: var(--gray-600);
   }
 
   /* Progress step — numbered circle + label */

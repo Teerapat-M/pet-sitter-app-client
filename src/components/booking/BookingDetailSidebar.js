@@ -3,6 +3,7 @@ import {
   formatBookingDateTimeLabel,
   formatBookingDuration,
 } from "@/lib/booking";
+import { formatQuoteTotal, serviceTypeLabel } from "@/lib/phase3Booking";
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-US", {
@@ -37,26 +38,37 @@ export default function BookingDetailSidebar({
   nights = null,
   selectedPets,
   hideTotal = false,
+  quote = null,
+  serviceLabel = "",
+  dateTimeLabel: dateTimeLabelProp,
 }) {
   const petCount = selectedPets.length;
-  const total = calculateBookingPreviewTotal({
-    isManyDays,
-    hours,
-    nights,
-    petCount,
-  });
+  const quoted = formatQuoteTotal(quote);
+  const total = quoted
+    ? quoted.replace("฿", "").trim()
+    : formatCurrency(
+        calculateBookingPreviewTotal({
+          isManyDays,
+          hours,
+          nights,
+          petCount,
+        }),
+      );
 
-  const dateTimeLabel = formatBookingDateTimeLabel({
-    startDate,
-    endDate,
-    startTime,
-    endTime,
-    isManyDays,
-  });
+  const dateTimeLabel =
+    dateTimeLabelProp ||
+    formatBookingDateTimeLabel({
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      isManyDays,
+    });
 
   const durationLabel = isManyDays
     ? formatBookingDuration(nights, "Day")
     : formatBookingDuration(hours, "hours");
+  const resolvedService = serviceLabel || serviceTypeLabel(quote);
 
   return (
     <aside className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-(--shadow-card) md:h-full md:w-82 md:shrink-0">
@@ -68,6 +80,10 @@ export default function BookingDetailSidebar({
           <DetailBlock label="Pet Sitter">
             {sitter.displayName} By {sitter.sitterName}
           </DetailBlock>
+
+          {resolvedService ? (
+            <DetailBlock label="Service">{resolvedService}</DetailBlock>
+          ) : null}
 
           <DetailBlock label="Date & Time">{dateTimeLabel}</DetailBlock>
 
@@ -85,7 +101,7 @@ export default function BookingDetailSidebar({
         <div className="mt-auto flex items-center justify-between gap-3 bg-black px-4 py-4 text-white sm:px-8 sm:py-5">
           <span className="shrink-0 text-body-2 font-medium">Total</span>
           <span className="min-w-0 text-right text-h4 font-bold wrap-break-word">
-            {formatCurrency(total)} THB
+            {total} THB
           </span>
         </div>
       ) : null}

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Icon from '../Icon';
+import { Card } from '@/components/ui/card';
 
 const PET_BADGE = {
   dog: 'badge-dog',
@@ -193,7 +194,7 @@ export default function SitterCardOverlay({
         onPointerCancel={handlePointerUp}
         onClickCapture={handleClickCapture}
         onDragStart={(event) => event.preventDefault()}
-        className={`pointer-events-auto flex w-full touch-pan-x gap-3 overflow-x-auto px-4 py-2 select-none scrollbar-none ${
+        className={`pointer-events-auto flex w-full touch-pan-x gap-3 overflow-x-auto px-4 py-5 select-none scrollbar-none ${
           isDragging
             ? 'cursor-grabbing snap-none scroll-auto'
             : 'snap-x snap-mandatory scroll-smooth'
@@ -217,15 +218,16 @@ export default function SitterCardOverlay({
             '';
 
           return (
-            <div
+            <Card
               key={sitter.id}
               ref={(el) => (cardRefs.current[sitter.id] = el)}
+              interactive={!isDragging}
               onClick={() => onSelect(sitter)}
-              className={`w-[300px] shrink-0 snap-center rounded-2xl border bg-white p-3 shadow-lg transition-all sm:w-[340px] ${
-                isDragging ? 'cursor-grabbing' : 'cursor-pointer'
+              className={`w-[300px] shrink-0 snap-center rounded-2xl border bg-white p-3 shadow-lg sm:w-[340px] ${
+                isDragging ? 'cursor-grabbing' : ''
               } ${
                 isSelected
-                  ? 'border-orange-500 ring-2 ring-orange-500/20 scale-[1.02]'
+                  ? 'border-orange-500 ring-2 ring-orange-500/20'
                   : 'border-gray-100 hover:border-orange-300'
               }`}
             >
@@ -273,7 +275,7 @@ export default function SitterCardOverlay({
                   </Link>
                 </div>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Calendar, List, UserRound, CreditCard, LogOut, MessagesSquare, ArrowLeftRight } from "lucide-react";
+import { Calendar, List, UserRound, CreditCard, LogOut, MessagesSquare, ArrowLeftRight, Video } from "lucide-react";
+import Navbar from "@/components/Navbar";
 import axios from "axios";
 import { clearAuth, getUser } from "@/lib/auth";
 import jwtInterceptor from "@/utils/jwtInterceptor";
@@ -35,6 +36,11 @@ const menuItems = [
     href: "/sitter/payout",
     label: "Payout Option",
     icon: CreditCard,
+  },
+  {
+    href: "/sitter/cameras",
+    label: "Cameras",
+    icon: Video,
   },
 ];
 
@@ -81,6 +87,15 @@ export default function SitterLayout({ children }) {
 
   if (!isSitter) {
     return null;
+  }
+
+  if (pathname.startsWith("/sitter/walks")) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-full bg-[#FAFAFB]">{children}</div>
+      </>
+    );
   }
 
   return (

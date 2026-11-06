@@ -20,7 +20,23 @@ import ConfirmBookingModal from "@/components/booking/ConfirmBookingModal";
 import StripePaymentModal from "@/components/booking/StripePaymentModal";
 import ThankYouView from "@/components/booking/ThankYouView";
 import { EMPTY_GUEST } from "@/components/booking/mockBookingData";
-import { createBooking, getMyPets, getProfile, getSitter, getSitterAvailability } from "@/lib/api";
+import {
+  createBooking,
+  createPhase3Booking,
+  getMyPets,
+  getProfile,
+  getSitter,
+  getSitterAvailability,
+} from "@/lib/api";
+import { useLiveQuote } from "@/components/booking/ServiceBookingForm";
+import {
+  formatQuoteTotal,
+  formatServiceDateTimeLabel,
+  quoteUnavailable,
+  serviceTypeLabel,
+  shapeCreateRequest,
+  toBookingSearchParams,
+} from "@/lib/phase3Booking";
 import { getToken, getUser } from "@/lib/auth";
 import { getStripePublishableKey } from "@/lib/stripe";
 import {
@@ -49,7 +65,7 @@ function toApiPaymentMethod(uiMethod) {
 }
 
 export default function BookingFlow({
-  sitterId,
+  sitterId: sitterIdProp,
   startDate,
   endDate,
   startTime,
@@ -57,7 +73,9 @@ export default function BookingFlow({
   hours,
   isManyDays = false,
   nights = null,
+  phase3 = null,
 }) {
+  const sitterId = phase3?.sitterId || sitterIdProp;
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedPetIds, setSelectedPetIds] = useState([]);
@@ -77,6 +95,17 @@ export default function BookingFlow({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [profileIncomplete, setProfileIncomplete] = useState(false);
+  const [serviceOfferings, setServiceOfferings] = useState([]);
+  const quoteDraft = useMemo(() => {
+    if (!phase3) return null;
+    return {
+      ...phase3,
+      sitterId,
+      petIds: selectedPetIds.length ? selectedPetIds : phase3.petIds,
+      serviceOfferings,
+    };
+  }, [phase3, sitterId, selectedPetIds, serviceOfferings]);
+  const liveQuote = useLiveQuote(sitterId, quoteDraft, Boolean(quoteDraft));
 
   useEffect(() => {
     let cancelled = false;
@@ -116,22 +145,22 @@ export default function BookingFlow({
           bookedSlots = [];
         }
 
-        // Step 1: overlap — many days เช็คช่วงวัน · one day เช็ควัน+เวลา
-        const slotTaken = isManyDays
-          ? dateRangeOverlapsBooked(startDate, endDate, bookedSlots)
-          : slotOverlapsBooked(startDate, startTime, endTime, bookedSlots);
+        if (!phase3) {
+          const slotTaken = isManyDays
+            ? dateRangeOverlapsBooked(startDate, endDate, bookedSlots)
+            : slotOverlapsBooked(startDate, startTime, endTime, bookedSlots);
 
-        if (slotTaken) {
-          throw new Error(
-            "This date and time is already booked. Please choose another slot.",
-          );
-        }
+          if (slotTaken) {
+            throw new Error(
+              "This date and time is already booked. Please choose another slot.",
+            );
+          }
 
-        // Step 2: many days ต้องมีอย่างน้อย 1 คืน
-        if (isManyDays && (!nights || nights < 1)) {
-          throw new Error(
-            "Invalid booking link. Many-day bookings need at least one night.",
-          );
+          if (isManyDays && (!nights || nights < 1)) {
+            throw new Error(
+              "Invalid booking link. Many-day bookings need at least one night.",
+            );
+          }
         }
 
         const nextPets = (Array.isArray(petsRaw) ? petsRaw : [])
@@ -139,13 +168,25 @@ export default function BookingFlow({
           .filter((pet) => pet?.id && !pet.isSuspended);
 
         setSitter(nextSitter);
+        setServiceOfferings(
+          Array.isArray(sitterRaw.serviceOfferings)
+            ? sitterRaw.serviceOfferings
+            : Array.isArray(sitterRaw.service_offerings)
+              ? sitterRaw.service_offerings
+              : [],
+        );
         setPets(nextPets);
         setGuest(normalizeBookingGuest(profileRaw));
         setProfileIncomplete(!isOwnerProfileComplete(profileRaw));
-        setSelectedPetIds([]);
+        setSelectedPetIds(
+          phase3?.petIds?.length
+            ? phase3.petIds.map(String)
+            : [],
+        );
       } catch (err) {
         if (!cancelled) {
           setSitter(null);
+          setServiceOfferings([]);
           setPets([]);
           setGuest(EMPTY_GUEST);
           setProfileIncomplete(false);
@@ -160,7 +201,7 @@ export default function BookingFlow({
     return () => {
       cancelled = true;
     };
-  }, [sitterId, startDate, endDate, startTime, endTime, isManyDays, nights, router]);
+  }, [sitterId, startDate, endDate, startTime, endTime, isManyDays, nights, phase3, router]);
 
   const selectedPets = useMemo(
     () => pets.filter((pet) => selectedPetIds.includes(pet.id)),
@@ -176,7 +217,8 @@ export default function BookingFlow({
   const canConfirm =
     hasEligibleSelection &&
     !profileIncomplete &&
-    (paymentMethod === "cash" || paymentMethod === "card");
+    (paymentMethod === "cash" || paymentMethod === "card") &&
+    !quoteUnavailable(liveQuote.quote);
 
   function togglePet(petId) {
     const id = String(petId);
@@ -199,10 +241,13 @@ export default function BookingFlow({
   }
 
   function buildPetIds() {
-    return selectedPets
-      .filter((pet) =>
-        sitterPetTypes.includes(String(pet.petType).toLowerCase()),
-      )
+    const eligible = selectedPets.filter((pet) =>
+      sitterPetTypes.includes(String(pet.petType).toLowerCase()),
+    );
+    if (phase3) {
+      return eligible.map((pet) => pet.id);
+    }
+    return eligible
       .map((pet) => Number(pet.id))
       .filter((id) => Number.isFinite(id) && id > 0);
   }
@@ -227,22 +272,32 @@ export default function BookingFlow({
       return;
     }
 
-    // many days: เช็ค nights · one day: เช็ค hours
-    if (isManyDays) {
-      if (!nights || nights < 1) {
-        setConfirmError("Many-day bookings need at least one night.");
+    if (!phase3) {
+      if (isManyDays) {
+        if (!nights || nights < 1) {
+          setConfirmError("Many-day bookings need at least one night.");
+          return;
+        }
+      } else if (!Number.isInteger(hours) || hours <= 0) {
+        setConfirmError(
+          "Booking duration must be whole hours (for example 10:00–13:00).",
+        );
         return;
       }
-    } else if (!Number.isInteger(hours) || hours <= 0) {
-      setConfirmError(
-        "Booking duration must be whole hours (for example 10:00–13:00).",
-      );
+    }
+
+    if (liveQuote.quote?.available === false) {
+      setConfirmError("This slot overlaps another booking. Choose another date or time.");
       return;
     }
 
     const apiPaymentMethod = toApiPaymentMethod(paymentMethod);
 
-    if (apiPaymentMethod === "stripe" && !getStripePublishableKey()) {
+    if (
+      !phase3 &&
+      apiPaymentMethod === "stripe" &&
+      !getStripePublishableKey()
+    ) {
       setConfirmError(
         "Card payment is not configured. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to .env.local.",
       );
@@ -253,21 +308,33 @@ export default function BookingFlow({
     setConfirmError("");
 
     try {
-      const data = await createBooking({
-        sitterId,
-        startDate,
-        endDate,
-        startTime,
-        endTime,
-        petIds,
-        message: additionalMessage,
-        paymentMethod: apiPaymentMethod,
-        isManyDays,
-      });
+      const data = phase3
+        ? await createPhase3Booking(
+            shapeCreateRequest(
+              { ...phase3, sitterId, petIds },
+              { paymentMethod: apiPaymentMethod, message: additionalMessage },
+            ),
+          )
+        : await createBooking({
+            sitterId,
+            startDate,
+            endDate,
+            startTime,
+            endTime,
+            petIds,
+            message: additionalMessage,
+            paymentMethod: apiPaymentMethod,
+            isManyDays,
+          });
 
       setBookingResult(data ?? null);
 
       if (apiPaymentMethod === "stripe") {
+        const checkoutUrl = data?.checkoutUrl ?? data?.checkout_url;
+        if (checkoutUrl) {
+          window.location.assign(checkoutUrl);
+          return;
+        }
         const clientSecret = data?.clientSecret;
         if (!clientSecret) {
           setConfirmError(
@@ -313,6 +380,9 @@ export default function BookingFlow({
     step === 1 ? hasEligibleSelection : step === 2 ? !profileIncomplete : true;
 
   const bookingReturnPath = useMemo(() => {
+    if (phase3) {
+      return `/owner/booking?${toBookingSearchParams({ ...phase3, sitterId }).toString()}`;
+    }
     const params = new URLSearchParams({
       sitterId: String(sitterId),
       startDate,
@@ -323,7 +393,7 @@ export default function BookingFlow({
       params.set("endTime", endTime);
     }
     return `/owner/booking?${params.toString()}`;
-  }, [sitterId, startDate, endDate, startTime, endTime, isManyDays]);
+  }, [sitterId, startDate, endDate, startTime, endTime, isManyDays, phase3]);
 
   const completeProfileHref = `/owner/profile?returnTo=${encodeURIComponent(bookingReturnPath)}`;
 
@@ -337,17 +407,28 @@ export default function BookingFlow({
       }),
     [isManyDays, hours, nights, selectedPets.length],
   );
+  const quotedTotal = formatQuoteTotal(liveQuote.quote);
+  const displayTotal = quotedTotal
+    ? quotedTotal.replace("฿", "").trim()
+    : formatCurrency(previewTotal);
 
+  const phase3Range =
+    phase3?.serviceType === "boarding" || phase3?.mode === "overnight";
   const detailProps = {
     sitter,
-    startDate,
-    endDate,
-    startTime,
-    endTime,
+    startDate: phase3?.checkIn || phase3?.date || startDate,
+    endDate: phase3?.checkOut || phase3?.date || endDate,
+    startTime: phase3Range ? "" : phase3?.startTime || startTime,
+    endTime: phase3Range ? "" : endTime,
     hours,
-    isManyDays,
+    isManyDays: phase3 ? phase3Range : isManyDays,
     nights,
     selectedPets,
+    quote: liveQuote.quote,
+    serviceLabel: phase3 ? serviceTypeLabel(phase3.serviceType) : "",
+    dateTimeLabel: phase3
+      ? formatServiceDateTimeLabel(quoteDraft, liveQuote.quote)
+      : undefined,
   };
 
   function renderNavButtons({ fullWidth = false } = {}) {
@@ -504,6 +585,18 @@ export default function BookingFlow({
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <BookingStepper currentStep={step} />
 
+            {phase3?.serviceType === "dog_walking" ? (
+              <div className="flex items-start gap-2 rounded-[1.1rem] bg-accent-50 px-4 py-3 text-accent-700">
+                <span aria-hidden>📍</span>
+                <div>
+                  <p className="text-caption font-extrabold">Live GPS tracking</p>
+                  <p className="text-caption font-semibold text-accent-700/80">
+                    Follow the walk on a map in real time, plus a summary when it ends.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex flex-1 flex-col rounded-2xl bg-white shadow-(--shadow-card)">
               <div className="flex-1 px-4 pt-6 pb-6 sm:px-10 sm:pt-8 md:pb-0">
                 {step === 1 && (
@@ -526,10 +619,22 @@ export default function BookingFlow({
                 )}
 
                 {step === 3 && (
-                  <PaymentStep
-                    paymentMethod={paymentMethod}
-                    onPaymentMethodChange={setPaymentMethod}
-                  />
+                  <>
+                    <PaymentStep
+                      paymentMethod={paymentMethod}
+                      onPaymentMethodChange={setPaymentMethod}
+                    />
+                    {liveQuote.quoteError ? (
+                      <p className="mt-4 text-caption text-red-500" role="alert">
+                        {liveQuote.quoteError}
+                      </p>
+                    ) : null}
+                    {quoteUnavailable(liveQuote.quote) ? (
+                      <p className="mt-4 text-caption text-red-500" role="alert">
+                        This slot overlaps another booking. Choose another date or time.
+                      </p>
+                    ) : null}
+                  </>
                 )}
               </div>
 
@@ -572,7 +677,7 @@ export default function BookingFlow({
         <div className="flex items-center justify-between bg-black px-4 py-3.5 text-white">
           <span className="text-body-2 font-medium">Total</span>
           <span className="text-body-1 font-bold">
-            {formatCurrency(previewTotal)} THB
+            {displayTotal} THB
           </span>
         </div>
         <div className="flex gap-3 border-t border-gray-100 bg-white px-4 py-4">

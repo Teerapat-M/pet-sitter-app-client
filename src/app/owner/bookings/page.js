@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Phone, SquarePen, X, MapPin, Star } from "lucide-react";
 import AccountSidebar from "../../../components/AccountSidebar";
@@ -8,34 +9,42 @@ import { getToken, getUser } from "@/lib/auth";
 import { createConversation, getSitterAvailability, getSitters } from "@/lib/api";
 import {
   formatBookingDurationFromRecord,
-  formatBookingDateRangeFromRecord,
+  formatOwnerBookingDate,
+  formatOwnerBookingDateTime,
   isManyDayBookingRecord,
   normalizeBookedSlots,
   normalizeBookingDate,
   normalizeBookingTime,
+  toDateOnly,
 } from "@/lib/booking";
 import BookingDateTimeModal from "@/components/booking/BookingDateTimeModal";
 import Pagination from "@/components/Pagination";
+import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import {
+  bookingChatHref,
+  normalizeBookingStatus,
+  serviceTypeLabel,
+} from "@/lib/phase3Booking";
+import { checkoutBooking, getOwnerBooking } from "@/lib/api";
+import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
+import CctvBadge from "@/components/CctvBadge";
+import WalkBookingLink from "@/components/walk/WalkBookingLink";
+import { WalkTrailThumb } from "@/components/walk/WalkUi";
+import { bookingAllowsOwnerCameras, isBoardingBooking, ownerCctvHref } from "@/lib/cctv";
+import { firstPetName, isDogWalkingBooking, walkFirstName, walkOwnerHref, walkSitterName } from "@/lib/walkTracking";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PAGE_SIZE = 5; // แสดง booking แค่ 5 การ์ดล่าสุดต่อหน้า ที่เหลือกดเปลี่ยนหน้าดูผ่าน Pagination
-
-// สี/ข้อความของแต่ละสถานะ booking ใช้แสดง badge สถานะ
-const STATUS_CONFIG = {
-  waiting_confirm: { color: "#FA8AC0", label: "Waiting for confirm" },
-  waiting_service: { color: "#F5A623", label: "Waiting for service" },
-  in_service: { color: "#76D0FC", label: "In service" },
-  success: { color: "#1CCD83", label: "Success" },
-  cancelled: { color: "#EA1010", label: "Cancelled" },
-};
 
 // สีเส้นขอบตอน hover การ์ด booking แต่ละใบ ให้เข้าชุดกับสีของสถานะนั้นๆ
 const HOVER_BORDER_CLASS = {
   waiting_confirm: "hover:border-[#FA8AC0]",
   waiting_service: "hover:border-[#F5A623]",
   in_service: "hover:border-[#76D0FC]",
+  completed: "hover:border-[#1CCD83]",
   success: "hover:border-[#1CCD83]",
+  cancelled: "hover:border-[#EA1010]",
 };
 
 const UUID_PATTERN =
@@ -102,6 +111,22 @@ async function attachLiveSitterIds(bookings) {
 
 export default function BookingHistoryPage() {
   const router = useRouter();
+  const openedQueryBooking = useRef(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+    const bookingId = params.get("bookingId") || "";
+    if (checkout === "success") {
+      router.replace(
+        `/owner/booking/success?bookingId=${encodeURIComponent(bookingId)}`,
+      );
+    } else if (checkout === "cancel") {
+      router.replace(
+        `/owner/booking/cancel?bookingId=${encodeURIComponent(bookingId)}`,
+      );
+    }
+  }, [router]);
   const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -190,6 +215,42 @@ export default function BookingHistoryPage() {
     };
   }, [router, currentPage]);
 
+  async function openBookingDetail(booking) {
+    if ((isDogWalkingBooking(booking) || isBoardingBooking(booking)) && booking?.id) {
+      router.push(`/owner/bookings/${encodeURIComponent(String(booking.id))}`);
+      return;
+    }
+    const normalized = normalizeOwnerBooking(booking);
+    setSelectedBooking(normalized);
+    try {
+      const detail = await getOwnerBooking(booking.id);
+      if (detail) {
+        setSelectedBooking(normalizeOwnerBooking({ ...normalized, ...detail }));
+      }
+    } catch {
+      /* list row is enough to show the modal */
+    }
+  }
+
+  useEffect(() => {
+    if (isLoading || openedQueryBooking.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout")) return;
+    const bookingId = params.get("bookingId");
+    if (!bookingId) return;
+    openedQueryBooking.current = true;
+    const match = bookings.find((row) => String(row.id) === String(bookingId));
+    if (match) {
+      void openBookingDetail(match);
+      return;
+    }
+    getOwnerBooking(bookingId)
+      .then((detail) => {
+        if (detail) setSelectedBooking(normalizeOwnerBooking(detail));
+      })
+      .catch(() => {});
+  }, [isLoading, bookings]);
+
   // เปลี่ยนหน้า booking history (จาก Pagination component ด้านล่างรายการ)
   const goToPage = (page) => {
     setCurrentPage((prev) => {
@@ -201,6 +262,11 @@ export default function BookingHistoryPage() {
   // เปิดหน้าแชทกับ pet sitter ของ booking นี้ (สร้างห้องสนทนาใหม่ถ้ายังไม่มี)
   async function openSitterChat(event, booking) {
     event.stopPropagation(); // กันไม่ให้คลิกทะลุไปเปิด modal รายละเอียด booking ที่อยู่ข้างหลัง
+    const chatHref = bookingChatHref(booking);
+    if (chatHref) {
+      router.push(chatHref);
+      return;
+    }
     const sitterId = bookingSitterId(booking);
 
     if (!sitterId) {
@@ -216,38 +282,19 @@ export default function BookingHistoryPage() {
     }
   }
 
-  // แสดง badge จุดสี + ข้อความสถานะของ booking
-  const getStatusBadge = (status) => {
-    const config = STATUS_CONFIG[status] || STATUS_CONFIG.waiting_confirm;
-    return (
-      <span
-        className="inline-flex items-center gap-2 text-body-2"
-        style={{ color: config.color }}
-      >
-        <span
-          className="inline-block rounded-full"
-          style={{ width: "6px", height: "6px", backgroundColor: config.color }}
-        />
-        {config.label}
-      </span>
-    );
-  };
+  const getStatusBadge = (status) => <BookingStatusBadge status={status} />;
 
 
   const formatDate = (dateString) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
+    const dateOnly = toDateOnly(dateString);
+    if (!dateOnly) return "";
+    const date = new Date(`${dateOnly}T00:00:00`);
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       year: "numeric",
       month: "short",
       day: "numeric",
     });
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString) return "";
-    return timeString.substring(0, 5);
   };
 
   const formatTimestampTime = (dateString) => {
@@ -258,20 +305,13 @@ export default function BookingHistoryPage() {
     });
   };
 
-  // ticket 04: many days = ช่วงวัน · one day = วัน | เวลา
+  // Same Asia/Bangkok formatter as booking detail (10 Jan, 2027 | 9 AM)
   function formatHistoryDateTime(booking) {
-    if (isManyDayBookingRecord(booking)) {
-      return formatBookingDateRangeFromRecord(booking);
-    }
-    return `${formatDate(booking.start_date)} | ${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`;
+    return formatOwnerBookingDateTime(booking);
   }
 
-  // ticket 04: หัวการ์ด "Booking date" — many days แสดงช่วง
   function formatHistoryBookingDate(booking) {
-    if (isManyDayBookingRecord(booking)) {
-      return formatBookingDateRangeFromRecord(booking);
-    }
-    return formatDate(booking.start_date);
+    return formatOwnerBookingDate(booking);
   }
 
   // เปิด modal เขียนรีวิว โดยรีเซ็ตค่าดาว/ข้อความให้ว่างทุกครั้ง
@@ -552,11 +592,14 @@ export default function BookingHistoryPage() {
           ) : (
             <div className="space-y-4">
               {bookings.map((booking) => (
-                <div
+                <Card
                   key={booking.id}
-                  onClick={() => setSelectedBooking(booking)}
-                  className={`w-full bg-white flex flex-col p-4 sm:p-6 cursor-pointer border border-[#DCDFED] transition-colors ${
-                    HOVER_BORDER_CLASS[booking.status] || ""
+                  interactive
+                  onClick={() => openBookingDetail(booking)}
+                  className={`w-full bg-white flex flex-col p-4 sm:p-6 border border-[#DCDFED] ${
+                    HOVER_BORDER_CLASS[normalizeBookingStatus(booking.status)] ||
+                    HOVER_BORDER_CLASS[booking.status] ||
+                    ""
                   }`}
                   style={{ borderRadius: "16px" }}
                 >
@@ -584,6 +627,11 @@ export default function BookingHistoryPage() {
                         >
                           {booking.sitter_name || "Unknown"}
                         </h3>
+                        {serviceTypeLabel(booking) ? (
+                          <p className="text-body-3 text-gray-400">
+                            {serviceTypeLabel(booking)}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                     <div className="text-left sm:text-right shrink-0">
@@ -646,6 +694,31 @@ export default function BookingHistoryPage() {
                           Waiting Pet Sitter for confirm booking
                         </span>
                         <div className="flex items-center gap-4">
+                          {["pending", "unpaid", "failed"].includes(
+                            String(booking.payment_status ?? booking.paymentStatus ?? "").toLowerCase(),
+                          ) ? (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  const data = await checkoutBooking(booking.id);
+                                  const url = data?.checkoutUrl ?? data?.checkout_url;
+                                  if (!url) {
+                                    toast.error("Checkout is not available for this booking");
+                                    return;
+                                  }
+                                  window.location.assign(url);
+                                } catch (err) {
+                                  toast.error(
+                                    err instanceof Error ? err.message : "Failed to start checkout",
+                                  );
+                                }
+                              }}
+                              className="btn btn-secondary shrink-0"
+                            >
+                              Pay now
+                            </button>
+                          ) : null}
                           <button
                             onClick={(e) => { e.stopPropagation(); openCancelModal(booking); }}
                             className="btn btn-ghost shrink-0"
@@ -709,34 +782,6 @@ export default function BookingHistoryPage() {
                         </span>
                         <div className="flex items-center gap-4">
                           <button
-                            onClick={(e) => { e.stopPropagation(); toast.info("Messaging feature coming soon"); }}
-                            className="btn btn-primary flex-1 sm:flex-none"
-                            style={{ minWidth: "120px" }}
-                          >
-                            Send Message
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toast.info("Call feature coming soon"); }}
-                            className="btn btn-icon shrink-0"
-                            style={{ width: "48px", height: "48px" }}
-                            title="Call"
-                          >
-                            <Phone className="size-6" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {/* สถานะ: กำลังรับบริการอยู่ */}
-                    {booking.status === "in_service" && (
-                      <div
-                        className="w-full flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-between"
-                        style={{ backgroundColor: "#F6F6F9", padding: "16px", gap: "16px", borderRadius: "8px", boxSizing: "border-box" }}
-                      >
-                        <span className="text-body-3" style={{ color: "#7B7E8F" }}>
-                          Your pet is already in Pet Sitter care!
-                        </span>
-                        <div className="flex items-center gap-4">
-                          <button
                             onClick={(e) => openSitterChat(e, booking)}
                             className="btn btn-primary flex-1 sm:flex-none"
                             style={{ minWidth: "120px" }}
@@ -754,8 +799,92 @@ export default function BookingHistoryPage() {
                         </div>
                       </div>
                     )}
+                    {/* สถานะ: กำลังรับบริการอยู่ */}
+                    {booking.status === "in_service" && isBoardingBooking(booking) ? (
+                      <div
+                        className="flex w-full flex-col gap-3 rounded-2xl bg-gray-100 p-4 sm:flex-row sm:items-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-body-3 font-bold text-gray-500">Watch CCTV live</p>
+                          <p className="mt-1 text-h4 font-bold text-gray-900">
+                            {firstPetName(booking)} is at {walkFirstName(walkSitterName(booking))}&apos;s place
+                          </p>
+                          <Link
+                            href={ownerCctvHref(booking.id)}
+                            className="btn btn-primary mt-3 min-h-11"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Watch CCTV
+                          </Link>
+                        </div>
+                      </div>
+                    ) : booking.status === "in_service" && isDogWalkingBooking(booking) ? (
+                      <div
+                        className="flex w-full flex-col gap-3 rounded-2xl bg-orange-100 p-4 sm:flex-row sm:items-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-body-3 font-bold text-orange-500">Walk in progress</p>
+                          <p className="mt-1 text-h4 font-bold text-gray-900">
+                            {firstPetName(booking)} is out with {walkFirstName(walkSitterName(booking))}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Link
+                              href={walkOwnerHref(booking.id)}
+                              className="btn btn-primary min-h-11"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              📍 Track walk live
+                            </Link>
+                            <Link
+                              href={ownerCctvHref(booking.id)}
+                              className="btn btn-secondary min-h-11"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Watch webcam
+                            </Link>
+                          </div>
+                        </div>
+                        <div className="h-24 w-full overflow-hidden rounded-2xl sm:h-24 sm:w-40">
+                          <WalkTrailThumb points={[]} className="h-full w-full" />
+                        </div>
+                      </div>
+                    ) : booking.status === "in_service" ? (
+                      <div
+                        className="w-full flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-between"
+                        style={{ backgroundColor: "#F6F6F9", padding: "16px", gap: "16px", borderRadius: "8px", boxSizing: "border-box" }}
+                      >
+                        <span className="text-body-3" style={{ color: "#7B7E8F" }}>
+                          Your pet is already in Pet Sitter care!
+                        </span>
+                        <div className="flex items-center gap-4">
+                          <WalkBookingLink
+                            booking={booking}
+                            role="owner"
+                            className="btn btn-secondary flex-1 sm:flex-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <button
+                            onClick={(e) => openSitterChat(e, booking)}
+                            className="btn btn-primary flex-1 sm:flex-none"
+                            style={{ minWidth: "120px" }}
+                          >
+                            Send Message
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toast.info("Call feature coming soon"); }}
+                            className="btn btn-icon shrink-0"
+                            style={{ width: "48px", height: "48px" }}
+                            title="Call"
+                          >
+                            <Phone className="size-6" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                     {/* สถานะ: บริการเสร็จสิ้นแล้ว — แจ้งปัญหาได้ และเขียน/ดูรีวิวได้ */}
-                    {booking.status === "success" && (
+                    {(booking.status === "success" || booking.status === "completed") && (
                       <div
                         className="w-full flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between"
                         style={{ backgroundColor: "#E7FDF4", padding: "16px", borderRadius: "8px", minHeight: "80px", boxSizing: "border-box" }}
@@ -769,6 +898,12 @@ export default function BookingHistoryPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
+                          <WalkBookingLink
+                            booking={booking}
+                            role="owner"
+                            className="btn btn-secondary flex-1 sm:flex-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
                           <button
                             onClick={(e) => { e.stopPropagation(); openReportModal(booking); }}
                             className="btn btn-ghost shrink-0"
@@ -798,7 +933,7 @@ export default function BookingHistoryPage() {
                     )}
                   </div>
 
-                </div>
+                </Card>
               ))}
             </div>
           )}
@@ -897,10 +1032,53 @@ export default function BookingHistoryPage() {
                 <span className="text-body-2" style={{ color: "#3A3B46", fontWeight: 700 }}>{formatBookingDurationFromRecord(selectedBooking)}</span>
               </div>
 
+              {serviceTypeLabel(selectedBooking) ? (
+                <div className="flex flex-col gap-1">
+                  <span className="text-body-3" style={{ color: "#7B7E8F" }}>Service:</span>
+                  <span className="text-body-2" style={{ color: "#3A3B46" }}>
+                    {serviceTypeLabel(selectedBooking)}
+                  </span>
+                </div>
+              ) : null}
+
+              {selectedBooking.has_cctv || selectedBooking.hasCctv ? (
+                <CctvBadge label="CCTV at this stay" />
+              ) : null}
+
+              {selectedBooking.owner_address || selectedBooking.ownerAddress ? (
+                <div className="flex flex-col gap-1">
+                  <span className="text-body-3" style={{ color: "#7B7E8F" }}>Owner address:</span>
+                  <span className="text-body-2" style={{ color: "#3A3B46" }}>
+                    {selectedBooking.owner_address || selectedBooking.ownerAddress}
+                  </span>
+                </div>
+              ) : null}
+
               <div className="flex flex-col gap-1">
                 <span className="text-body-3" style={{ color: "#7B7E8F" }}>Pet:</span>
                 <span className="text-body-2" style={{ color: "#3A3B46" }}>{selectedBooking.pet_names || "-"}</span>
               </div>
+
+              {normalizeBookingStatus(selectedBooking.status) === "in_service" &&
+              bookingAllowsOwnerCameras(selectedBooking) ? (
+                <Link href={ownerCctvHref(selectedBooking.id)} className="btn btn-primary w-fit">
+                  {isBoardingBooking(selectedBooking) ? "Watch CCTV" : "Watch webcam"}
+                </Link>
+              ) : null}
+              <WalkBookingLink
+                booking={selectedBooking}
+                role="owner"
+                className="btn btn-primary w-fit"
+              />
+              {bookingChatHref(selectedBooking) ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary w-fit"
+                  onClick={(event) => openSitterChat(event, selectedBooking)}
+                >
+                  Open chat
+                </button>
+              ) : null}
             </div>
 
             {/* ท้าย Modal: ยอดรวมราคา */}

@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { ChevronLeft, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import LoadingState from "@/components/LoadingState";
+import { Card } from "@/components/ui/card";
 import { getAdminOwner, setAdminOwnerBan, setAdminPetSuspend } from "@/lib/api";
 import { errorToastClassNames, successToastClassNames } from "@/lib/toastStyles";
 
@@ -222,11 +223,13 @@ export default function AdminPetOwnerDetailPage() {
                   {pets.map((pet) => {
                     const badge = PET_BADGE[String(pet.type ?? "").toLowerCase()] ?? "badge";
                     return (
-                      <button
+                      <Card
+                        as="button"
                         key={pet.id}
                         type="button"
+                        interactive
                         onClick={() => setSelectedPet(pet)}
-                        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border bg-white p-6 hover:border-orange-500 ${
+                        className={`flex flex-col items-center justify-center gap-3 rounded-2xl border bg-white p-6 hover:border-orange-500 ${
                           pet.isSuspended
                             ? "border-red-200 opacity-70"
                             : "border-gray-200"
@@ -250,7 +253,7 @@ export default function AdminPetOwnerDetailPage() {
                         {pet.isSuspended ? (
                           <span className="text-body-3 font-medium text-red">Suspended</span>
                         ) : null}
-                      </button>
+                      </Card>
                     );
                   })}
                 </div>

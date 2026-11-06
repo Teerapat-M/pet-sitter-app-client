@@ -8,6 +8,7 @@ import { saveAuth } from "@/lib/auth";
 import SocialAuthButtons from "@/components/SocialAuthButtons";
 import PasswordInput from "@/components/PasswordInput";
 import LegalAuthNotice from "@/components/legal/LegalAuthNotice";
+import TermsAndPrivacyLinks from "@/components/legal/TermsAndPrivacyLinks";
 import { validatePassword } from "@/utils/validatePassword";
 
 // หน้าสมัครเดียว — toggle Owner/Sitter ส่ง asSitter ให้ backend
@@ -25,6 +26,7 @@ export default function RegisterForm({
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -88,6 +90,10 @@ export default function RegisterForm({
     const passwordError = validatePassword(password);
     if (passwordError) {
       newErrors.password = passwordError;
+    }
+
+    if (!agreed) {
+      newErrors.agreed = "Please agree to the Terms and Privacy Policy";
     }
 
     setErrors(newErrors);
@@ -237,6 +243,24 @@ export default function RegisterForm({
           <p className="text-body-3 text-red">{errors.password}</p>
         ) : null}
       </div>
+
+      <div className="flex items-start gap-3 text-body-2 text-gray-500">
+        <input
+          id="register-agree"
+          type="checkbox"
+          checked={agreed}
+          onChange={(event) => {
+            setAgreed(event.target.checked);
+            setErrors((prev) => ({ ...prev, agreed: "" }));
+          }}
+          className="mt-1 size-4 accent-orange-500"
+        />
+        <span>
+          <label htmlFor="register-agree">I agree to the </label>
+          <TermsAndPrivacyLinks className="font-bold text-primary" />
+        </span>
+      </div>
+      {errors.agreed ? <p className="text-body-3 text-red">{errors.agreed}</p> : null}
 
       {error && !errors.email && !errors.phone ? (
         <p className="text-center text-body-3 text-red">{error}</p>

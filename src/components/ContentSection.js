@@ -20,19 +20,19 @@ const services = [
   {
     title: "Boarding",
     description:
-      "Your pets stay overnight in your sitter's home. They'll be treated like part of the family in a comfortable environment.",
+      "Your pets stay overnight in your sitter's home. Watch them on live webcam, with GPS when they go out for a walk.",
     iconColor: "#76D0FC",
   },
   {
     title: "House Sitting",
     description:
-      "Your sitter takes care of your pets and your home. Your pets will get all the attention they need without leaving home.",
+      "Your sitter takes care of your pets and your home — including overnight stays, so someone can sleep with your pets.",
     iconColor: "#FA8AC0",
   },
   {
     title: "Dog Walking",
     description:
-      "Your dog gets a walk around your neighborhood. Perfect for busy days and dogs with extra energy to burn.",
+      "Hire a walker for your dog. Follow the walk live on GPS, and watch the webcam when the sitter shares a camera.",
     iconColor: "#1CCD83",
   },
   {
@@ -109,6 +109,7 @@ export default function ContentSection() {
                 alt="Lovely cat portrait"
                 width={455}
                 height={601}
+                quality={90}
                 className="w-full h-auto object-contain drop-shadow-sm"
                 priority
               />
@@ -130,6 +131,7 @@ export default function ContentSection() {
                   alt={`${feature.highlightText} ${feature.normalText}`}
                   fill
                   sizes="(max-width: 768px) 192px, (max-width: 1024px) 208px, 240px"
+                  quality={90}
                   className="object-cover"
                 />
               </div>

@@ -3,13 +3,24 @@
 import Link from "next/link";
 import { Eye, X } from "lucide-react";
 import Icon from "@/components/Icon";
+import { Card } from "@/components/ui/card";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
 import { formatBookedDateDetail, formatDate } from "@/utils/formatDateTime";
 import { formatBookingDurationFromRecord } from "@/lib/booking";
-import { createConversation } from "@/lib/api";
+import {
+  acceptSitterBooking,
+  createConversation,
+  declineSitterBooking,
+  updateSitterBookingStatus,
+} from "@/lib/api";
+import BookingStatusBadge from "@/components/booking/BookingStatusBadge";
+import { bookingChatHref, serviceTypeLabel } from "@/lib/phase3Booking";
+import CctvBadge from "@/components/CctvBadge";
+import WalkBookingLink from "@/components/walk/WalkBookingLink";
+import { isDogWalkingBooking } from "@/lib/walkTracking";
 import {
   errorToastClassNames,
   successToastClassNames,
@@ -17,13 +28,6 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const STATUS = {
-  waiting_confirm: { label: "Waiting for confirm", text: "text-pink", dot: "bg-pink" },
-  waiting_service: { label: "Waiting for service", text: "text-yellow", dot: "bg-yellow" },
-  in_service: { label: "In service", text: "text-blue", dot: "bg-blue" },
-  success: { label: "Success", text: "text-green", dot: "bg-green" },
-  cancelled: { label: "Canceled", text: "text-red", dot: "bg-red" },
-};
 
 function getErrorMessage(error, fallback) {
   return (
@@ -63,14 +67,11 @@ export default function BookingDetailPage() {
     void loadBooking();
   }, [loadBooking]);
 
-  const updateBookingStatus = async (nextStatus, successMessage) => {
+  const runStatusAction = async (action, successMessage) => {
     if (!id || isUpdatingStatus) return;
     setIsUpdatingStatus(true);
     try {
-      await axios.patch(
-        `${API_BASE_URL}/api/sitters/bookings/${id}/status`,
-        { status: nextStatus },
-      );
+      await action();
       setShowRejectModal(false);
       await loadBooking();
       toast(successMessage, {
@@ -86,6 +87,11 @@ export default function BookingDetailPage() {
   };
 
   async function handleSendMessage() {
+    const chatHref = bookingChatHref(booking);
+    if (chatHref) {
+      router.push(chatHref);
+      return;
+    }
     const ownerId = booking?.pet_owner?.id ?? booking?.owner_id;
     if (!ownerId || sendingMessage) {
       if (!ownerId) {
@@ -110,7 +116,6 @@ export default function BookingDetailPage() {
   }
 
   const statusKey = booking?.status;
-  const status = STATUS[statusKey];
   const ownerName = booking?.pet_owner_name ?? "—";
   const owner = booking?.pet_owner;
   const pets = booking?.pets ?? [];
@@ -128,10 +133,7 @@ export default function BookingDetailPage() {
             <h1 className="text-h3 font-bold text-black">{ownerName}</h1>
           </Link>
           {booking ? (
-            <p className={`flex items-center gap-2 text-body-2 ${status.text}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
-              {status.label}
-            </p>
+            <BookingStatusBadge status={statusKey} />
           ) : null}
         </div>
 
@@ -152,7 +154,10 @@ export default function BookingDetailPage() {
                   className="btn btn-primary"
                   disabled={isUpdatingStatus}
                   onClick={() =>
-                    updateBookingStatus("waiting_service", "Booking confirmed")
+                    runStatusAction(
+                      () => acceptSitterBooking(id),
+                      "Booking accepted",
+                    )
                   }
                 >
                   Confirm Booking
@@ -165,23 +170,44 @@ export default function BookingDetailPage() {
                 className="btn btn-primary"
                 disabled={isUpdatingStatus}
                 onClick={() =>
-                  updateBookingStatus("in_service", "Booking is in service")
+                  runStatusAction(
+                    () => updateSitterBookingStatus(id, "in_service"),
+                    "Booking is in service",
+                  )
                 }
               >
                 In Service
               </button>
             ) : null}
             {statusKey === "in_service" ? (
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={isUpdatingStatus}
-                onClick={() =>
-                  updateBookingStatus("success", "Booking completed")
-                }
-              >
-                Success
-              </button>
+              isDogWalkingBooking(booking) ? (
+                <WalkBookingLink
+                  booking={booking}
+                  role="sitter"
+                  className="btn btn-primary"
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={isUpdatingStatus}
+                  onClick={() =>
+                    runStatusAction(
+                      () => updateSitterBookingStatus(id, "completed"),
+                      "Booking completed",
+                    )
+                  }
+                >
+                  Success
+                </button>
+              )
+            ) : null}
+            {statusKey === "completed" && isDogWalkingBooking(booking) ? (
+              <WalkBookingLink
+                booking={booking}
+                role="sitter"
+                className="btn btn-secondary"
+              />
             ) : null}
           </div>
         ) : null}
@@ -218,9 +244,11 @@ export default function BookingDetailPage() {
             <ul className="flex flex-wrap gap-4">
               {pets.map((pet) => (
                 <li key={pet.id}>
-                  <button
+                  <Card
+                    as="button"
                     type="button"
-                    className="flex w-51.75 cursor-pointer flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-6 text-left"
+                    interactive
+                    className="flex w-51.75 flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-6 text-left"
                     onClick={() => setShowPetModal(pet)}
                   >
                     {pet.avatar_url ? (
@@ -243,7 +271,7 @@ export default function BookingDetailPage() {
                         {pet.pet_type}
                       </p>
                     </div>
-                  </button>
+                  </Card>
                 </li>
               ))}
             </ul>
@@ -255,6 +283,28 @@ export default function BookingDetailPage() {
         <DetailField label="Duration">
           {formatBookingDurationFromRecord(booking)}
         </DetailField>
+        {serviceTypeLabel(booking) ? (
+          <DetailField label="Service">{serviceTypeLabel(booking)}</DetailField>
+        ) : null}
+        {booking?.has_cctv || booking?.hasCctv ? (
+          <DetailField label="Venue">
+            <CctvBadge label="CCTV at this stay" />
+          </DetailField>
+        ) : null}
+        {booking?.owner_address || booking?.ownerAddress ? (
+          <DetailField label="Owner address">
+            {booking.owner_address || booking.ownerAddress}
+          </DetailField>
+        ) : null}
+        {isDogWalkingBooking(booking) ? (
+          <div className="rounded-2xl bg-orange-100 px-4 py-3 text-body-3 font-extrabold text-orange-500">
+            {statusKey === "in_service"
+              ? "✓ GPS ready · owner will see your route"
+              : statusKey === "completed"
+                ? "Walk summary is available for this booking"
+                : "Live GPS tracking is included for this walk"}
+          </div>
+        ) : null}
         <DetailField label="Booking Date">
           {booking ? formatBookedDateDetail(booking) : "—"}
         </DetailField>
@@ -362,7 +412,10 @@ export default function BookingDetailPage() {
                 className="btn btn-primary"
                 disabled={isUpdatingStatus}
                 onClick={() =>
-                  updateBookingStatus("cancelled", "Booking rejected")
+                  runStatusAction(
+                    () => declineSitterBooking(id),
+                    "Booking declined",
+                  )
                 }
               >
                 Reject Booking

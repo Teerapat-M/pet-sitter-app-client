@@ -14,6 +14,7 @@ export default function HeroSection() {
                             alt="Cats Illustration"
                             width={340}
                             height={360}
+                            quality={90}
                             className="w-full h-auto object-contain"
                             priority
                         />
@@ -42,6 +43,7 @@ export default function HeroSection() {
                             alt="Dog Illustration"
                             width={340}
                             height={360}
+                            quality={90}
                             className="w-full h-auto object-contain"
                             priority
                         />

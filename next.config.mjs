@@ -28,6 +28,8 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
   images: {
+    // Next 16 defaults to [75] only; homepage Figma 3x assets use quality={90}.
+    qualities: [75, 90],
     remotePatterns: [
       {
         protocol: "https",

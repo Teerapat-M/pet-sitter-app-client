@@ -109,6 +109,7 @@ export default function ContentSection() {
                 alt="Lovely cat portrait"
                 width={455}
                 height={601}
+                quality={90}
                 className="w-full h-auto object-contain drop-shadow-sm"
                 priority
               />
@@ -130,6 +131,7 @@ export default function ContentSection() {
                   alt={`${feature.highlightText} ${feature.normalText}`}
                   fill
                   sizes="(max-width: 768px) 192px, (max-width: 1024px) 208px, 240px"
+                  quality={90}
                   className="object-cover"
                 />
               </div>

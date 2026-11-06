@@ -41,13 +41,13 @@ function PlannedProgress({ startedAt, durationMinutes, fallbackS }) {
 
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-400">Planned</p>
-      <p className="mt-1 text-body-2 font-semibold text-ink-900">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Planned</p>
+      <p className="mt-1 text-body-2 font-semibold text-gray-900">
         {durationMinutes} min{endClock ? ` · ends ~${endClock}` : ""}
       </p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200">
         <div
-          className="h-full rounded-full bg-secondary"
+          className="h-full rounded-full bg-orange-500"
           style={{ width: `${Math.max(6, ratio * 100)}%` }}
         />
       </div>
@@ -93,10 +93,10 @@ export default function OwnerWalkView({
   );
 
   const map = waiting ? (
-    <div className="flex h-full min-h-[42vh] items-center justify-center bg-accent-50 px-6 text-center">
+    <div className="flex h-full min-h-[42vh] items-center justify-center bg-orange-100 px-6 text-center">
       <div>
-        <p className="text-h4">Waiting for the sitter to start</p>
-        <p className="mt-2 text-caption text-ink-600">
+        <p className="text-h4 font-bold text-gray-900">Waiting for the sitter to start</p>
+        <p className="mt-2 text-body-3 text-gray-500">
           Keep this page open. We reconnect automatically if the live stream drops.
         </p>
       </div>
@@ -106,7 +106,7 @@ export default function OwnerWalkView({
   );
 
   return (
-    <div className="bg-background md:min-h-[calc(100dvh-4.5rem)]">
+    <div className="bg-gray-100 md:min-h-[calc(100dvh-4.5rem)]">
       <div className="relative isolate flex min-h-[100dvh] flex-col md:mx-auto md:min-h-[calc(100dvh-4.5rem)] md:max-w-6xl md:px-10 md:py-6">
         <div className="absolute inset-0 md:hidden">{map}</div>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-transparent md:hidden" />
@@ -115,7 +115,7 @@ export default function OwnerWalkView({
           <div className="min-w-0">
             <Link
               href={backHref}
-              className="flex size-10 items-center justify-center rounded-full bg-surface text-ink-900 shadow-card md:inline md:size-auto md:rounded-none md:bg-transparent md:text-caption md:font-semibold md:text-ink-600 md:shadow-none"
+              className="flex size-10 items-center justify-center rounded-full bg-white text-gray-900 md:inline md:size-auto md:rounded-none md:bg-transparent md:text-body-3 md:font-semibold md:text-gray-500"
             >
               <span className="md:hidden" aria-hidden>
                 ←
@@ -130,7 +130,7 @@ export default function OwnerWalkView({
               </h1>
               {live ? (
                 <WalkBadge>
-                  <span className="size-1.5 rounded-full bg-accent-700" aria-hidden />
+                  <span className="size-1.5 rounded-full bg-orange-500" aria-hidden />
                   Walking now
                 </WalkBadge>
               ) : null}
@@ -143,7 +143,7 @@ export default function OwnerWalkView({
           </div>
           {live ? (
             <WalkBadge className="md:hidden">
-              <span className="size-1.5 rounded-full bg-accent-700" aria-hidden />
+              <span className="size-1.5 rounded-full bg-orange-500" aria-hidden />
               Walking now
             </WalkBadge>
           ) : ended ? (
@@ -152,17 +152,17 @@ export default function OwnerWalkView({
         </header>
 
         <div className="relative z-10 mt-auto flex flex-col md:mt-5 md:grid md:flex-none md:grid-cols-[minmax(0,1.15fr)_22.5rem] md:items-start md:gap-6">
-          <div className="hidden overflow-hidden rounded-[1.4rem] md:block md:min-h-[34rem] md:h-[min(70vh,40rem)]">
+          <div className="hidden overflow-hidden rounded-2xl md:block md:min-h-[34rem] md:h-[min(70vh,40rem)]">
             {map}
           </div>
 
-          <section className="rounded-t-[1.6rem] bg-background px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_32px_rgb(43_33_24/0.08)] md:rounded-[1.4rem] md:bg-surface md:p-5 md:shadow-card">
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line md:hidden" />
+          <section className="rounded-t-2xl bg-white px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 md:rounded-2xl md:p-5">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-200 md:hidden" />
 
             {live || waiting ? (
               <>
                 <div className="flex items-center gap-3">
-                  <div className="size-12 shrink-0 rounded-full bg-primary-50" aria-hidden />
+                    <div className="size-12 shrink-0 rounded-full bg-orange-100" aria-hidden />
                   <div className="min-w-0">
                     <h2 className="text-h4">{sitterName} is walking {petName}</h2>
                     <WalkLiveMeta startedAt={startedAt} points={view.points} walk={view.walk} />
@@ -180,8 +180,8 @@ export default function OwnerWalkView({
                 ) : null}
                 {address ? (
                   <div className="mt-4 hidden md:block">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-400">Pickup</p>
-                    <p className="mt-1 text-body-2 font-semibold text-ink-900">📍 {address}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Pickup</p>
+                    <p className="mt-1 text-body-2 font-semibold text-gray-900">📍 {address}</p>
                   </div>
                 ) : null}
                 <div className="mt-4">
@@ -203,7 +203,7 @@ export default function OwnerWalkView({
                 <h2 className="text-h3 md:hidden">Walk summary</h2>
                 <div className="mt-3 md:mt-0">{stats}</div>
                 <div className="mt-5 flex gap-2">
-                  <Link href={backHref} className="btn btn-accent flex-1">
+                  <Link href={backHref} className="btn btn-primary flex-1">
                     Rate walk
                   </Link>
                   {sitterId ? (
@@ -220,7 +220,7 @@ export default function OwnerWalkView({
             ) : null}
 
             {error ? (
-              <p className="mt-3 text-caption text-danger" role="alert">
+              <p className="mt-3 text-body-3 text-red" role="alert">
                 {error}
               </p>
             ) : null}

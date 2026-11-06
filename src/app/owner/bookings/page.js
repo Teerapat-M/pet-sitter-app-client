@@ -628,7 +628,7 @@ export default function BookingHistoryPage() {
                           {booking.sitter_name || "Unknown"}
                         </h3>
                         {serviceTypeLabel(booking) ? (
-                          <p className="text-caption text-ink-400">
+                          <p className="text-body-3 text-gray-400">
                             {serviceTypeLabel(booking)}
                           </p>
                         ) : null}
@@ -802,17 +802,17 @@ export default function BookingHistoryPage() {
                     {/* สถานะ: กำลังรับบริการอยู่ */}
                     {booking.status === "in_service" && isBoardingBooking(booking) ? (
                       <div
-                        className="flex w-full flex-col gap-3 rounded-[1.1rem] bg-[#2b2622] p-4 text-white sm:flex-row sm:items-center"
+                        className="flex w-full flex-col gap-3 rounded-2xl bg-gray-100 p-4 sm:flex-row sm:items-center"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-caption font-bold text-white/80">Watch CCTV live</p>
-                          <p className="mt-1 text-h4 text-white">
+                          <p className="text-body-3 font-bold text-gray-500">Watch CCTV live</p>
+                          <p className="mt-1 text-h4 font-bold text-gray-900">
                             {firstPetName(booking)} is at {walkFirstName(walkSitterName(booking))}&apos;s place
                           </p>
                           <Link
                             href={ownerCctvHref(booking.id)}
-                            className="btn btn-accent mt-3 min-h-11"
+                            className="btn btn-primary mt-3 min-h-11"
                             onClick={(e) => e.stopPropagation()}
                           >
                             Watch CCTV
@@ -821,18 +821,18 @@ export default function BookingHistoryPage() {
                       </div>
                     ) : booking.status === "in_service" && isDogWalkingBooking(booking) ? (
                       <div
-                        className="flex w-full flex-col gap-3 rounded-[1.1rem] bg-accent-50 p-4 sm:flex-row sm:items-center"
+                        className="flex w-full flex-col gap-3 rounded-2xl bg-orange-100 p-4 sm:flex-row sm:items-center"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-caption font-bold text-accent-700">Walk in progress</p>
-                          <p className="mt-1 text-h4">
+                          <p className="text-body-3 font-bold text-orange-500">Walk in progress</p>
+                          <p className="mt-1 text-h4 font-bold text-gray-900">
                             {firstPetName(booking)} is out with {walkFirstName(walkSitterName(booking))}
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <Link
                               href={walkOwnerHref(booking.id)}
-                              className="btn btn-accent min-h-11"
+                              className="btn btn-primary min-h-11"
                               onClick={(e) => e.stopPropagation()}
                             >
                               📍 Track walk live
@@ -846,7 +846,7 @@ export default function BookingHistoryPage() {
                             </Link>
                           </div>
                         </div>
-                        <div className="h-24 w-full overflow-hidden rounded-[1rem] sm:h-24 sm:w-40">
+                        <div className="h-24 w-full overflow-hidden rounded-2xl sm:h-24 sm:w-40">
                           <WalkTrailThumb points={[]} className="h-full w-full" />
                         </div>
                       </div>
@@ -1061,7 +1061,7 @@ export default function BookingHistoryPage() {
 
               {normalizeBookingStatus(selectedBooking.status) === "in_service" &&
               bookingAllowsOwnerCameras(selectedBooking) ? (
-                <Link href={ownerCctvHref(selectedBooking.id)} className="btn btn-accent w-fit">
+                <Link href={ownerCctvHref(selectedBooking.id)} className="btn btn-primary w-fit">
                   {isBoardingBooking(selectedBooking) ? "Watch CCTV" : "Watch webcam"}
                 </Link>
               ) : null}

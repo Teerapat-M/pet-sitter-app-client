@@ -11,7 +11,7 @@ import {
 export default function WalkBookingLink({
   booking,
   role = "owner",
-  className = "btn btn-accent",
+  className = "btn btn-primary",
   onClick,
   children,
 }) {

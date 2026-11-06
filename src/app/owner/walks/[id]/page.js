@@ -41,14 +41,14 @@ export default function OwnerWalkPage() {
   }, [id, router]);
 
   if (loading) {
-    return <p className="px-5 py-10 text-body-2 text-ink-400">Loading walk…</p>;
+    return <p className="px-5 py-10 text-body-2 text-gray-400">Loading walk…</p>;
   }
 
   if (error || !booking) {
     return (
       <div className="px-5 py-10">
-        <p className="text-body-2 text-danger">{error || "Booking not found"}</p>
-        <Link href="/owner/bookings" className="mt-4 inline-flex text-caption font-semibold text-primary">
+        <p className="text-body-2 text-red">{error || "Booking not found"}</p>
+        <Link href="/owner/bookings" className="mt-4 inline-flex text-body-3 font-semibold text-orange-500">
           Back to bookings
         </Link>
       </div>
@@ -59,7 +59,7 @@ export default function OwnerWalkPage() {
     return (
       <div className="px-5 py-10">
         <p className="text-body-2">GPS tracking is only for dog walking bookings.</p>
-        <Link href="/owner/bookings" className="mt-4 inline-flex text-caption font-semibold text-primary">
+        <Link href="/owner/bookings" className="mt-4 inline-flex text-body-3 font-semibold text-orange-500">
           Back to bookings
         </Link>
       </div>

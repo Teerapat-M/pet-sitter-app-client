@@ -31,10 +31,10 @@ export default function WalkSummaryCard({
 
   if (compact) {
     return (
-      <Card className="rounded-[1.25rem] border border-line bg-surface p-4">
-        <p className="text-caption font-bold text-ink-400">{title}</p>
-        <p className="mt-1 text-body-2 font-semibold text-ink-900">{line}</p>
-        <p className="mt-1 text-caption text-ink-400">
+      <Card className="rounded-2xl border border-gray-200 bg-white p-4">
+        <p className="text-body-3 font-bold text-gray-400">{title}</p>
+        <p className="mt-1 text-body-2 font-semibold text-gray-900">{line}</p>
+        <p className="mt-1 text-body-3 text-gray-400">
           {formatWalkStatDistance(distance)} · {formatWalkDuration(duration)}
           {formatWalkPace(distance, duration) !== "—" ? ` · ${formatWalkPace(distance, duration)}` : ""}
         </p>
@@ -51,8 +51,8 @@ export default function WalkSummaryCard({
         durationS={duration}
         paceLabel="AVG PACE"
       />
-      <p className="text-body-2 text-ink-600">{line}</p>
-      <p className="text-caption text-ink-400">
+      <p className="text-body-2 text-gray-500">{line}</p>
+      <p className="text-body-3 text-gray-400">
         {formatWalkClock(startedAt)} – {formatWalkClock(endedAt)}
         {points.length ? ` · ${formatWalkDistance(distance)}` : ""}
       </p>

@@ -55,18 +55,17 @@ export default function SitterCameraMode({ cameraId, preview }) {
   const denied = publisher.status === "denied";
 
   return (
-    <div className="bg-background pb-24 md:pb-10">
-      <div className="mx-auto max-w-3xl px-5 py-5 md:px-10">
-        <Link href={sitterCamerasHref()} className="text-caption font-semibold text-ink-600">
+    <section className="flex flex-col gap-3">
+        <Link href={sitterCamerasHref()} className="text-body-3 font-semibold text-gray-500">
           ← Cameras
         </Link>
-        <h1 className="mt-3 text-h2">{camera?.name || "Camera mode"}</h1>
-        <p className="mt-1 text-caption text-ink-400">
+        <h1 className="text-h3 font-bold text-gray-900">{camera?.name || "Camera mode"}</h1>
+        <p className="text-body-3 text-gray-400">
           {youtube
             ? "This camera uses YouTube Live. Switch the source on the cameras page to publish from this device."
             : `Publish this camera from your phone or laptop. ${CAMERA_PRIVACY_NOTE}.`}
         </p>
-        <p className="mt-2 inline-flex rounded-full bg-accent-50 px-2.5 py-1 text-[11px] font-bold text-accent-700">
+        <p className="inline-flex w-fit rounded-full bg-orange-100 px-2.5 py-1 text-[11px] font-bold text-orange-500">
           {cameraGuestStateLabel(
             cameraPausedForGuests(camera),
             youtube ? camera?.status : live ? "online" : camera?.status,
@@ -74,12 +73,12 @@ export default function SitterCameraMode({ cameraId, preview }) {
         </p>
 
         {youtube ? (
-          <p className="mt-5 rounded-[1.1rem] bg-primary-50 px-4 py-3 text-caption text-ink-600">{YOUTUBE_LIVE_NOTE}</p>
+          <p className="mt-2 rounded-2xl bg-orange-100 px-4 py-3 text-body-3 text-gray-500">{YOUTUBE_LIVE_NOTE}</p>
         ) : (
-          <div className="relative mt-5 overflow-hidden rounded-[1.4rem] bg-[#2b2622]">
+          <div className="relative mt-2 overflow-hidden rounded-2xl bg-gray-900">
             <video ref={videoRef} className="aspect-[16/10] w-full object-cover" autoPlay playsInline muted />
             {!live && !publisher.stream ? (
-              <div className="absolute inset-0 flex items-center justify-center text-caption font-semibold text-white/80">
+              <div className="absolute inset-0 flex items-center justify-center text-body-3 font-semibold text-white/80">
                 {denied ? publisher.error : "Camera is idle"}
               </div>
             ) : null}
@@ -87,13 +86,13 @@ export default function SitterCameraMode({ cameraId, preview }) {
         )}
 
         {denied && !youtube ? (
-          <p className="mt-3 rounded-[1.1rem] bg-primary-50 px-4 py-3 text-caption text-primary">{publisher.error}</p>
+          <p className="rounded-2xl bg-orange-100 px-4 py-3 text-body-3 text-orange-500">{publisher.error}</p>
         ) : null}
         {publisher.error && !denied && !youtube ? (
-          <p className="mt-3 text-caption text-danger">{publisher.error}</p>
+          <p className="text-body-3 text-red">{publisher.error}</p>
         ) : null}
 
-        <label className="mt-4 block text-caption font-semibold text-ink-600">
+        <label className="mt-1 block text-body-3 font-semibold text-gray-500">
           Registered camera
           <select
             className="input mt-1 w-full"
@@ -111,7 +110,7 @@ export default function SitterCameraMode({ cameraId, preview }) {
         </label>
 
         {!youtube && publisher.devices.length > 1 ? (
-          <label className="mt-3 block text-caption font-semibold text-ink-600">
+          <label className="mt-3 block text-body-3 font-semibold text-gray-500">
             This device
             <select
               className="input mt-1 w-full"
@@ -129,11 +128,11 @@ export default function SitterCameraMode({ cameraId, preview }) {
 
         <div className="mt-5 flex flex-wrap gap-3">
           {youtube ? null : live ? (
-            <button type="button" className="btn btn-danger min-h-11 px-5" onClick={() => publisher.stop()}>
+            <button type="button" className="btn min-h-11 bg-red px-5 text-white" onClick={() => publisher.stop()}>
               Stop
             </button>
           ) : (
-            <button type="button" className="btn btn-accent min-h-11 px-5" onClick={() => publisher.start()}>
+            <button type="button" className="btn btn-primary min-h-11 px-5" onClick={() => publisher.start()}>
               Go live
             </button>
           )}
@@ -152,7 +151,6 @@ export default function SitterCameraMode({ cameraId, preview }) {
             {cameraPauseToggleLabel(cameraPausedForGuests(camera))}
           </button>
         </div>
-      </div>
-    </div>
+    </section>
   );
 }

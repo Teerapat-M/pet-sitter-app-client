@@ -54,21 +54,21 @@ export default function OwnerCctvBanner({ booking, preview }) {
   return (
     <Card
       data-tour="cctv"
-      className="rounded-[1.4rem] bg-[#2b2622] p-5 text-white shadow-card"
+      className="rounded-2xl border border-gray-200 bg-white p-5"
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-live px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide">
-            <span className="size-1.5 rounded-full bg-white" aria-hidden />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-orange-500">
+            <span className="size-1.5 rounded-full bg-orange-500" aria-hidden />
             Live
           </span>
-          <h2 className="mt-3 text-h4 text-white">
+          <h2 className="mt-3 text-h4 font-bold text-gray-900">
             {liveCount || cameras.length || 3} cameras online at {sitter}&apos;s place
           </h2>
-          <p className="mt-1 text-caption text-white/70">
+          <p className="mt-1 text-body-3 text-gray-400">
             {until ? `${until} · only you can watch` : "only you can watch"}
           </p>
-          <Link href={href} className="btn btn-accent mt-4 min-h-11 px-5">
+          <Link href={href} className="btn btn-primary mt-4 min-h-11 px-5">
             Watch CCTV
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default function OwnerCctvBanner({ booking, preview }) {
             return (
               <div
                 key={name}
-                className="flex h-20 w-16 items-end rounded-xl bg-black/40 p-1.5 text-[10px] text-white/80"
+                className="flex h-20 w-16 items-end rounded-2xl bg-gray-100 p-1.5 text-[10px] text-gray-500"
               >
                 {name}
               </div>

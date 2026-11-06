@@ -66,8 +66,8 @@ function Timeline({ booking, live, ended, waiting }) {
   ];
 
   return (
-    <aside className="rounded-[1.4rem] bg-surface p-5 shadow-card">
-      <h2 className="text-h4">Timeline</h2>
+    <aside className="rounded-2xl bg-white p-5">
+      <h2 className="text-h4 font-bold text-gray-900">Timeline</h2>
       <ol className="mt-4 space-y-4">
         {items.map((item, index) => (
           <li key={item.key} className="flex gap-3">
@@ -75,17 +75,17 @@ function Timeline({ booking, live, ended, waiting }) {
               <span
                 className={
                   item.tone === "live"
-                    ? "size-2.5 rounded-full bg-primary"
+                    ? "size-2.5 rounded-full bg-orange-500"
                     : item.tone === "done"
-                      ? "size-2.5 rounded-full bg-secondary"
-                      : "size-2.5 rounded-full bg-line-strong"
+                      ? "size-2.5 rounded-full bg-orange-200"
+                      : "size-2.5 rounded-full bg-gray-300"
                 }
               />
-              {index < items.length - 1 ? <span className="mt-1 w-px flex-1 bg-line" /> : null}
+              {index < items.length - 1 ? <span className="mt-1 w-px flex-1 bg-gray-200" /> : null}
             </div>
             <div className="-mt-1 pb-2">
-              <p className="text-body-2 font-bold text-ink-900">{item.label}</p>
-              {item.meta ? <p className="text-caption text-ink-400">{item.meta}</p> : null}
+              <p className="text-body-2 font-bold text-gray-900">{item.label}</p>
+              {item.meta ? <p className="text-body-3 text-gray-400">{item.meta}</p> : null}
             </div>
           </li>
         ))}
@@ -123,9 +123,9 @@ export default function OwnerWalkBookingDetail({ booking, preview, backHref = "/
     .join(" · ");
 
   return (
-    <div className="bg-background pb-24 md:pb-10">
+    <div className="min-h-full bg-gray-100 pb-10">
       <div className="mx-auto max-w-6xl px-5 py-5 md:px-10">
-        <Link href={backHref} className="text-caption font-semibold text-ink-600">
+        <Link href={backHref} className="text-body-3 font-semibold text-gray-500">
           ← My bookings
         </Link>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -143,47 +143,47 @@ export default function OwnerWalkBookingDetail({ booking, preview, backHref = "/
 
         <div className="mt-5 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="space-y-4">
-            <Card className="flex items-center gap-4 rounded-[1.4rem] p-4 shadow-card">
-              <div className="size-16 shrink-0 rounded-[1rem] bg-primary-50" aria-hidden />
+            <Card className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4">
+              <div className="size-16 shrink-0 rounded-2xl bg-orange-100" aria-hidden />
               <div className="min-w-0">
-                <p className="text-h4">Dog walking with {sitter}</p>
-                <p className="mt-1 text-caption text-ink-400">{schedule}</p>
+                <p className="text-h4 font-bold text-gray-900">Dog walking with {sitter}</p>
+                <p className="mt-1 text-body-3 text-gray-400">{schedule}</p>
               </div>
             </Card>
 
             {waiting ? (
-              <div className="overflow-hidden rounded-[1.4rem] bg-accent-50 p-4">
-                <p className="text-caption font-bold text-accent-700">
+              <div className="overflow-hidden rounded-2xl bg-orange-100 p-4">
+                <p className="text-body-3 font-bold text-orange-500">
                   {ownerWalkProgressCopy("waiting")}
                 </p>
-                <h2 className="mt-1 text-h3">
+                <h2 className="mt-1 text-h3 font-bold text-gray-900">
                   {petName ? `${petName} is with ${sitter}` : `With ${sitter}`}
                 </h2>
-                <p className="mt-1 text-caption text-ink-600">
+                <p className="mt-1 text-body-3 text-gray-500">
                   Live tracking starts when the sitter begins the walk.
                 </p>
-                <Link href={walkHref} className="btn btn-accent mt-4 min-h-11 px-5">
+                <Link href={walkHref} className="btn btn-primary mt-4 min-h-11 px-5">
                   Open walk tracking
                 </Link>
               </div>
             ) : null}
 
             {live ? (
-              <div className="overflow-hidden rounded-[1.4rem] bg-accent-50 p-4 md:grid md:grid-cols-[minmax(0,1fr)_13rem] md:items-center md:gap-4">
+              <div className="overflow-hidden rounded-2xl bg-orange-100 p-4 md:grid md:grid-cols-[minmax(0,1fr)_13rem] md:items-center md:gap-4">
                 <div>
-                  <p className="text-caption font-bold text-accent-700">{OWNER_WALK_LIVE_LABEL}</p>
-                  <h2 className="mt-1 text-h3">
+                  <p className="text-body-3 font-bold text-orange-500">{OWNER_WALK_LIVE_LABEL}</p>
+                  <h2 className="mt-1 text-h3 font-bold text-gray-900">
                     {petName} is out with {sitter}
                   </h2>
-                  <p className="mt-1 text-caption text-ink-600">
+                  <p className="mt-1 text-body-3 text-gray-500">
                     {formatWalkDuration(elapsedS)} · {formatWalkStatDistance(distanceM)}
                     {startedAt ? "" : ""}
                   </p>
-                  <Link href={walkHref} className="btn btn-accent mt-4 min-h-11 px-5">
+                  <Link href={walkHref} className="btn btn-primary mt-4 min-h-11 px-5">
                     📍 Track walk live
                   </Link>
                 </div>
-                <div className="mt-4 h-28 overflow-hidden rounded-[1rem] md:mt-0 md:h-32">
+                <div className="mt-4 h-28 overflow-hidden rounded-2xl md:mt-0 md:h-32">
                   {preview || view.points?.length ? (
                     <WalkTrailThumb points={preview?.points ?? view.points} className="h-full w-full" />
                   ) : (
@@ -198,18 +198,18 @@ export default function OwnerWalkBookingDetail({ booking, preview, backHref = "/
                 <h2 className="text-h4">Walk summaries</h2>
                 <Link
                   href={walkHref}
-                  className="mt-3 flex items-center justify-between rounded-[1.25rem] border border-line bg-surface p-4"
+                  className="mt-3 flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4"
                 >
                   <div>
-                    <p className="text-body-2 font-bold">
+                    <p className="text-body-2 font-bold text-gray-900">
                       {serviceTypeLabel(booking) || "Walk"} · {petName}
                     </p>
-                    <p className="text-caption text-ink-400">
+                    <p className="text-body-3 text-gray-400">
                       {formatWalkStatDistance(view.distanceM || view.walk?.distanceM || 0)} ·{" "}
                       {formatWalkDuration(view.durationS || view.walk?.durationS || 0)}
                     </p>
                   </div>
-                  <span className="text-caption font-bold text-primary">View →</span>
+                  <span className="text-body-3 font-bold text-orange-500">View →</span>
                 </Link>
               </div>
             ) : null}

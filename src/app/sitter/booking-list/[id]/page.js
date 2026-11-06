@@ -297,7 +297,7 @@ export default function BookingDetailPage() {
           </DetailField>
         ) : null}
         {isDogWalkingBooking(booking) ? (
-          <div className="rounded-[1.1rem] bg-accent-50 px-4 py-3 text-caption font-extrabold text-accent-700">
+          <div className="rounded-2xl bg-orange-100 px-4 py-3 text-body-3 font-extrabold text-orange-500">
             {statusKey === "in_service"
               ? "✓ GPS ready · owner will see your route"
               : statusKey === "completed"

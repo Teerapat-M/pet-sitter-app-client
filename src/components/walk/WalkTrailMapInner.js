@@ -66,14 +66,14 @@ export default function WalkTrailMapInner({
       {latLngs.length > 1 ? (
         <Polyline
           positions={latLngs}
-          pathOptions={{ color: "#FF8A3D", weight: 5, lineCap: "round", lineJoin: "round" }}
+          pathOptions={{ color: "#FF7037", weight: 5, lineCap: "round", lineJoin: "round" }}
         />
       ) : null}
       {start && !samePoint ? (
         <CircleMarker
           center={start}
           radius={7}
-          pathOptions={{ color: "#ffffff", fillColor: "#1F7A66", fillOpacity: 1, weight: 2 }}
+          pathOptions={{ color: "#ffffff", fillColor: "#5B5D6F", fillOpacity: 1, weight: 2 }}
         />
       ) : null}
       {last ? (
@@ -82,7 +82,7 @@ export default function WalkTrailMapInner({
           radius={live ? 9 : 8}
           pathOptions={{
             color: "#ffffff",
-            fillColor: "#3CC8A8",
+            fillColor: "#FF7037",
             fillOpacity: 1,
             weight: 3,
           }}

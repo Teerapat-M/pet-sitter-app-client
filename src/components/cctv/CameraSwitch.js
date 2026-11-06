@@ -14,7 +14,7 @@ export default function CameraSwitch({ checked, onChange, disabled, label }) {
       onClick={() => onChange?.(!checked)}
       className={cn(
         "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-        checked ? "bg-secondary" : "bg-line-strong",
+        checked ? "bg-orange-500" : "bg-gray-300",
         disabled && "cursor-not-allowed opacity-60",
       )}
     >

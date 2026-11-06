@@ -22,7 +22,7 @@ function LiveBadge({ kind }) {
     <span
       className={cn(
         "absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white",
-        live ? "bg-live" : "bg-ink-400/90",
+        live ? "bg-red" : "bg-gray-400/90",
       )}
     >
       <span className={cn("size-1.5 rounded-full", live ? "bg-white" : "bg-white/80")} aria-hidden />
@@ -85,7 +85,7 @@ export default function CameraTile({
       onClick={() => onSelect?.(camera)}
       style={cameraTileBoxStyle({ aspect: tileAspect, solo })}
       className={cn(
-        "relative min-w-0 w-full overflow-hidden rounded-[1.35rem] bg-ink-900 text-left text-white",
+        "relative min-w-0 w-full overflow-hidden rounded-2xl bg-gray-900 text-left text-white",
         solo
           ? "mx-auto [aspect-ratio:var(--camera-tile-ar,1.7777777777777777)]"
           : fillGrid
@@ -96,7 +96,7 @@ export default function CameraTile({
     >
       <LiveBadge kind={kind} />
       {youtubeLive ? (
-        <div className="absolute inset-0 bg-ink-900">
+        <div className="absolute inset-0 bg-gray-900">
           <iframe
             className="absolute inset-0 size-full"
             src={youtubeEmbedSrc(youtubeId)}
@@ -108,13 +108,13 @@ export default function CameraTile({
       ) : live && hasStream ? (
         <video
           ref={setVideoNode}
-          className="absolute inset-0 size-full bg-ink-900 object-contain"
+          className="absolute inset-0 size-full bg-gray-900 object-contain"
           autoPlay
           playsInline
           muted={muted}
         />
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-900 px-4 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 px-4 text-center">
           {live ? (
             <span className="text-4xl" aria-hidden>
               {placeholder}

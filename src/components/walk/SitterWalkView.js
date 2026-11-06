@@ -41,21 +41,21 @@ function EndWalkDialog({
   if (!open) return null;
   const summary = `${petName} walked ${formatWalkStatDistance(distanceM)} in ${formatWalkDuration(durationS)}. A summary will be sent to ${ownerName}.`;
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-ink-900/45 p-4 md:items-center md:justify-center">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40 p-4 md:items-center md:justify-center">
       {stats ? <div className="mb-3 md:hidden">{stats}</div> : null}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="end-walk-title"
-        className="w-full max-w-md rounded-[1.5rem] bg-surface px-5 py-6 text-center shadow-float"
+        className="w-full max-w-md rounded-2xl bg-white px-5 py-6 text-center shadow-[0_4px_24px_rgba(0,0,0,0.04)]"
       >
-        <h2 id="end-walk-title" className="text-h3">
+        <h2 id="end-walk-title" className="text-h3 font-bold text-gray-900">
           End this walk?
         </h2>
-        <p className="mt-2 text-body-2 text-ink-600">{summary}</p>
+        <p className="mt-2 text-body-2 text-gray-500">{summary}</p>
         <button
           type="button"
-          className="btn btn-danger mt-5 w-full"
+          className="btn mt-5 w-full bg-red text-white"
           onClick={onConfirm}
           disabled={ending}
         >
@@ -145,17 +145,17 @@ export default function SitterWalkView({ booking, bookingId, backHref, preview }
   ) : null;
 
   return (
-    <div className="relative min-h-[100dvh] bg-background md:min-h-[calc(100dvh-4.5rem)]">
+    <div className="relative min-h-[100dvh] bg-gray-100 md:min-h-[calc(100dvh-4.5rem)]">
       <div className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col md:min-h-[calc(100dvh-4.5rem)] md:px-10 md:py-6">
         <header className="flex items-center justify-between gap-3 px-4 pt-4 md:px-0 md:pt-0">
           <div>
-            <Link href={backHref} className="text-caption font-semibold text-ink-600">
+            <Link href={backHref} className="text-body-3 font-semibold text-gray-500">
               ← {idle ? "Today’s walk" : live ? "" : "Back"}
             </Link>
             {idle ? (
               <>
-                <p className="mt-3 hidden text-caption font-bold text-ink-400 md:block">Walker mode</p>
-                <h1 className="mt-1 text-h2 md:mt-1">Today’s walk</h1>
+                <p className="mt-3 hidden text-body-3 font-bold text-gray-400 md:block">Walker mode</p>
+                <h1 className="mt-1 text-h2 font-bold text-gray-900 md:mt-1">Today’s walk</h1>
               </>
             ) : (
               <div className="mt-3 hidden items-center gap-3 md:flex">
@@ -178,25 +178,25 @@ export default function SitterWalkView({ booking, bookingId, backHref, preview }
         </header>
 
         <div className="mt-4 flex flex-1 flex-col md:mt-5 md:grid md:grid-cols-[minmax(0,1.15fr)_22.5rem] md:items-start md:gap-6">
-          <div className="min-h-[38vh] flex-1 overflow-hidden md:h-[min(70vh,40rem)] md:min-h-[34rem] md:rounded-[1.4rem]">
+          <div className="min-h-[38vh] flex-1 overflow-hidden md:h-[min(70vh,40rem)] md:min-h-[34rem] md:rounded-2xl">
             <WalkTrailMap points={points} live={live} className="h-full min-h-[38vh] w-full" />
           </div>
 
-          <section className="space-y-3 px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:rounded-[1.4rem] md:bg-surface md:p-5 md:shadow-card">
+          <section className="space-y-3 px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:rounded-2xl md:bg-white md:p-5">
             {idle ? (
               <>
-                <div className="rounded-[1.25rem] bg-surface p-4 shadow-card md:bg-transparent md:p-0 md:shadow-none">
+                <div className="rounded-2xl bg-white p-4 md:bg-transparent md:p-0">
                   <div className="flex items-center gap-3">
-                    <div className="size-12 shrink-0 rounded-full bg-primary-50" aria-hidden />
+                    <div className="size-12 shrink-0 rounded-full bg-orange-100" aria-hidden />
                     <div>
-                      <h2 className="text-h4">
+                      <h2 className="text-h4 font-bold text-gray-900">
                         {petName}
                         {breed ? ` · ${breed}` : ""}
                       </h2>
-                      <p className="text-caption text-ink-400">Owner: {ownerName}</p>
+                      <p className="text-body-3 text-gray-400">Owner: {ownerName}</p>
                     </div>
                   </div>
-                  <div className="mt-3 space-y-1.5 text-body-2 text-ink-900">
+                  <div className="mt-3 space-y-1.5 text-body-2 text-gray-900">
                     {address ? <p>📍 {address}</p> : null}
                     {startTime || durationMinutes ? (
                       <p>
@@ -207,17 +207,17 @@ export default function SitterWalkView({ booking, bookingId, backHref, preview }
                     {note ? <p>📝 {note}</p> : null}
                   </div>
                 </div>
-                <div className="rounded-[1.1rem] bg-accent-50 px-4 py-3 text-caption font-semibold text-accent-700">
+                <div className="rounded-2xl bg-orange-100 px-4 py-3 text-body-3 font-semibold text-orange-500">
                   ✓ GPS ready · owner will see your route
                 </div>
                 {recorder.error ? (
-                  <p className="text-caption text-danger" role="alert">
+                  <p className="text-body-3 text-red" role="alert">
                     {recorder.error}
                   </p>
                 ) : null}
                 <button
                   type="button"
-                  className="btn btn-accent hidden w-full md:inline-flex"
+                  className="btn btn-primary hidden w-full md:inline-flex"
                   onClick={() => { if (!preview) void recorder.start(); }}
                   disabled={!preview && recorder.status === "starting"}
                 >
@@ -225,7 +225,7 @@ export default function SitterWalkView({ booking, bookingId, backHref, preview }
                 </button>
                 <button
                   type="button"
-                  className="mx-auto flex size-44 items-center justify-center rounded-full bg-secondary text-h3 font-extrabold text-white shadow-float md:hidden"
+                  className="btn btn-primary w-full md:hidden"
                   onClick={() => { if (!preview) void recorder.start(); }}
                   disabled={!preview && recorder.status === "starting"}
                 >
@@ -239,25 +239,25 @@ export default function SitterWalkView({ booking, bookingId, backHref, preview }
                 <div className="hidden md:block">{stats}</div>
                 <div className="md:hidden">{stats}</div>
                 {recorder.offline ? (
-                  <p className="text-caption text-warning" role="status">
+                  <p className="text-body-3 text-yellow" role="status">
                     You&apos;re offline. Points are queued and will retry when you&apos;re back online.
                   </p>
                 ) : null}
                 {recorder.error ? (
-                  <p className="text-caption text-danger" role="alert">
+                  <p className="text-body-3 text-red" role="alert">
                     {recorder.error}
                   </p>
                 ) : null}
                 <button
                   type="button"
-                  className="btn btn-danger hidden w-full md:inline-flex"
+                  className="btn hidden w-full bg-red text-white md:inline-flex"
                   onClick={() => setConfirmEnd(true)}
                 >
                   End walk
                 </button>
                 <button
                   type="button"
-                  className="btn btn-danger w-full md:hidden"
+                  className="btn w-full bg-red text-white md:hidden"
                   onClick={() => setConfirmEnd(true)}
                 >
                   End walk
@@ -268,10 +268,10 @@ export default function SitterWalkView({ booking, bookingId, backHref, preview }
             {ended ? (
               <>
                 {stats}
-                <p className="text-body-2 text-ink-600">
+                <p className="text-body-2 text-gray-500">
                   {formatWalkSummary({ distanceM, durationS })}. The owner can open the walk summary from this booking.
                 </p>
-                <Link href={backHref} className="btn btn-accent w-full">
+                <Link href={backHref} className="btn btn-primary w-full">
                   Done
                 </Link>
               </>

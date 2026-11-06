@@ -169,19 +169,19 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
   }
 
   return (
-    <div className="bg-background pb-24 md:pb-10">
+    <div className="min-h-full bg-gray-100 pb-10">
       <div className="mx-auto max-w-6xl px-5 py-5 md:px-10">
         <Link
           href={backHref || `/owner/bookings/${encodeURIComponent(String(bookingId || booking?.id || ""))}`}
-          className="text-caption font-semibold text-ink-600"
+          className="text-body-3 font-semibold text-gray-500"
         >
           ← {code ? `Booking #${code}` : "My bookings"}
         </Link>
-        <h1 className="mt-3 text-h2">
+        <h1 className="mt-3 text-h2 font-bold text-gray-900">
           {venueName(booking)}
           {liveCount > 0 && canView ? " · Live" : ""}
         </h1>
-        <p className="mt-1 text-caption text-ink-400">
+        <p className="mt-1 text-body-3 text-gray-400">
           {until ? `${until} · only you can watch` : "only you can watch"}
         </p>
         {isDogWalkingBooking(booking) && (bookingId || booking?.id) ? (
@@ -193,7 +193,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
           </Link>
         ) : null}
         {gate && gate !== "outside-window" ? (
-          <p className="mt-2 text-caption text-danger">{gate}</p>
+          <p className="mt-2 text-body-3 text-red">{gate}</p>
         ) : null}
 
         <div
@@ -225,7 +225,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
               layout === "grid" && "md:col-span-2",
             )}
           >
-            <div className="flex items-center justify-around rounded-[1.4rem] bg-surface px-2 py-3 shadow-card md:px-8">
+            <div className="flex items-center justify-around rounded-2xl bg-white px-2 py-3 md:px-8">
               <ToolButton icon={Camera} label="Snapshot" onClick={() => selected && capture(selected)} />
               <ToolButton icon={Maximize2} label="Fullscreen" onClick={() => selected && requestFullscreen(selected)} />
               <ToolButton
@@ -235,7 +235,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
               />
               <ToolButton icon={muted ? VolumeX : Volume2} label="Sound" onClick={() => setMuted((value) => !value)} />
             </div>
-            <p className="rounded-[1.2rem] bg-primary-50 px-4 py-3 text-center text-caption text-ink-600 lg:hidden">
+            <p className="rounded-2xl bg-orange-100 px-4 py-3 text-center text-body-3 text-gray-500 lg:hidden">
               🔒 Only you can view · ends at check-out
             </p>
           </div>
@@ -247,10 +247,10 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
             )}
           >
             {outside ? (
-              <div className="rounded-[1.4rem] bg-surface p-6 text-center shadow-card">
-                <Clock className="mx-auto size-10 text-ink-400" aria-hidden />
-                <h2 className="mt-3 text-h4">Live view not open yet</h2>
-                <p className="mt-2 text-caption text-ink-600">{formatOutsideWindowCopy(access, booking)}</p>
+              <div className="rounded-2xl bg-white p-6 text-center">
+                <Clock className="mx-auto size-10 text-gray-400" aria-hidden />
+                <h2 className="mt-3 text-h4 font-bold text-gray-900">Live view not open yet</h2>
+                <p className="mt-2 text-body-3 text-gray-500">{formatOutsideWindowCopy(access, booking)}</p>
                 <button
                   type="button"
                   className="btn btn-outline mt-5 min-h-11 w-full"
@@ -266,7 +266,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
                   {[0, 1, 2].map((index) => (
                     <div
                       key={index}
-                      className="aspect-square overflow-hidden rounded-[1rem]"
+                      className="aspect-square overflow-hidden rounded-2xl"
                       style={{ backgroundColor: SNAPSHOT_PLACEHOLDERS[index] }}
                     >
                       {snapshots[index] ? (
@@ -288,7 +288,7 @@ export default function OwnerCctvView({ booking, bookingId, preview, backHref })
 
 function ToolButton({ icon: Icon, label, onClick }) {
   return (
-    <button type="button" className="flex flex-col items-center gap-1 text-caption font-semibold text-ink-600" onClick={onClick}>
+    <button type="button" className="flex flex-col items-center gap-1 text-body-3 font-semibold text-gray-500" onClick={onClick}>
       <Icon className="size-5" aria-hidden />
       {label}
     </button>

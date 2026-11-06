@@ -185,74 +185,72 @@ export default function SitterCameraDashboard({ preview }) {
   }
 
   return (
-    <div className="bg-background pb-24 md:pb-10">
-      <div className="mx-auto max-w-6xl px-5 py-6 md:px-10">
-        <h1 className="text-h2">Hi, {firstName} 👋</h1>
+    <section className="flex flex-col gap-6">
+      <h1 className="text-h3 font-bold text-gray-900">Hi, {firstName} 👋</h1>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Stat label="BOOKINGS" value={String(bookingCount || 0)} />
-          {rating != null ? <Stat label="RATING" value={`${Number(rating).toFixed(1)}★`} /> : null}
-        </div>
-
-        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <section>
-            <h2 className="text-h4">Today</h2>
-            <div className="mt-3 space-y-3">
-              {today.length ? (
-                today.map((booking) => (
-                  <TodayRow key={booking.id} booking={booking} />
-                ))
-              ) : (
-                <p className="rounded-[1.25rem] bg-surface p-4 text-caption text-ink-400 shadow-card">No bookings on the list yet.</p>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-[1.4rem] bg-surface p-5 shadow-card">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-h4">Cameras</h2>
-              <span className="rounded-full bg-accent-50 px-2.5 py-1 text-[11px] font-bold text-accent-700">
-                {enabledCount} / {displayedCameras.length || 0} on
-              </span>
-            </div>
-            <ul className="mt-4 space-y-3">
-              {displayedCameras.map((camera) => (
-                <CameraRow
-                  key={camera.id}
-                  camera={camera}
-                  busy={Boolean(busy)}
-                  draft={drafts[camera.id]}
-                  onToggle={(value) => toggle(camera, value)}
-                  onRemove={() => removeCamera(camera)}
-                  onSourceChange={(source, youtubeUrl) => {
-                    setDraft(camera.id, { source, youtubeUrl, error: "" });
-                    if (source === "webrtc") void saveSource(camera, "webrtc");
-                  }}
-                  onYoutubeUrlChange={(youtubeUrl) => setDraft(camera.id, { source: "youtube", youtubeUrl, error: "" })}
-                  onSaveYoutube={(youtubeUrl) => saveSource(camera, "youtube", youtubeUrl)}
-                />
-              ))}
-            </ul>
-            <form className="mt-4 flex gap-2" onSubmit={addCamera}>
-              <input
-                className="input flex-1"
-                placeholder="Add a camera name"
-                value={name}
-                maxLength={80}
-                onChange={(event) => setName(event.target.value)}
-              />
-              <button type="submit" className="btn btn-primary min-h-11 px-4" disabled={busy === "create"}>
-                Add
-              </button>
-            </form>
-            <p className="mt-3 text-caption text-ink-400">
-              {CAMERA_PRIVACY_NOTE}. Pause a camera to stop the live feed for those owners without removing it.
-            </p>
-            <p className="mt-1 text-caption text-ink-400">{YOUTUBE_LIVE_NOTE}</p>
-          </section>
-        </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Stat label="BOOKINGS" value={String(bookingCount || 0)} />
+        {rating != null ? <Stat label="RATING" value={`${Number(rating).toFixed(1)}★`} /> : null}
       </div>
-    </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <section className="flex flex-col gap-3">
+          <h2 className="text-h4 font-bold text-gray-900">Today</h2>
+          <div className="space-y-3">
+            {today.length ? (
+              today.map((booking) => (
+                <TodayRow key={booking.id} booking={booking} />
+              ))
+            ) : (
+              <p className="rounded-2xl bg-white p-4 text-body-3 text-gray-400">No bookings on the list yet.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl bg-white p-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-h4 font-bold text-gray-900">Cameras</h2>
+            <span className="rounded-full bg-orange-100 px-2.5 py-1 text-[11px] font-bold text-orange-500">
+              {enabledCount} / {displayedCameras.length || 0} on
+            </span>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {displayedCameras.map((camera) => (
+              <CameraRow
+                key={camera.id}
+                camera={camera}
+                busy={Boolean(busy)}
+                draft={drafts[camera.id]}
+                onToggle={(value) => toggle(camera, value)}
+                onRemove={() => removeCamera(camera)}
+                onSourceChange={(source, youtubeUrl) => {
+                  setDraft(camera.id, { source, youtubeUrl, error: "" });
+                  if (source === "webrtc") void saveSource(camera, "webrtc");
+                }}
+                onYoutubeUrlChange={(youtubeUrl) => setDraft(camera.id, { source: "youtube", youtubeUrl, error: "" })}
+                onSaveYoutube={(youtubeUrl) => saveSource(camera, "youtube", youtubeUrl)}
+              />
+            ))}
+          </ul>
+          <form className="mt-4 flex gap-2" onSubmit={addCamera}>
+            <input
+              className="input flex-1"
+              placeholder="Add a camera name"
+              value={name}
+              maxLength={80}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <button type="submit" className="btn btn-primary min-h-11 px-4" disabled={busy === "create"}>
+              Add
+            </button>
+          </form>
+          <p className="mt-3 text-body-3 text-gray-400">
+            {CAMERA_PRIVACY_NOTE}. Pause a camera to stop the live feed for those owners without removing it.
+          </p>
+          <p className="mt-1 text-body-3 text-gray-400">{YOUTUBE_LIVE_NOTE}</p>
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -271,12 +269,12 @@ function CameraRow({
   const error = draft?.error ?? "";
   const youtube = source === "youtube";
   return (
-    <li className="space-y-2 rounded-[1.1rem] border border-line px-3 py-3">
+    <li className="space-y-2 rounded-2xl border border-gray-200 px-3 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-body-2 font-bold text-ink-900">{camera.name}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-accent-700">{CAMERA_PRIVACY_NOTE}</p>
-          <p className="text-caption text-ink-400">
+          <p className="text-body-2 font-bold text-gray-900">{camera.name}</p>
+          <p className="mt-0.5 text-[11px] font-bold text-orange-500">{CAMERA_PRIVACY_NOTE}</p>
+          <p className="text-body-3 text-gray-400">
             {youtube && !cameraPausedForGuests(camera)
               ? camera.youtubeVideoId
                 ? "YouTube Live · visible to guests"
@@ -284,7 +282,7 @@ function CameraRow({
               : cameraGuestStateLabel(cameraPausedForGuests(camera), camera.status)}
           </p>
           {isYoutubeCamera(camera) ? null : (
-            <Link href={sitterCameraModeHref(camera.id)} className="text-caption font-bold text-primary">
+            <Link href={sitterCameraModeHref(camera.id)} className="text-body-3 font-bold text-orange-500">
               Camera mode →
             </Link>
           )}
@@ -296,12 +294,12 @@ function CameraRow({
             label={cameraPauseToggleLabel(cameraPausedForGuests(camera))}
             onChange={onToggle}
           />
-          <button type="button" className="text-caption text-ink-400" onClick={onRemove}>
+          <button type="button" className="text-body-3 text-gray-400" onClick={onRemove}>
             Delete
           </button>
         </div>
       </div>
-      <label className="block text-caption font-semibold text-ink-600">
+      <label className="block text-body-3 font-semibold text-gray-500">
         Source
         <select
           className="input mt-1 w-full"
@@ -322,7 +320,7 @@ function CameraRow({
             onSaveYoutube(youtubeUrl);
           }}
         >
-          <label className="block text-caption font-semibold text-ink-600">
+          <label className="block text-body-3 font-semibold text-gray-500">
             YouTube URL or video id
             <input
               className={`input mt-1 ${error ? "input-error" : ""}`}
@@ -339,16 +337,16 @@ function CameraRow({
           </button>
         </form>
       ) : null}
-      {error ? <p className="text-caption text-danger">{error}</p> : null}
+      {error ? <p className="text-body-3 text-red">{error}</p> : null}
     </li>
   );
 }
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-[1.25rem] bg-surface px-4 py-4 text-center shadow-card">
-      <p className="text-h3">{value}</p>
-      <p className="mt-1 text-[10px] font-bold tracking-[0.14em] text-ink-400">{label}</p>
+    <div className="rounded-2xl bg-white px-4 py-4 text-center">
+      <p className="text-h3 font-bold text-gray-900">{value}</p>
+      <p className="mt-1 text-[10px] font-bold tracking-[0.14em] text-gray-400">{label}</p>
     </div>
   );
 }
@@ -362,14 +360,14 @@ function TodayRow({ booking }) {
     : `/sitter/booking-list/${encodeURIComponent(booking.id)}`;
   const action = walking ? "Start walk" : boarding ? "Check in" : "Open";
   return (
-    <div className="flex items-center justify-between gap-3 rounded-[1.25rem] bg-surface p-4 shadow-card">
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4">
       <div className="min-w-0">
-        <p className="text-body-2 font-bold">
+        <p className="text-body-2 font-bold text-gray-900">
           {boarding ? "🏠 Boarding" : walking ? "🐕 Walk" : "📍 Visit"} · {pet}
         </p>
-        <p className="text-caption text-ink-400">{formatBookedDateList(booking)}</p>
+        <p className="text-body-3 text-gray-400">{formatBookedDateList(booking)}</p>
       </div>
-      <Link href={href} className="btn btn-accent min-h-11 shrink-0 px-4">
+      <Link href={href} className="btn btn-primary min-h-11 shrink-0 px-4">
         {action}
       </Link>
     </div>

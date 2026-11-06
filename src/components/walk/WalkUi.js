@@ -24,10 +24,10 @@ export function useNow(ms = 1000) {
 
 export function WalkBadge({ tone = "mint", children, className }) {
   const tones = {
-    mint: "bg-accent-50 text-accent-700",
-    green: "bg-[#1f7a66] text-white",
-    orange: "bg-primary-50 text-primary",
-    cream: "bg-primary-50 text-primary",
+    mint: "bg-orange-100 text-orange-500",
+    green: "bg-[#E7FDF4] text-[#1CCD83]",
+    orange: "bg-orange-100 text-orange-500",
+    cream: "bg-orange-100 text-orange-500",
   };
   return (
     <span
@@ -59,12 +59,12 @@ export function WalkStatChips({
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-[1.1rem] border border-line bg-background px-2 py-3 text-center"
+          className="rounded-2xl border border-gray-200 bg-white px-2 py-3 text-center"
         >
-          <p className="text-[1.05rem] font-extrabold tracking-tight text-ink-900 sm:text-h4">
+          <p className="text-[1.05rem] font-extrabold tracking-tight text-gray-900 sm:text-h4">
             {item.value}
           </p>
-          <p className="mt-0.5 text-[9px] font-bold tracking-[0.14em] text-ink-400">
+          <p className="mt-0.5 text-[9px] font-bold tracking-[0.14em] text-gray-400">
             {item.label}
           </p>
         </div>
@@ -77,7 +77,7 @@ export function WalkGpsCallout({ className }) {
   return (
     <div
       className={cn(
-        "flex items-start gap-2 rounded-[1.1rem] bg-accent-50 px-4 py-3 text-accent-700",
+        "flex items-start gap-2 rounded-2xl bg-orange-100 px-4 py-3 text-orange-500",
         className,
       )}
     >
@@ -86,7 +86,7 @@ export function WalkGpsCallout({ className }) {
       </span>
       <div>
         <p className="text-caption font-extrabold">Live GPS tracking</p>
-        <p className="text-caption font-semibold text-accent-700/80">
+        <p className="text-body-3 font-semibold text-orange-500/80">
           Follow the walk on a map in real time, plus a summary when it ends.
         </p>
       </div>
@@ -115,22 +115,22 @@ export function WalkTrailThumb({ points = [], className }) {
   return (
     <svg
       viewBox="0 0 160 96"
-      className={cn("h-full w-full overflow-hidden rounded-[1rem] bg-[#d9efe6]", className)}
+      className={cn("h-full w-full overflow-hidden rounded-2xl bg-gray-100", className)}
       aria-hidden
     >
-      <rect width="160" height="96" fill="#d9efe6" />
-      <rect x="0" y="30" width="160" height="4" fill="#f7faf6" />
-      <rect x="52" y="0" width="4" height="96" fill="#f7faf6" />
-      <rect x="108" y="0" width="4" height="96" fill="#f7faf6" />
-      <rect x="64" y="42" width="28" height="18" rx="4" fill="#c6e6d8" />
+      <rect width="160" height="96" fill="#F6F6F9" />
+      <rect x="0" y="30" width="160" height="4" fill="#ffffff" />
+      <rect x="52" y="0" width="4" height="96" fill="#ffffff" />
+      <rect x="108" y="0" width="4" height="96" fill="#ffffff" />
+      <rect x="64" y="42" width="28" height="18" rx="4" fill="#DCDFED" />
       {d ? (
-        <path d={d} fill="none" stroke="#FF8A3D" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={d} fill="none" stroke="#FF7037" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
       ) : null}
-      {start ? <circle cx={toX(start[1])} cy={toY(start[0])} r="4.5" fill="#1F7A66" /> : null}
+      {start ? <circle cx={toX(start[1])} cy={toY(start[0])} r="4.5" fill="#5B5D6F" /> : null}
       {last ? (
         <>
           <circle cx={toX(last[1])} cy={toY(last[0])} r="6" fill="#ffffff" />
-          <circle cx={toX(last[1])} cy={toY(last[0])} r="4.2" fill="#3CC8A8" />
+          <circle cx={toX(last[1])} cy={toY(last[0])} r="4.2" fill="#FF7037" />
         </>
       ) : null}
     </svg>
@@ -186,7 +186,7 @@ export function WalkLiveMeta({ startedAt, points, walk }) {
     : "";
   if (!started && !updated) return null;
   return (
-    <p className="text-caption text-ink-400">
+    <p className="text-body-3 text-gray-400">
       {started ? `Started ${started}` : "Started"}
       {updated ? ` · ${updated}` : ""}
     </p>

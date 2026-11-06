@@ -273,7 +273,7 @@ function CameraRow({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-body-2 font-bold text-gray-900">{camera.name}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-orange-500">{CAMERA_PRIVACY_NOTE}</p>
+          <p className="mt-0.5 text-[11px] font-bold text-gray-400">{CAMERA_PRIVACY_NOTE}</p>
           <p className="text-body-3 text-gray-400">
             {youtube && !cameraPausedForGuests(camera)
               ? camera.youtubeVideoId
